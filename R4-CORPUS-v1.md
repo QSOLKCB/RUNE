@@ -63,7 +63,7 @@ Intended for an ordinary local CPU machine.
 
 ### Explicit
 
-A caller may request one power-of-two working-set size between:
+A caller may request one positive power-of-two working-set size between:
 
 ~~~text
 4 KiB
@@ -99,7 +99,7 @@ C01–C03 must produce the same exact reduction.
 
 ### C04 — Offset chase
 
-Each node contains a uint32 next-index and payload. An odd-stride cycle is followed for exactly the logical item count.
+Each node contains a uint32 next-index and payload. Its fingerprinted logical width is frozen at **8 bytes**, independent of host struct padding; host sizeof(rune_corpus_node) is allocation mechanics only. An odd-stride cycle is followed for exactly the logical item count.
 
 The payload reduction must equal C01.
 
@@ -175,6 +175,8 @@ The workload verifies that cumulative consumed bytes exceed peak-live bytes when
 
 A complete 4096-entry Q16.16 raw table is compared with exact reconstruction from 1024 base entries plus a fixed raw step.
 
+The fingerprinted Q16.16 raw width is exactly **4 bytes**. The compact canonical path reads each of the 1024 base entries exactly once (4096 modeled read bytes total) and reconstructs the next three lanes incrementally. Host struct padding is not part of receipt identity.
+
 Both representations must hash to exactly the same result.
 
 This is an exact-representation test, not a lossy interpolation claim.
@@ -196,7 +198,7 @@ No performance conclusion is made in R4.
 
 ### C14 — RIVET-like byte stream
 
-A deterministic pseudo-document byte sequence contains:
+A deterministic pseudo-document byte sequence is defined by explicit **ASCII byte values**, not execution-character literals, so the corpus identity is independent of the C implementation's execution character set. It contains:
 
 - angle brackets;
 - ASCII text;
@@ -255,7 +257,7 @@ variants_checked
 
 C13 intentionally emits two receipts, so one working-set run emits 16 workload receipts for the 15 workload families, followed by one summary receipt.
 
-The summary contains a deterministic fingerprint over the workload receipts.
+The summary contains a deterministic fingerprint over the workload receipts. Workload names are mapped to versioned canonical numeric workload IDs before hashing; target execution-character encodings are never hashed as receipt identity.
 
 ## Modelled byte traffic
 
@@ -314,6 +316,8 @@ CI runs the smoke corpus with GCC and Clang and pins this exact seed-303, 32 KiB
 ~~~text
 1219082291126340103
 ~~~
+
+The machine-readable authority stores this u64 as the exact decimal string `"1219082291126340103"` rather than a JSON number, preventing consumers that use IEEE-754 JSON numbers from rounding the frozen identity.
 
 A change to the generator, workload result identity, modeled canonical byte traffic, or other fingerprinted receipt field therefore fails the R4 smoke gate unless the R4 contract is intentionally revised.
 

@@ -29,7 +29,8 @@
     "explicit_min_bytes": 4096,
     "explicit_max_bytes": 268435456,
     "explicit_requires_power_of_two": true,
-    "max_point_is_default_local": false
+    "max_point_is_default_local": false,
+    "negative_text_arguments_allowed": false
   },
   "receipts": {
     "format": "json-lines",
@@ -42,7 +43,8 @@
     "summary_receipts_per_size": 1,
     "complete_output_delivery_required_for_zero_exit": true,
     "stdout_flush_must_succeed": true,
-    "model_byte_fields_count_only_canonical_algorithmic_storage_access": true
+    "model_byte_fields_count_only_canonical_algorithmic_storage_access": true,
+    "workload_identity_fingerprint_encoding": "canonical-workload-id-v1"
   },
   "workload_families": [
     "C01-sequential-scan",
@@ -110,7 +112,11 @@
     "full_entries": 4096,
     "compact_base_entries": 1024,
     "reconstruction_is_exact": true,
-    "lossy_interpolation_claim": false
+    "lossy_interpolation_claim": false,
+    "logical_raw_width_bytes": 4,
+    "compact_base_read_count": 1024,
+    "modeled_base_read_bytes": 4096,
+    "host_sizeof_is_fingerprinted_identity": false
   },
   "c14": {
     "parser_semantics": false,
@@ -119,7 +125,9 @@
       31,
       257
     ],
-    "all_chunks_require_exact_classification_identity": true
+    "all_chunks_require_exact_classification_identity": true,
+    "canonical_byte_encoding": "explicit-ASCII-byte-values",
+    "execution_character_set_affects_identity": false
   },
   "c15": {
     "logical_items": 1099511627776,
@@ -135,7 +143,8 @@
     "malloc_is_runtime_requirement": false,
     "exported_runtime_api": false,
     "resource_exhaustion_is_correctness_failure": false,
-    "resource_exhaustion_diagnostic": "corpus resource exhausted"
+    "resource_exhaustion_diagnostic": "corpus resource exhausted",
+    "initial_input_allocation_failure_uses_resource_exhaustion_diagnostic": true
   },
   "validation": {
     "executable": "build/rune_corpus",
@@ -148,8 +157,9 @@
     "performance_benchmark": false,
     "smoke_seed": 303,
     "smoke_working_set_bytes": 32768,
-    "smoke_fingerprint_u64": 1219082291126340000,
-    "smoke_fingerprint_is_frozen": true
+    "smoke_fingerprint_is_frozen": true,
+    "smoke_fingerprint_u64_decimal": "1219082291126340103",
+    "smoke_fingerprint_encoding": "decimal-string"
   },
   "c07_c08": {
     "logical_record_width_bytes": 24,
@@ -162,5 +172,11 @@
       "flags"
     ],
     "modeled_hot_read_bytes_per_item": 12
+  },
+  "c04": {
+    "logical_node_width_bytes": 8,
+    "logical_width_independent_of_host_struct_padding": true,
+    "host_allocation_may_use_sizeof_node": true,
+    "modeled_read_bytes_per_item": 8
   }
 }

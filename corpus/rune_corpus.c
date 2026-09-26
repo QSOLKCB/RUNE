@@ -18,6 +18,8 @@
 #define RUNE_CORPUS_MAX_RECEIPTS 24u
 #define RUNE_CORPUS_LOGICAL_RECORD_BYTES UINT64_C(24)
 #define RUNE_CORPUS_HOT_FIELD_BYTES UINT64_C(12)
+#define RUNE_CORPUS_LOGICAL_NODE_BYTES UINT64_C(8)
+#define RUNE_CORPUS_Q16_16_RAW_BYTES UINT64_C(4)
 
 typedef struct rune_corpus_receipt {
     const char *workload;
@@ -69,18 +71,35 @@ static uint64_t rune_corpus_hash_u64(uint64_t hash, uint64_t value)
     return hash;
 }
 
-static uint64_t rune_corpus_hash_text(uint64_t hash, const char *text)
+static uint64_t rune_corpus_workload_id(const char *workload)
 {
-    const unsigned char *cursor;
+    static const char *const names[] = {
+        "C01-sequential-scan",
+        "C02-strided-scan",
+        "C03-deterministic-permutation",
+        "C04-offset-chase",
+        "C05-materialize-reduce",
+        "C06-fused-reduce",
+        "C07-aos-hot-traversal",
+        "C08-soa-hot-fields",
+        "C09-microtile-sweep",
+        "C10-caller-owned-ring",
+        "C11-arena-reset",
+        "C12-fixed-point-reconstruction",
+        "C13-retain",
+        "C13-regenerate",
+        "C14-rivet-like-byte-stream",
+        "C15-huge-logical-domain"
+    };
+    size_t i;
 
-    cursor = (const unsigned char *)text;
-    while (*cursor != 0u) {
-        hash ^= (uint64_t)*cursor;
-        hash *= UINT64_C(1099511628211);
-        ++cursor;
+    for (i = 0u; i < sizeof(names) / sizeof(names[0]); ++i) {
+        if (strcmp(workload, names[i]) == 0) {
+            return (uint64_t)i + UINT64_C(1);
+        }
     }
 
-    return hash;
+    return UINT64_C(0);
 }
 
 static uint32_t rune_corpus_value32(uint64_t seed, uint64_t index)
@@ -168,7 +187,10 @@ static uint64_t rune_corpus_receipt_fingerprint(
 
     hash = UINT64_C(1469598103934665603);
     for (i = 0u; i < count; ++i) {
-        hash = rune_corpus_hash_text(hash, receipts[i].workload);
+        hash = rune_corpus_hash_u64(
+            hash,
+            rune_corpus_workload_id(receipts[i].workload)
+        );
         hash = rune_corpus_hash_u64(hash, receipts[i].seed);
         hash = rune_corpus_hash_u64(hash, receipts[i].logical_items);
         hash = rune_corpus_hash_u64(hash, receipts[i].resident_bytes);
@@ -435,9 +457,9 @@ static int rune_corpus_run_c01_to_c06(
             "C04-offset-chase",
             seed,
             count,
-            count * (uint64_t)sizeof(rune_corpus_node),
+            count * RUNE_CORPUS_LOGICAL_NODE_BYTES,
             0u,
-            count * (uint64_t)sizeof(rune_corpus_node),
+            count * RUNE_CORPUS_LOGICAL_NODE_BYTES,
             0u,
             chased,
             1u) ||
@@ -921,7 +943,6 @@ static int rune_corpus_run_c12(
     int32_t full[4096];
     rune_q16_16 bases[1024];
     rune_q16_16 step;
-    rune_q16_16 value;
     rune_q16_16 reconstructed;
     uint64_t full_hash;
     uint64_t compact_hash;
@@ -951,23 +972,18 @@ static int rune_corpus_run_c12(
     }
 
     for (i = 0u; i < 1024u; ++i) {
-        for (lane = 0u; lane < 4u; ++lane) {
-            reconstructed = bases[i];
-            value = step;
-            while (value.raw != 0 && lane != 0u) {
-                uint32_t n;
+        reconstructed = bases[i];
 
-                for (n = 0u; n < lane; ++n) {
-                    status = rune_q16_16_add(
-                        reconstructed,
-                        step,
-                        &reconstructed
-                    );
-                    if (status != RUNE_OK) {
-                        return 0;
-                    }
+        for (lane = 0u; lane < 4u; ++lane) {
+            if (lane != 0u) {
+                status = rune_q16_16_add(
+                    reconstructed,
+                    step,
+                    &reconstructed
+                );
+                if (status != RUNE_OK) {
+                    return 0;
                 }
-                value.raw = 0;
             }
 
             compact_hash = rune_corpus_hash_u64(
@@ -987,9 +1003,9 @@ static int rune_corpus_run_c12(
         "C12-fixed-point-reconstruction",
         seed,
         UINT64_C(4096),
-        (uint64_t)sizeof(bases),
-        (uint64_t)sizeof(rune_q16_16),
-        (uint64_t)sizeof(bases),
+        UINT64_C(1024) * RUNE_CORPUS_Q16_16_RAW_BYTES,
+        RUNE_CORPUS_Q16_16_RAW_BYTES,
+        UINT64_C(1024) * RUNE_CORPUS_Q16_16_RAW_BYTES,
         0u,
         compact_hash,
         2u
@@ -1057,11 +1073,12 @@ static int rune_corpus_run_c13(
 static uint8_t rune_corpus_document_byte(uint64_t seed, uint64_t index)
 {
     static const uint8_t pattern[] = {
-        '<', 'a', ' ', 'x', '=', '1', '2', '3', '>',
-        'a', 'b', 'c', ' ', '\n',
+        0x3cu, 0x61u, 0x20u, 0x78u, 0x3du, 0x31u, 0x32u, 0x33u, 0x3eu,
+        0x61u, 0x62u, 0x63u, 0x20u, 0x0au,
         0xc3u, 0xa9u,
-        '<', '/', 'a', '>', '\t',
-        '<', 'p', '>', '9', '8', '7', '<', '/', 'p', '>', '\n'
+        0x3cu, 0x2fu, 0x61u, 0x3eu, 0x09u,
+        0x3cu, 0x70u, 0x3eu, 0x39u, 0x38u, 0x37u, 0x3cu, 0x2fu, 0x70u,
+        0x3eu, 0x0au
     };
     uint64_t shifted;
 
@@ -1074,17 +1091,17 @@ static void rune_corpus_classify_byte(
     uint8_t byte
 )
 {
-    if (byte == (uint8_t)'<') {
+    if (byte == (uint8_t)0x3cu) {
         counts->lt += 1u;
-    } else if (byte == (uint8_t)'>') {
+    } else if (byte == (uint8_t)0x3eu) {
         counts->gt += 1u;
-    } else if (byte == (uint8_t)' ' ||
-               byte == (uint8_t)'\n' ||
-               byte == (uint8_t)'\t' ||
-               byte == (uint8_t)'\r') {
+    } else if (byte == (uint8_t)0x20u ||
+               byte == (uint8_t)0x0au ||
+               byte == (uint8_t)0x09u ||
+               byte == (uint8_t)0x0du) {
         counts->whitespace += 1u;
-    } else if (byte >= (uint8_t)'0' &&
-               byte <= (uint8_t)'9') {
+    } else if (byte >= (uint8_t)0x30u &&
+               byte <= (uint8_t)0x39u) {
         counts->digit += 1u;
     } else if ((byte & (uint8_t)0x80u) != 0u) {
         counts->high += 1u;
@@ -1267,13 +1284,17 @@ static int rune_corpus_run_size(
         return 0;
     }
 
+    rune_corpus_resource_exhausted = 0;
     if (!rune_corpus_build_values(seed, count, &values)) {
-        fprintf(stderr, "could not build bounded procedural input\n");
+        if (rune_corpus_resource_exhausted) {
+            fprintf(stderr, "corpus resource exhausted\n");
+        } else {
+            fprintf(stderr, "could not build bounded procedural input\n");
+        }
         return 0;
     }
 
     receipt_count = 0u;
-    rune_corpus_resource_exhausted = 0;
 
     if (!rune_corpus_run_c01_to_c06(
             seed,
@@ -1370,6 +1391,10 @@ static int rune_corpus_parse_u64(
     unsigned long long parsed;
 
     if (text == NULL || out == NULL || text[0] == '\0') {
+        return 0;
+    }
+
+    if (text[0] == '-') {
         return 0;
     }
 
