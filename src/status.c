@@ -20,6 +20,10 @@ const char *rune_status_name(rune_status status)
         return "RUNE_ERR_ACCESS";
     case RUNE_ERR_CAPACITY:
         return "RUNE_ERR_CAPACITY";
+    case RUNE_ERR_EXHAUSTED:
+        return "RUNE_ERR_EXHAUSTED";
+    case RUNE_ERR_STALE_CHECKPOINT:
+        return "RUNE_ERR_STALE_CHECKPOINT";
     default:
         return "RUNE_STATUS_UNKNOWN";
     }

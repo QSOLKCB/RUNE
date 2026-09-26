@@ -4,7 +4,7 @@ MODE=MACHINE_ONLY
 PROJECT=RUNE
 REFERENCE_LANGUAGE=ISO_C99
 LICENSE=MPL-2.0
-CURRENT_PHASE=R1
+CURRENT_PHASE=R2
 RUNTIME_IMPLEMENTATION_ALLOWED=true
 RUNTIME_PERFORMANCE_CLAIMS_ALLOWED=false
 
@@ -13,6 +13,7 @@ READ_ORDER:
 2=machine/invariants-v1.json
 3=machine/donors-v1.json
 4=machine/r1-region-core.v1.json
+5=machine/r2-arena-scratch.v1.json
 
 HUMAN_PROSE:
 README.md
@@ -20,12 +21,14 @@ CONSTITUTION.md
 ROADMAP.md
 DONORS-v1.md
 R1-REGION-CORE.md
+R2-ARENA-SCRATCH.md
 
 MACHINE_AUTHORITY:
 machine/project-v1.json
 machine/invariants-v1.json
 machine/donors-v1.json
 machine/r1-region-core.v1.json
+machine/r2-arena-scratch.v1.json
 
 CONFLICT_POLICY=FAIL_CLOSED
 ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
@@ -33,7 +36,7 @@ DO_NOT_INVENT_RECONCILIATION=true
 
 CORE_RULES:
 - preserve_all_invariants
-- runtime_code_allowed_only_within_current_R1_region_core_scope
+- runtime_code_allowed_only_within_current_R2_arena_scratch_scope
 - cpu_only
 - integer_only_public_semantics
 - fractional_rounding_behavior_must_be_declared
@@ -41,6 +44,16 @@ CORE_RULES:
 - platform_specific_facilities_require_explicit_boundary
 - os_specific_api_may_not_be_core_requirement
 - bounded_external_growth
+- arena_alignment_is_storage_span_relative
+- arena_checkpoint_owner_pointer_is_transient_not_portable_identity
+- arena_incarnation_token_is_transient_not_portable_identity
+- arena_reinitialization_invalidates_prior_checkpoints
+- arena_allocation_output_must_not_alias_arena_storage_descriptor
+- arena_object_address_must_remain_stable_while_checkpoints_exist
+- arena_checkpoint_restore_only_rewinds_same_owner_current_generation
+- arena_restore_expires_post_checkpoint_scratch_lifetimes
+- arena_reset_expires_all_prior_generation_scratch_lifetimes
+- arena_restore_and_reset_preserve_high_water_and_cumulative_accounting
 - meaningful_movement_requires_source_destination_extent_when_representable
 - explicit_resource_failure_includes_unsupported_capability
 - reference_before_optimization
@@ -52,7 +65,7 @@ CORE_RULES:
 - optional_internal_optimization_unavailable_or_losing_requires_fallback_to_correct_simpler_path
 - requested_contract_capability_unsupported_requires_explicit_failure
 - optional_internal_optimization_absence_is_not_unsupported_capability_failure
-- runtime_performance_claims_forbidden_in_R1
+- runtime_performance_claims_forbidden_in_R2
 - causal_performance_claim_requires_support_beyond_timing
 - portable_identity_requires_explicit_versioned_representation
 - fixed_width_integer_identity_is_allowed_but_not_the_only_allowed_explicit_representation

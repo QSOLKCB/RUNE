@@ -10,7 +10,9 @@ typedef enum rune_status {
     RUNE_ERR_OUT_OF_BOUNDS = 4,
     RUNE_ERR_OVERFLOW = 5,
     RUNE_ERR_ACCESS = 6,
-    RUNE_ERR_CAPACITY = 7
+    RUNE_ERR_CAPACITY = 7,
+    RUNE_ERR_EXHAUSTED = 8,
+    RUNE_ERR_STALE_CHECKPOINT = 9
 } rune_status;
 
 const char *rune_status_name(rune_status status);

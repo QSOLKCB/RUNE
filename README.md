@@ -46,13 +46,13 @@ MORE COMPUTE != BETTER EXECUTION
 
 ## Status
 
-**R1 — Region core.**
+**R2 — Arena and scratch lifetime.**
 
-The constitutional R0 foundation is merged. RUNE now has its first executable ISO C99 reference slice: caller-owned bounded regions and spans, checked semantic offsets/extents, explicit access rights, overlap-safe movement, fill/clear primitives, and deterministic tests.
+R0 and R1 are merged. RUNE now layers a monotonic caller-owned arena over the bounded region core, with explicit arena-relative alignment, deterministic checkpoints/reset, exhaustion, high-water accounting, and cumulative allocation traffic.
 
-R1 deliberately contains **no mandatory heap, arena, threading, SIMD, floating point, scheduler, cache framework, or runtime performance claim**.
+R2 still contains **no general-purpose heap, threading, SIMD, floating point, scheduler, cache framework, or runtime performance claim**.
 
-See [R1-REGION-CORE.md](R1-REGION-CORE.md) and [ROADMAP.md](ROADMAP.md).
+See [R1-REGION-CORE.md](R1-REGION-CORE.md), [R2-ARENA-SCRATCH.md](R2-ARENA-SCRATCH.md), and [ROADMAP.md](ROADMAP.md).
 
 ## Build and test
 
@@ -69,7 +69,7 @@ The tests exercise deterministic correctness only. They are not performance benc
 Project: RUNE
 Name: Runtime for Unified Numeric Execution
 Reference language: ISO C99
-Current phase: R1 — Region core
+Current phase: R2 — Arena and scratch lifetime
 Architecture: CPU-only
 Numeric boundary: integer-only
 Memory model: explicit and bounded
@@ -273,6 +273,8 @@ Human-facing files:
 - [CONSTITUTION.md](CONSTITUTION.md)
 - [ROADMAP.md](ROADMAP.md)
 - [DONORS-v1.md](DONORS-v1.md)
+- [R1-REGION-CORE.md](R1-REGION-CORE.md)
+- [R2-ARENA-SCRATCH.md](R2-ARENA-SCRATCH.md)
 
 Machine-facing files:
 
@@ -280,6 +282,8 @@ Machine-facing files:
 - [machine/project-v1.json](machine/project-v1.json)
 - [machine/invariants-v1.json](machine/invariants-v1.json)
 - [machine/donors-v1.json](machine/donors-v1.json)
+- [machine/r1-region-core.v1.json](machine/r1-region-core.v1.json)
+- [machine/r2-arena-scratch.v1.json](machine/r2-arena-scratch.v1.json)
 
 A contradiction between the two surfaces is a defect. Automated agents must fail closed rather than invent a reconciliation.
 
