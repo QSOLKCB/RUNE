@@ -1,0 +1,75 @@
+{
+  "contract": "rune.project.v1",
+  "project": "RUNE",
+  "expanded_name": "Runtime for Unified Numeric Execution",
+  "phase": {
+    "id": "R0",
+    "name": "Constitutional foundation",
+    "runtime_implementation_allowed": false
+  },
+  "license": "MPL-2.0",
+  "reference_language": {
+    "standard": "ISO C99",
+    "normative": true
+  },
+  "architecture": {
+    "cpu_only": true,
+    "gpu_runtime": false,
+    "integer_only_public_execution_semantics": true,
+    "deterministic_reference_first": true,
+    "memory_model": "explicit-bounded",
+    "primary_integration_target": "RIVET"
+  },
+  "authority": {
+    "separation_required": true,
+    "human_prose": [
+      "README.md",
+      "CONSTITUTION.md",
+      "ROADMAP.md",
+      "DONORS-v1.md"
+    ],
+    "machine_readable": [
+      "machine/project-v1.json",
+      "machine/invariants-v1.json",
+      "machine/donors-v1.json"
+    ],
+    "agent_entrypoint": "AGENTS.md",
+    "contradiction_policy": "fail-closed-and-report"
+  },
+  "core_equations": [
+    "RESULT_IDENTITY != EXECUTION_PLAN_IDENTITY",
+    "BENCHMARK_OBSERVATION != CORRECTNESS_IDENTITY",
+    "LOGICAL_SCALE != RESIDENT_SCALE",
+    "MORE_COMPUTE != BETTER_EXECUTION",
+    "PLAN != EXECUTION_EVIDENCE"
+  ],
+  "runtime_nonrequirements": [
+    "C++",
+    "floating-point",
+    "GPU",
+    "managed-runtime",
+    "garbage-collector",
+    "JIT",
+    "mandatory-threads",
+    "mandatory-SIMD",
+    "generic-scheduler",
+    "plugin-system"
+  ],
+  "portability": {
+    "host_pointer_width_is_portable_identity": false,
+    "host_size_t_is_portable_semantic_identity": false,
+    "explicit_width_portable_identities_required": true,
+    "cross_compile_is_execution_evidence": false,
+    "emulation_is_physical_hardware_evidence": false
+  },
+  "evidence": {
+    "donor_benchmarks_transferable": false,
+    "requested_or_planned_work_is_execution_evidence": false,
+    "performance_claims_environment_scoped": true,
+    "correctness_precedes_performance": true
+  },
+  "machine_contracts": {
+    "invariants": "machine/invariants-v1.json",
+    "donors": "machine/donors-v1.json"
+  }
+}

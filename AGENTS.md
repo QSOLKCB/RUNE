@@ -1,0 +1,65 @@
+RUNE_AGENT_CONTRACT_V1
+
+MODE=MACHINE_ONLY
+PROJECT=RUNE
+REFERENCE_LANGUAGE=ISO_C99
+LICENSE=MPL-2.0
+CURRENT_PHASE=R0
+RUNTIME_IMPLEMENTATION_ALLOWED=false
+
+READ_ORDER:
+1=machine/project-v1.json
+2=machine/invariants-v1.json
+3=machine/donors-v1.json
+
+HUMAN_PROSE:
+README.md
+CONSTITUTION.md
+ROADMAP.md
+DONORS-v1.md
+
+MACHINE_AUTHORITY:
+machine/project-v1.json
+machine/invariants-v1.json
+machine/donors-v1.json
+
+CONFLICT_POLICY=FAIL_CLOSED
+ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
+DO_NOT_INVENT_RECONCILIATION=true
+
+CORE_RULES:
+- preserve_all_invariants
+- no_runtime_code_in_R0
+- cpu_only
+- integer_only_public_semantics
+- c99_reference
+- bounded_external_growth
+- explicit_resource_failure
+- reference_before_optimization
+- work_elimination_before_acceleration
+- second_implementation_earns_abstraction
+- donor_benchmark_not_transferable
+- donor_source_not_automatically_reusable
+- plan_not_execution_evidence
+- benchmark_not_correctness_identity
+- keep_RIVET_semantics_outside_RUNE
+
+FORBIDDEN_IN_CORE_UNLESS_FUTURE_VERSIONED_AUTHORITY_CHANGES:
+- cplusplus_requirement
+- floating_point_requirement
+- gpu_backend
+- managed_runtime
+- garbage_collector
+- jit
+- mandatory_threads
+- mandatory_simd
+- generic_scheduler_framework
+- generic_plugin_framework
+- generic_cache_framework
+- application_semantics
+
+CHANGE_RULES:
+- edit_human_and_machine_surfaces_together_when_semantics_change
+- constitutional_change_requires_versioned_authority
+- performance_claim_requires_environment_scoped_evidence
+- incompatible_donor_source_requires_clean_room_or_explicit_license_basis

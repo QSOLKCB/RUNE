@@ -1,0 +1,107 @@
+{
+  "contract": "rune.donors.v1",
+  "human_source": "DONORS-v1.md",
+  "transfer_policy": {
+    "mechanisms_are_precedent_not_authority": true,
+    "constants_transfer_automatically": false,
+    "benchmarks_transfer_automatically": false,
+    "source_code_transfer_automatically": false,
+    "rune_specific_validation_required": true,
+    "license_review_required_for_source_reuse": true
+  },
+  "donors": [
+    {
+      "repository": "QSOLKCB/OPT",
+      "url": "https://github.com/QSOLKCB/OPT",
+      "mechanisms": [
+        "early-working-set-reduction",
+        "reference-first-optimization",
+        "bounded-hot-field-soa-tiling",
+        "evidence-gated-simd",
+        "invariant-driven-reuse",
+        "complete-effective-input-identity",
+        "host-aware-promotion"
+      ],
+      "source_copy_authorized_by_this_contract": false
+    },
+    {
+      "repository": "QSOLKCB/QSOL-MESH",
+      "url": "https://github.com/QSOLKCB/QSOL-MESH",
+      "mechanisms": [
+        "explicit-ownership-lifetime",
+        "explicit-transfer-extent",
+        "peak-live-vs-cumulative-traffic",
+        "stream-reduce-discard",
+        "constant-size-stream-template",
+        "plan-vs-execution-evidence",
+        "deterministic-regeneration"
+      ],
+      "source_copy_authorized_by_this_contract": false
+    },
+    {
+      "repository": "QSOLKCB/GALAXY",
+      "url": "https://github.com/QSOLKCB/GALAXY",
+      "mechanisms": [
+        "memory-bounded-logical-addressing",
+        "fused-reduction",
+        "microtile-sweep",
+        "exact-integer-lut-compression",
+        "deterministic-reduction",
+        "locality-evidence"
+      ],
+      "source_copy_authorized_by_this_contract": false
+    },
+    {
+      "repository": "QSOLKCB/GLUBALL",
+      "url": "https://github.com/QSOLKCB/GLUBALL",
+      "mechanisms": [
+        "integer-first-state",
+        "wider-integer-intermediates",
+        "fixed-point-canonical-parameters",
+        "deterministic-half-open-partitions",
+        "logical-scale-not-resident-scale",
+        "compact-performance-diagnostics"
+      ],
+      "source_copy_authorized_by_this_contract": false
+    },
+    {
+      "repository": "QSOLKCB/COSMO",
+      "url": "https://github.com/QSOLKCB/COSMO",
+      "mechanisms": [
+        "scalar-reference-authority",
+        "immutable-prior-state",
+        "deterministic-partitions",
+        "canonical-output-order"
+      ],
+      "source_copy_authorized_by_this_contract": false
+    },
+    {
+      "repository": "QSOLKCB/PSYCLE-LINUX",
+      "url": "https://github.com/QSOLKCB/PSYCLE-LINUX",
+      "mechanisms": [
+        "ring-cursor-state-separated-from-storage"
+      ],
+      "licensing_boundary": "historical/imported GPL-family material is mechanism/provenance evidence only unless separately proven compatible",
+      "source_copy_authorized_by_this_contract": false
+    },
+    {
+      "repository": "QSOLKCB/UFT-ID-3.0",
+      "url": "https://github.com/QSOLKCB/UFT-ID-3.0",
+      "mechanisms": [
+        "typed-transformation-pipeline",
+        "deterministic-replay-contract",
+        "canonical-content-identity"
+      ],
+      "source_copy_authorized_by_this_contract": false
+    },
+    {
+      "repository": "QSOLKCB/C64",
+      "url": "https://github.com/QSOLKCB/C64",
+      "mechanisms": [
+        "front-end-engine-separation",
+        "narrow-adapter-boundary"
+      ],
+      "source_copy_authorized_by_this_contract": false
+    }
+  ]
+}

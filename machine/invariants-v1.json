@@ -1,0 +1,106 @@
+{
+  "contract": "rune.invariants.v1",
+  "constitutional_source": "CONSTITUTION.md",
+  "invariants": [
+    {
+      "id": "RUNE-INV-001",
+      "slug": "minimal-sufficient-execution",
+      "statement": "Prefer the representation, algorithm, bounded state, movement and abstraction requiring the least necessary work for an equal correctness contract."
+    },
+    {
+      "id": "RUNE-INV-002",
+      "slug": "bounded-external-growth",
+      "statement": "Externally driven resident growth requires an explicit bound, budget, window or resource-exhaustion result."
+    },
+    {
+      "id": "RUNE-INV-003",
+      "slug": "integer-only-public-semantics",
+      "statement": "Portable public execution semantics do not require floating point; fractional semantics require explicit versioned integer representation and rounding."
+    },
+    {
+      "id": "RUNE-INV-004",
+      "slug": "explicit-ownership-lifetime-movement",
+      "statement": "Managed storage has explicit ownership/lifetime and meaningful movement is explicit where representable."
+    },
+    {
+      "id": "RUNE-INV-005",
+      "slug": "logical-scale-not-resident-scale",
+      "statement": "Logical domain size does not imply proportional resident state when bounded equivalent execution is possible."
+    },
+    {
+      "id": "RUNE-INV-006",
+      "slug": "result-not-plan",
+      "statement": "Successful invariant semantics do not depend on execution plan; benchmark observations are not correctness identity."
+    },
+    {
+      "id": "RUNE-INV-007",
+      "slug": "reference-before-optimization",
+      "statement": "A simple scalar deterministic single-threaded path is semantic reference before optimized promotion."
+    },
+    {
+      "id": "RUNE-INV-008",
+      "slug": "eliminate-before-accelerate",
+      "statement": "Reduce work, movement and residency before SIMD, threading or specialized acceleration."
+    },
+    {
+      "id": "RUNE-INV-009",
+      "slug": "c99-baseline",
+      "statement": "Reference runtime targets ISO C99 and core correctness does not depend on newer language/runtime machinery."
+    },
+    {
+      "id": "RUNE-INV-010",
+      "slug": "cpu-only",
+      "statement": "RUNE has no GPU execution contract."
+    },
+    {
+      "id": "RUNE-INV-011",
+      "slug": "explicit-resource-failure",
+      "statement": "Bounds, overflow, alignment and capacity failures fail explicitly rather than exceeding or silently truncating."
+    },
+    {
+      "id": "RUNE-INV-012",
+      "slug": "higher-level-semantics-outside",
+      "statement": "Browser/document/UI/application semantics remain outside RUNE."
+    },
+    {
+      "id": "RUNE-INV-013",
+      "slug": "second-implementation-earns-abstraction",
+      "statement": "Generic architecture requires a second real implementation need."
+    },
+    {
+      "id": "RUNE-INV-014",
+      "slug": "environment-scoped-performance",
+      "statement": "Performance observations bind source, workload, toolchain, platform and method; no universal benchmark inference."
+    },
+    {
+      "id": "RUNE-INV-015",
+      "slug": "donor-provenance-boundary",
+      "statement": "Donor mechanisms do not transfer constants, source, benchmarks or authority automatically."
+    },
+    {
+      "id": "RUNE-INV-016",
+      "slug": "recompute-valid-strategy",
+      "statement": "Exact cheap deterministic recomputation is permitted when RUNE-specific evidence supports it."
+    },
+    {
+      "id": "RUNE-INV-017",
+      "slug": "explicit-width-portable-identity",
+      "statement": "Host pointer/size types do not automatically define portable offsets, counts or serialized identities."
+    },
+    {
+      "id": "RUNE-INV-018",
+      "slug": "plan-not-execution",
+      "statement": "Requested/planned capability, cross-compilation or templates do not prove execution."
+    },
+    {
+      "id": "RUNE-INV-019",
+      "slug": "human-machine-separation",
+      "statement": "Human prose and machine contracts are separate; contradictions fail closed."
+    },
+    {
+      "id": "RUNE-INV-020",
+      "slug": "smaller-only-under-equal-contract",
+      "statement": "Prefer smaller implementation only when correctness, safety, portability, readability and evidence are equivalent."
+    }
+  ]
+}
