@@ -314,10 +314,10 @@ A zero exit status also requires every JSONL receipt and summary write, plus the
 CI runs the smoke corpus with GCC and Clang and pins this exact seed-303, 32 KiB summary fingerprint:
 
 ~~~text
-1219082291126340103
+7795391999286618454
 ~~~
 
-The machine-readable authority stores this u64 as the exact decimal string `"1219082291126340103"` rather than a JSON number, preventing consumers that use IEEE-754 JSON numbers from rounding the frozen identity.
+The machine-readable authority stores this u64 as the exact decimal string `"7795391999286618454"` rather than a JSON number, preventing consumers that use IEEE-754 JSON numbers from rounding the frozen identity.
 
 A change to the generator, workload result identity, modeled canonical byte traffic, or other fingerprinted receipt field therefore fails the R4 smoke gate unless the R4 contract is intentionally revised.
 
