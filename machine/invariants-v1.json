@@ -54,14 +54,16 @@
     {
       "id": "RUNE-INV-007",
       "slug": "reference-before-optimization",
-      "statement": "The smallest practical scalar deterministic single-threaded implementation is the semantic reference until evidence earns another path; an optimized path must preserve the result contract, provide material measured benefit under its declared workload, and fall back to the correct simpler path when unavailable or when it loses, while genuine resource or correctness failures remain explicit.",
+      "statement": "The smallest practical scalar deterministic single-threaded implementation is the semantic reference until evidence earns another path; an optional internal optimized path must preserve the result contract, provide material measured benefit under its declared workload, and fall back to the correct simpler path when that optimization is unavailable or loses, while unsupported caller-requested contract capabilities and genuine resource or correctness failures fail explicitly.",
       "requirements": {
         "reference_path_retained": true,
         "result_contract_preserved": true,
         "material_measured_benefit_required_for_promotion": true,
-        "fallback_when_optimized_path_unavailable": "correct-simpler-path",
         "fallback_when_optimized_path_loses": "correct-simpler-path",
-        "genuine_resource_or_correctness_failure_may_fail_explicitly": true
+        "genuine_resource_or_correctness_failure_may_fail_explicitly": true,
+        "fallback_scope": "optional-internal-optimization-only",
+        "optional_internal_optimization_unavailable": "fallback-to-correct-simpler-path",
+        "requested_contract_capability_unsupported": "explicit-failure"
       }
     },
     {
@@ -111,7 +113,9 @@
         ],
         "silent_budget_exceed": false,
         "silent_invalid_extent_wrap": false,
-        "silent_truncation_unless_declared_operation": false
+        "silent_truncation_unless_declared_operation": false,
+        "unsupported_capability_scope": "requested-contract-capability",
+        "optional_internal_optimization_absence_is_not_unsupported_capability_failure": true
       }
     },
     {

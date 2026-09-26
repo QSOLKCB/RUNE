@@ -5,7 +5,10 @@
   "phase": {
     "id": "R0",
     "name": "Constitutional foundation",
-    "runtime_implementation_allowed": false
+    "runtime_implementation_allowed": false,
+    "runtime_performance_claims_allowed": false,
+    "performance_measurement_planning_allowed": true,
+    "performance_observations_may_be_published_as_runtime_claims": false
   },
   "license": "MPL-2.0",
   "reference_language": {
@@ -112,9 +115,11 @@
       "environment_scoped_measurement_required": true,
       "lifecycle_and_memory_costs_included": true,
       "material_benefit_under_declared_workload_required": true,
-      "fallback_to_correct_simpler_path_when_optimized_path_unavailable": true,
       "fallback_to_correct_simpler_path_when_optimized_path_loses": true,
-      "genuine_resource_or_correctness_failure_may_fail_explicitly": true
+      "genuine_resource_or_correctness_failure_may_fail_explicitly": true,
+      "fallback_scope": "optional-internal-optimization-only",
+      "requested_contract_capability_unsupported_must_fail_explicitly": true,
+      "optional_internal_optimization_unavailable_must_fallback_to_correct_simpler_path": true
     }
   },
   "resource_failure_policy": {
@@ -128,7 +133,9 @@
     ],
     "silent_budget_exceed_allowed": false,
     "silent_invalid_extent_wrap_allowed": false,
-    "silent_truncation_allowed_unless_declared_operation": false
+    "silent_truncation_allowed_unless_declared_operation": false,
+    "unsupported_capability_scope": "requested-contract-capability",
+    "optional_internal_optimization_absence_is_unsupported_capability_failure": false
   },
   "semantic_scope": {
     "excluded_from_rune_semantics": [
@@ -180,6 +187,12 @@
         "memory_bandwidth_effect",
         "hardware_topology_cause"
       ]
+    },
+    "runtime_performance_claim_policy": {
+      "current_phase": "R0",
+      "runtime_performance_claims_allowed": false,
+      "fully_documented_benchmark_receipt_does_not_override_phase_prohibition": true,
+      "first_permitted_phase_requires_future_versioned_authority": true
     }
   },
   "machine_contracts": {
