@@ -30,7 +30,8 @@
     "explicit_max_bytes": 268435456,
     "explicit_requires_power_of_two": true,
     "max_point_is_default_local": false,
-    "negative_text_arguments_allowed": false
+    "negative_text_arguments_allowed": false,
+    "leading_whitespace_in_unsigned_text_allowed": false
   },
   "receipts": {
     "format": "json-lines",
@@ -44,7 +45,10 @@
     "complete_output_delivery_required_for_zero_exit": true,
     "stdout_flush_must_succeed": true,
     "model_byte_fields_count_only_canonical_algorithmic_storage_access": true,
-    "workload_identity_fingerprint_encoding": "canonical-workload-id-v1"
+    "workload_identity_fingerprint_encoding": "canonical-workload-id-v1",
+    "character_encoding": "UTF-8",
+    "serialization": "explicit-ASCII-subset-bytes",
+    "host_execution_character_set_affects_output": false
   },
   "workload_families": [
     "C01-sequential-scan",
@@ -144,7 +148,8 @@
     "exported_runtime_api": false,
     "resource_exhaustion_is_correctness_failure": false,
     "resource_exhaustion_diagnostic": "corpus resource exhausted",
-    "initial_input_allocation_failure_uses_resource_exhaustion_diagnostic": true
+    "initial_input_allocation_failure_uses_resource_exhaustion_diagnostic": true,
+    "unrepresentable_size_t_allocation_is_resource_exhaustion": true
   },
   "validation": {
     "executable": "build/rune_corpus",

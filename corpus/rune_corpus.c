@@ -129,6 +129,7 @@ static void *rune_corpus_malloc(uint64_t bytes)
 
     host_bytes = (size_t)bytes;
     if ((uint64_t)host_bytes != bytes) {
+        rune_corpus_resource_exhausted = 1;
         return NULL;
     }
 
@@ -207,37 +208,193 @@ static uint64_t rune_corpus_receipt_fingerprint(
     return hash;
 }
 
+static int rune_corpus_exec_char_to_ascii(
+    unsigned char ch,
+    uint8_t *out
+)
+{
+    if (out == NULL) {
+        return 0;
+    }
+
+    switch (ch) {
+    case (unsigned char)'a': *out = 0x61u; return 1;
+    case (unsigned char)'b': *out = 0x62u; return 1;
+    case (unsigned char)'c': *out = 0x63u; return 1;
+    case (unsigned char)'d': *out = 0x64u; return 1;
+    case (unsigned char)'e': *out = 0x65u; return 1;
+    case (unsigned char)'f': *out = 0x66u; return 1;
+    case (unsigned char)'g': *out = 0x67u; return 1;
+    case (unsigned char)'h': *out = 0x68u; return 1;
+    case (unsigned char)'i': *out = 0x69u; return 1;
+    case (unsigned char)'j': *out = 0x6au; return 1;
+    case (unsigned char)'k': *out = 0x6bu; return 1;
+    case (unsigned char)'l': *out = 0x6cu; return 1;
+    case (unsigned char)'m': *out = 0x6du; return 1;
+    case (unsigned char)'n': *out = 0x6eu; return 1;
+    case (unsigned char)'o': *out = 0x6fu; return 1;
+    case (unsigned char)'p': *out = 0x70u; return 1;
+    case (unsigned char)'q': *out = 0x71u; return 1;
+    case (unsigned char)'r': *out = 0x72u; return 1;
+    case (unsigned char)'s': *out = 0x73u; return 1;
+    case (unsigned char)'t': *out = 0x74u; return 1;
+    case (unsigned char)'u': *out = 0x75u; return 1;
+    case (unsigned char)'v': *out = 0x76u; return 1;
+    case (unsigned char)'w': *out = 0x77u; return 1;
+    case (unsigned char)'x': *out = 0x78u; return 1;
+    case (unsigned char)'y': *out = 0x79u; return 1;
+    case (unsigned char)'z': *out = 0x7au; return 1;
+    case (unsigned char)'A': *out = 0x41u; return 1;
+    case (unsigned char)'B': *out = 0x42u; return 1;
+    case (unsigned char)'C': *out = 0x43u; return 1;
+    case (unsigned char)'D': *out = 0x44u; return 1;
+    case (unsigned char)'E': *out = 0x45u; return 1;
+    case (unsigned char)'F': *out = 0x46u; return 1;
+    case (unsigned char)'G': *out = 0x47u; return 1;
+    case (unsigned char)'H': *out = 0x48u; return 1;
+    case (unsigned char)'I': *out = 0x49u; return 1;
+    case (unsigned char)'J': *out = 0x4au; return 1;
+    case (unsigned char)'K': *out = 0x4bu; return 1;
+    case (unsigned char)'L': *out = 0x4cu; return 1;
+    case (unsigned char)'M': *out = 0x4du; return 1;
+    case (unsigned char)'N': *out = 0x4eu; return 1;
+    case (unsigned char)'O': *out = 0x4fu; return 1;
+    case (unsigned char)'P': *out = 0x50u; return 1;
+    case (unsigned char)'Q': *out = 0x51u; return 1;
+    case (unsigned char)'R': *out = 0x52u; return 1;
+    case (unsigned char)'S': *out = 0x53u; return 1;
+    case (unsigned char)'T': *out = 0x54u; return 1;
+    case (unsigned char)'U': *out = 0x55u; return 1;
+    case (unsigned char)'V': *out = 0x56u; return 1;
+    case (unsigned char)'W': *out = 0x57u; return 1;
+    case (unsigned char)'X': *out = 0x58u; return 1;
+    case (unsigned char)'Y': *out = 0x59u; return 1;
+    case (unsigned char)'Z': *out = 0x5au; return 1;
+    case (unsigned char)'0': *out = 0x30u; return 1;
+    case (unsigned char)'1': *out = 0x31u; return 1;
+    case (unsigned char)'2': *out = 0x32u; return 1;
+    case (unsigned char)'3': *out = 0x33u; return 1;
+    case (unsigned char)'4': *out = 0x34u; return 1;
+    case (unsigned char)'5': *out = 0x35u; return 1;
+    case (unsigned char)'6': *out = 0x36u; return 1;
+    case (unsigned char)'7': *out = 0x37u; return 1;
+    case (unsigned char)'8': *out = 0x38u; return 1;
+    case (unsigned char)'9': *out = 0x39u; return 1;
+    case (unsigned char)'{': *out = 0x7bu; return 1;
+    case (unsigned char)'}': *out = 0x7du; return 1;
+    case (unsigned char)'"': *out = 0x22u; return 1;
+    case (unsigned char)':': *out = 0x3au; return 1;
+    case (unsigned char)',': *out = 0x2cu; return 1;
+    case (unsigned char)'-': *out = 0x2du; return 1;
+    case (unsigned char)'.': *out = 0x2eu; return 1;
+    case (unsigned char)'_': *out = 0x5fu; return 1;
+    case (unsigned char)'\n': *out = 0x0au; return 1;
+    default:
+        return 0;
+    }
+}
+
+static int rune_corpus_write_ascii_text(const char *text)
+{
+    const unsigned char *cursor;
+
+    if (text == NULL) {
+        return 0;
+    }
+
+    cursor = (const unsigned char *)text;
+    while (*cursor != 0u) {
+        uint8_t byte;
+
+        if (!rune_corpus_exec_char_to_ascii(*cursor, &byte) ||
+            fwrite(&byte, 1u, 1u, stdout) != 1u) {
+            return 0;
+        }
+        ++cursor;
+    }
+
+    return 1;
+}
+
+static int rune_corpus_write_u64_ascii(uint64_t value)
+{
+    uint8_t digits[20];
+    size_t count;
+    size_t i;
+
+    count = 0u;
+    do {
+        digits[count] = (uint8_t)(
+            0x30u + (uint8_t)(value % UINT64_C(10))
+        );
+        value /= UINT64_C(10);
+        count += 1u;
+    } while (value != 0u);
+
+    for (i = count; i != 0u; --i) {
+        if (fwrite(&digits[i - 1u], 1u, 1u, stdout) != 1u) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 static int rune_corpus_emit_receipt(
     const char *profile,
     uint64_t working_set_bytes,
     const rune_corpus_receipt *receipt
 )
 {
-    return printf(
-        "{\"contract\":\"rune.corpus.receipt.v1\","
-        "\"profile\":\"%s\","
-        "\"working_set_bytes\":%" PRIu64 ","
-        "\"workload\":\"%s\","
-        "\"seed\":%" PRIu64 ","
-        "\"logical_items\":%" PRIu64 ","
-        "\"resident_bytes\":%" PRIu64 ","
-        "\"scratch_bytes\":%" PRIu64 ","
-        "\"model_bytes_read\":%" PRIu64 ","
-        "\"model_bytes_written\":%" PRIu64 ","
-        "\"result_u64\":%" PRIu64 ","
-        "\"variants_checked\":%" PRIu32 "}\n",
-        profile,
-        working_set_bytes,
-        receipt->workload,
-        receipt->seed,
-        receipt->logical_items,
-        receipt->resident_bytes,
-        receipt->scratch_bytes,
-        receipt->model_bytes_read,
-        receipt->model_bytes_written,
-        receipt->result_u64,
-        receipt->variants_checked
-    ) >= 0;
+    return
+        rune_corpus_write_ascii_text(
+            "{\"contract\":\"rune.corpus.receipt.v1\","
+            "\"profile\":\""
+        ) &&
+        rune_corpus_write_ascii_text(profile) &&
+        rune_corpus_write_ascii_text(
+            "\",\"working_set_bytes\":"
+        ) &&
+        rune_corpus_write_u64_ascii(working_set_bytes) &&
+        rune_corpus_write_ascii_text(
+            ",\"workload\":\""
+        ) &&
+        rune_corpus_write_ascii_text(receipt->workload) &&
+        rune_corpus_write_ascii_text(
+            "\",\"seed\":"
+        ) &&
+        rune_corpus_write_u64_ascii(receipt->seed) &&
+        rune_corpus_write_ascii_text(
+            ",\"logical_items\":"
+        ) &&
+        rune_corpus_write_u64_ascii(receipt->logical_items) &&
+        rune_corpus_write_ascii_text(
+            ",\"resident_bytes\":"
+        ) &&
+        rune_corpus_write_u64_ascii(receipt->resident_bytes) &&
+        rune_corpus_write_ascii_text(
+            ",\"scratch_bytes\":"
+        ) &&
+        rune_corpus_write_u64_ascii(receipt->scratch_bytes) &&
+        rune_corpus_write_ascii_text(
+            ",\"model_bytes_read\":"
+        ) &&
+        rune_corpus_write_u64_ascii(receipt->model_bytes_read) &&
+        rune_corpus_write_ascii_text(
+            ",\"model_bytes_written\":"
+        ) &&
+        rune_corpus_write_u64_ascii(receipt->model_bytes_written) &&
+        rune_corpus_write_ascii_text(
+            ",\"result_u64\":"
+        ) &&
+        rune_corpus_write_u64_ascii(receipt->result_u64) &&
+        rune_corpus_write_ascii_text(
+            ",\"variants_checked\":"
+        ) &&
+        rune_corpus_write_u64_ascii(
+            (uint64_t)receipt->variants_checked
+        ) &&
+        rune_corpus_write_ascii_text("}\n");
 }
 
 static int rune_corpus_emit_summary(
@@ -251,19 +408,30 @@ static int rune_corpus_emit_summary(
     uint64_t fingerprint;
 
     fingerprint = rune_corpus_receipt_fingerprint(receipts, receipt_count);
-    return printf(
-        "{\"contract\":\"rune.corpus.summary.v1\","
-        "\"profile\":\"%s\","
-        "\"working_set_bytes\":%" PRIu64 ","
-        "\"seed\":%" PRIu64 ","
-        "\"receipt_count\":%lu,"
-        "\"fingerprint_u64\":%" PRIu64 "}\n",
-        profile,
-        working_set_bytes,
-        seed,
-        (unsigned long)receipt_count,
-        fingerprint
-    ) >= 0;
+
+    return
+        rune_corpus_write_ascii_text(
+            "{\"contract\":\"rune.corpus.summary.v1\","
+            "\"profile\":\""
+        ) &&
+        rune_corpus_write_ascii_text(profile) &&
+        rune_corpus_write_ascii_text(
+            "\",\"working_set_bytes\":"
+        ) &&
+        rune_corpus_write_u64_ascii(working_set_bytes) &&
+        rune_corpus_write_ascii_text(
+            ",\"seed\":"
+        ) &&
+        rune_corpus_write_u64_ascii(seed) &&
+        rune_corpus_write_ascii_text(
+            ",\"receipt_count\":"
+        ) &&
+        rune_corpus_write_u64_ascii((uint64_t)receipt_count) &&
+        rune_corpus_write_ascii_text(
+            ",\"fingerprint_u64\":"
+        ) &&
+        rune_corpus_write_u64_ascii(fingerprint) &&
+        rune_corpus_write_ascii_text("}\n");
 }
 
 static int rune_corpus_build_values(
@@ -1394,7 +1562,13 @@ static int rune_corpus_parse_u64(
         return 0;
     }
 
-    if (text[0] == '-') {
+    if (text[0] == '-' ||
+        text[0] == ' ' ||
+        text[0] == '\t' ||
+        text[0] == '\n' ||
+        text[0] == '\r' ||
+        text[0] == '\f' ||
+        text[0] == '\v') {
         return 0;
     }
 

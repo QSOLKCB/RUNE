@@ -63,7 +63,7 @@ Intended for an ordinary local CPU machine.
 
 ### Explicit
 
-A caller may request one positive power-of-two working-set size between:
+A caller may request one positive power-of-two working-set size between. Unsigned command-line values use a strict grammar: leading whitespace and negative signs are rejected before conversion.
 
 ~~~text
 4 KiB
@@ -238,7 +238,9 @@ LOGICAL SCALE != RESIDENT SCALE
 
 ## Receipts
 
-Each workload emits one JSON Lines receipt with:
+Each workload emits one JSON Lines receipt encoded as the explicit ASCII subset of UTF-8. JSON syntax, field names, profile/workload text, and decimal digits are written as canonical ASCII bytes rather than host execution-character bytes, so an EBCDIC execution character set cannot change or invalidate the serialized JSON.
+
+Each workload receipt contains:
 
 ~~~text
 contract
@@ -298,7 +300,7 @@ That does not create a mandatory heap requirement for the RUNE runtime.
 
 The harness allocation is bounded by the selected profile and is not exported as runtime API.
 
-If a bounded harness allocation cannot be obtained, the run reports **corpus resource exhausted** rather than misclassifying the host resource limit as a correctness-contract mismatch.
+If a bounded harness allocation cannot be obtained, or the requested byte extent cannot be represented by the host size_t, the run reports **corpus resource exhausted** rather than misclassifying the host resource limit as a correctness-contract mismatch.
 
 ## Build and run
 

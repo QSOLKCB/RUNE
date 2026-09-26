@@ -56,6 +56,14 @@ corpus-smoke: $(CORPUS)
 		echo "negative --bytes unexpectedly accepted" >&2; \
 		exit 1; \
 	fi
+	if ./$(CORPUS) --bytes ' -18446744073709547520' >/dev/null 2>&1; then \
+		echo "whitespace-prefixed negative --bytes unexpectedly accepted" >&2; \
+		exit 1; \
+	fi
+	if ./$(CORPUS) --seed ' -1' >/dev/null 2>&1; then \
+		echo "whitespace-prefixed negative --seed unexpectedly accepted" >&2; \
+		exit 1; \
+	fi
 
 test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC)
 	./$(TEST_REGION)
