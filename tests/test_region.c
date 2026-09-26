@@ -92,16 +92,30 @@ static void test_region_attach(void)
         RUNE_ERR_INVALID_ARGUMENT
     );
 
-    if (sizeof(size_t) < sizeof(uint64_t)) {
-        CHECK_STATUS(
-            rune_region_attach(
-                &region,
-                storage,
-                (uint64_t)((size_t)-1) + (uint64_t)1u,
-                RUNE_ACCESS_READ
-            ),
-            RUNE_ERR_UNSUPPORTED_CAPACITY
-        );
+    {
+        size_t host_max;
+        uint64_t host_max_u64;
+
+        host_max = (size_t)-1;
+        host_max_u64 = (uint64_t)host_max;
+
+        /*
+         * Exercise the unsupported-capacity path whenever SIZE_MAX is
+         * representable in uint64_t and is strictly below UINT64_MAX.
+         * This remains valid even on targets where size_t has padding bits.
+         */
+        if ((size_t)host_max_u64 == host_max &&
+            host_max_u64 < UINT64_MAX) {
+            CHECK_STATUS(
+                rune_region_attach(
+                    &region,
+                    storage,
+                    host_max_u64 + (uint64_t)1u,
+                    RUNE_ACCESS_READ
+                ),
+                RUNE_ERR_UNSUPPORTED_CAPACITY
+            );
+        }
     }
 }
 

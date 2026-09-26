@@ -11,11 +11,10 @@ static int rune_access_valid(uint32_t access)
 
 static int rune_capacity_fits_host(uint64_t capacity)
 {
-    if (sizeof(size_t) >= sizeof(uint64_t)) {
-        return 1;
-    }
+    size_t host_capacity;
 
-    return capacity <= (uint64_t)((size_t)-1);
+    host_capacity = (size_t)capacity;
+    return (uint64_t)host_capacity == capacity;
 }
 
 static rune_status rune_extent_end(
