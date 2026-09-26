@@ -50,7 +50,7 @@ $(CORPUS): corpus/rune_corpus.c $(LIB) include/rune/arena.h include/rune/numeric
 
 corpus-smoke: $(CORPUS)
 	./$(CORPUS) --profile smoke > $(BUILD_DIR)/corpus-smoke.jsonl
-	test "$(wc -l < $(BUILD_DIR)/corpus-smoke.jsonl)" -eq 17
+	test "`wc -l < $(BUILD_DIR)/corpus-smoke.jsonl`" -eq 17
 	grep -q '"contract":"rune.corpus.summary.v1"' $(BUILD_DIR)/corpus-smoke.jsonl
 
 test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC)
