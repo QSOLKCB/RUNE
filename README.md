@@ -46,13 +46,22 @@ MORE COMPUTE != BETTER EXECUTION
 
 ## Status
 
-**R0 — Constitutional foundation.**
+**R1 — Region core.**
 
-RUNE is deliberately pre-implementation. The project is freezing its language, invariants, donor boundaries, machine contracts, and roadmap before runtime code is allowed to define the architecture accidentally.
+The constitutional R0 foundation is merged. RUNE now has its first executable ISO C99 reference slice: caller-owned bounded regions and spans, checked semantic offsets/extents, explicit access rights, overlap-safe movement, fill/clear primitives, and deterministic tests.
 
-The reference implementation will target **ISO C99**.
+R1 deliberately contains **no mandatory heap, arena, threading, SIMD, floating point, scheduler, cache framework, or runtime performance claim**.
 
-No scheduler hierarchy, worker pool, generic cache framework, plugin system, JIT, garbage collector, GPU backend, or distributed runtime belongs in R0.
+See [R1-REGION-CORE.md](R1-REGION-CORE.md) and [ROADMAP.md](ROADMAP.md).
+
+## Build and test
+
+~~~sh
+make test
+make clean test CC=clang
+~~~
+
+The tests exercise deterministic correctness only. They are not performance benchmarks.
 
 ## Project identity
 
@@ -60,6 +69,7 @@ No scheduler hierarchy, worker pool, generic cache framework, plugin system, JIT
 Project: RUNE
 Name: Runtime for Unified Numeric Execution
 Reference language: ISO C99
+Current phase: R1 — Region core
 Architecture: CPU-only
 Numeric boundary: integer-only
 Memory model: explicit and bounded

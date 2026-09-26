@@ -1,0 +1,76 @@
+{
+  "contract": "rune.r1-region-core.v1",
+  "phase": "R1",
+  "reference_language": "ISO C99",
+  "runtime_performance_claims_allowed": false,
+  "allocation": {
+    "mandatory_heap": false,
+    "backing_storage_ownership": "caller-owned",
+    "region_relationship": "borrowed",
+    "zero_capacity_null_storage_allowed": true,
+    "nonzero_capacity_null_storage_allowed": false
+  },
+  "semantic_widths": {
+    "capacity": "uint64_t",
+    "offset": "uint64_t",
+    "length": "uint64_t",
+    "native_pointer_width_defines_portable_identity": false,
+    "attach_requires_capacity_representable_by_host_size_t": true
+  },
+  "access": {
+    "read_flag": "RUNE_ACCESS_READ",
+    "write_flag": "RUNE_ACCESS_WRITE",
+    "span_access_must_be_subset_of_region_access": true
+  },
+  "bounds": {
+    "interval": "half-open",
+    "checked_offset_plus_length": true,
+    "overflow_fails": "RUNE_ERR_OVERFLOW",
+    "beyond_region_fails": "RUNE_ERR_OUT_OF_BOUNDS",
+    "zero_length_at_capacity_allowed": true,
+    "zero_length_beyond_capacity_allowed": false,
+    "child_span_must_fit_parent": true
+  },
+  "movement": {
+    "operation": "rune_span_move",
+    "overlap_safe": true,
+    "extent": "source-span-length",
+    "destination_may_be_larger": true,
+    "smaller_destination_fails": "RUNE_ERR_CAPACITY",
+    "source_requires_read": true,
+    "destination_requires_write": true,
+    "validation_precedes_mutation": true
+  },
+  "mutation": {
+    "fill": "rune_span_fill",
+    "clear": "rune_span_clear",
+    "requires_write_access": true,
+    "zero_length_does_not_dereference_storage": true
+  },
+  "public_files": [
+    "include/rune/status.h",
+    "include/rune/region.h",
+    "src/status.c",
+    "src/region.c"
+  ],
+  "validation": {
+    "deterministic_tests": "tests/test_region.c",
+    "build_command": "make test",
+    "compilers": [
+      "gcc",
+      "clang"
+    ],
+    "performance_benchmark": false
+  },
+  "excluded": [
+    "arena",
+    "heap_allocator",
+    "fixed_point",
+    "queue",
+    "ring",
+    "execution_descriptor",
+    "threading",
+    "SIMD",
+    "performance_claim"
+  ]
+}

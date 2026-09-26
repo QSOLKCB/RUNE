@@ -4,25 +4,28 @@ MODE=MACHINE_ONLY
 PROJECT=RUNE
 REFERENCE_LANGUAGE=ISO_C99
 LICENSE=MPL-2.0
-CURRENT_PHASE=R0
-RUNTIME_IMPLEMENTATION_ALLOWED=false
+CURRENT_PHASE=R1
+RUNTIME_IMPLEMENTATION_ALLOWED=true
 RUNTIME_PERFORMANCE_CLAIMS_ALLOWED=false
 
 READ_ORDER:
 1=machine/project-v1.json
 2=machine/invariants-v1.json
 3=machine/donors-v1.json
+4=machine/r1-region-core.v1.json
 
 HUMAN_PROSE:
 README.md
 CONSTITUTION.md
 ROADMAP.md
 DONORS-v1.md
+R1-REGION-CORE.md
 
 MACHINE_AUTHORITY:
 machine/project-v1.json
 machine/invariants-v1.json
 machine/donors-v1.json
+machine/r1-region-core.v1.json
 
 CONFLICT_POLICY=FAIL_CLOSED
 ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
@@ -30,7 +33,7 @@ DO_NOT_INVENT_RECONCILIATION=true
 
 CORE_RULES:
 - preserve_all_invariants
-- no_runtime_code_in_R0
+- runtime_code_allowed_only_within_current_R1_region_core_scope
 - cpu_only
 - integer_only_public_semantics
 - fractional_rounding_behavior_must_be_declared
@@ -49,7 +52,7 @@ CORE_RULES:
 - optional_internal_optimization_unavailable_or_losing_requires_fallback_to_correct_simpler_path
 - requested_contract_capability_unsupported_requires_explicit_failure
 - optional_internal_optimization_absence_is_not_unsupported_capability_failure
-- runtime_performance_claims_forbidden_in_R0
+- runtime_performance_claims_forbidden_in_R1
 - causal_performance_claim_requires_support_beyond_timing
 - portable_identity_requires_explicit_versioned_representation
 - fixed_width_integer_identity_is_allowed_but_not_the_only_allowed_explicit_representation
