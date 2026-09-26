@@ -54,7 +54,15 @@
     {
       "id": "RUNE-INV-007",
       "slug": "reference-before-optimization",
-      "statement": "The smallest practical scalar deterministic single-threaded implementation is the semantic reference until evidence earns another path; optimized paths preserve the result contract or fail closed."
+      "statement": "The smallest practical scalar deterministic single-threaded implementation is the semantic reference until evidence earns another path; an optimized path must preserve the result contract, provide material measured benefit under its declared workload, and fall back to the correct simpler path when unavailable or when it loses, while genuine resource or correctness failures remain explicit.",
+      "requirements": {
+        "reference_path_retained": true,
+        "result_contract_preserved": true,
+        "material_measured_benefit_required_for_promotion": true,
+        "fallback_when_optimized_path_unavailable": "correct-simpler-path",
+        "fallback_when_optimized_path_loses": "correct-simpler-path",
+        "genuine_resource_or_correctness_failure_may_fail_explicitly": true
+      }
     },
     {
       "id": "RUNE-INV-008",
@@ -70,7 +78,8 @@
           "improve_locality",
           "measure"
         ],
-        "acceleration_before_all_required_steps": false
+        "acceleration_before_all_required_steps": false,
+        "material_benefit_under_declared_workload_required_for_acceleration_promotion": true
       }
     },
     {
@@ -126,12 +135,17 @@
     {
       "id": "RUNE-INV-013",
       "slug": "second-implementation-earns-abstraction",
-      "statement": "Do not create generic scheduler, executor, allocator, backend, cache, plugin, dependency-injection, or task-graph hierarchies for hypothetical future use; a second real implementation must demonstrate the need."
+      "statement": "Do not create generic scheduler, executor, allocator, backend, cache, plugin, dependency-injection, or task-graph hierarchies for hypothetical future use; a second real implementation must demonstrate the proposed common abstraction before promotion.",
+      "requirements": {
+        "second_real_implementation_required": true,
+        "evidence_of_common_abstraction_required": true,
+        "mere_existence_of_two_implementations_is_sufficient": false
+      }
     },
     {
       "id": "RUNE-INV-014",
       "slug": "environment-scoped-performance",
-      "statement": "Performance observations bind source revision, workload, compiler/toolchain, build configuration, CPU/platform, memory profile, and measurement method; no benchmark result is universal.",
+      "statement": "Performance observations bind source revision, workload, compiler/toolchain, build configuration, CPU/platform, memory profile, and measurement method; no benchmark result is universal, and timing alone does not establish a causal hardware mechanism.",
       "requirements": {
         "required_dimensions": [
           "source_revision",
@@ -141,7 +155,9 @@
           "cpu_platform",
           "memory_profile",
           "measurement_method"
-        ]
+        ],
+        "causal_hardware_claims_require_support_beyond_timing": true,
+        "timing_alone_may_establish_cause": false
       }
     },
     {

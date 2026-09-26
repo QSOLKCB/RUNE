@@ -106,7 +106,16 @@
       "threading",
       "topology_tuning",
       "specialized_CPU_paths"
-    ]
+    ],
+    "promotion_policy": {
+      "exact_reference_parity_when_contract_requires_exactness": true,
+      "environment_scoped_measurement_required": true,
+      "lifecycle_and_memory_costs_included": true,
+      "material_benefit_under_declared_workload_required": true,
+      "fallback_to_correct_simpler_path_when_optimized_path_unavailable": true,
+      "fallback_to_correct_simpler_path_when_optimized_path_loses": true,
+      "genuine_resource_or_correctness_failure_may_fail_explicitly": true
+    }
   },
   "resource_failure_policy": {
     "explicit_failure_required_for": [
@@ -161,7 +170,17 @@
         "teardown"
       ]
     },
-    "correctness_precedes_performance": true
+    "correctness_precedes_performance": true,
+    "causal_performance_claim_policy": {
+      "timing_observation_alone_is_sufficient": false,
+      "supporting_evidence_beyond_timing_required": true,
+      "examples_requiring_extra_support": [
+        "cache_effect",
+        "NUMA_effect",
+        "memory_bandwidth_effect",
+        "hardware_topology_cause"
+      ]
+    }
   },
   "machine_contracts": {
     "invariants": "machine/invariants-v1.json",
