@@ -27,7 +27,7 @@ Success criterion:
 
 ## R1 — Region core
 
-**Current phase.**
+**Complete — merged in PR #2.**
 
 Build the smallest useful C99 memory substrate.
 
@@ -53,6 +53,8 @@ Success criterion:
 > useful bounded memory operations execute deterministically without dynamic allocation or application-specific semantics.
 
 ## R2 — Arena and scratch lifetime
+
+**Current phase.**
 
 Introduce controlled transient storage only after R1 exists.
 

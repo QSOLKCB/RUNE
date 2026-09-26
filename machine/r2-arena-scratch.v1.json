@@ -1,0 +1,91 @@
+{
+  "contract": "rune.r2-arena-scratch.v1",
+  "phase": "R2",
+  "reference_language": "ISO C99",
+  "runtime_performance_claims_allowed": false,
+  "storage": {
+    "ownership": "caller-owned",
+    "relationship": "borrowed-read-write-span",
+    "mandatory_heap": false,
+    "individual_free": false,
+    "automatic_clear_on_restore_or_reset": false
+  },
+  "arena": {
+    "monotonic_within_generation": true,
+    "cursor_unit": "bytes-relative-to-storage-span-start",
+    "generation_initial_value": 1,
+    "zero_capacity_allowed": true
+  },
+  "alignment": {
+    "required": true,
+    "accepted": "non-zero-power-of-two",
+    "semantic_basis": "arena-relative-offset",
+    "native_object_alignment_guaranteed_from_arbitrary_byte_pointer": false,
+    "caller_must_supply_suitably_aligned_base_for_native_alignment_needs": true
+  },
+  "allocation": {
+    "operation": "rune_arena_alloc",
+    "success_returns": "read-write-rune-span",
+    "exhaustion": "RUNE_ERR_EXHAUSTED",
+    "accounting_overflow": "RUNE_ERR_OVERFLOW",
+    "failure_mutates_arena_state": false,
+    "zero_length": {
+      "allowed": true,
+      "returns_aligned_empty_span": true,
+      "consumes_cursor": false,
+      "contributes_accounting": false
+    }
+  },
+  "accounting": {
+    "current_live_consumed_bytes": "cursor",
+    "peak_live_consumed_bytes": "high_water",
+    "cumulative_payload_bytes": "sum-successful-nonzero-request-lengths",
+    "cumulative_consumed_bytes": "sum-successful-nonzero-cursor-advance-including-padding",
+    "allocation_count": "successful-nonzero-allocations",
+    "restore_reduces_historical_counters": false,
+    "reset_reduces_historical_counters": false
+  },
+  "checkpoints": {
+    "save": "rune_arena_checkpoint_save",
+    "restore": "rune_arena_checkpoint_restore",
+    "owner_binding": "arena-object-address-transient-local-only",
+    "owner_binding_is_portable_identity": false,
+    "generation_must_match": true,
+    "restore_may_move_cursor_forward": false,
+    "rejected_checkpoint": "RUNE_ERR_STALE_CHECKPOINT",
+    "arena_object_address_must_remain_stable_while_checkpoints_exist": true,
+    "restore_logically_expires": "all-scratch-spans-allocated-after-restored-checkpoint"
+  },
+  "reset": {
+    "operation": "rune_arena_reset",
+    "cursor_after_success": 0,
+    "increments_generation": true,
+    "clears_bytes": false,
+    "invalidates_prior_generation_checkpoints": true,
+    "generation_overflow": "RUNE_ERR_OVERFLOW",
+    "all_prior_generation_scratch_spans_logically_expire": true
+  },
+  "public_files": [
+    "include/rune/arena.h",
+    "src/arena.c"
+  ],
+  "validation": {
+    "deterministic_tests": "tests/test_arena.c",
+    "build_command": "make test",
+    "compilers": [
+      "gcc",
+      "clang"
+    ],
+    "performance_benchmark": false
+  },
+  "excluded": [
+    "general_heap",
+    "individual_free",
+    "coalescing",
+    "destructors",
+    "automatic_clear",
+    "threading",
+    "SIMD",
+    "performance_claim"
+  ]
+}
