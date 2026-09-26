@@ -12,8 +12,9 @@ OBJS = $(BUILD_DIR)/status.o $(BUILD_DIR)/region.o $(BUILD_DIR)/arena.o $(BUILD_
 TEST_REGION = $(BUILD_DIR)/test_region
 TEST_ARENA = $(BUILD_DIR)/test_arena
 TEST_NUMERIC = $(BUILD_DIR)/test_numeric
+CORPUS = $(BUILD_DIR)/rune_corpus
 
-.PHONY: all test clean
+.PHONY: all test corpus-smoke clean
 
 all: $(LIB)
 
@@ -43,6 +44,14 @@ $(TEST_ARENA): tests/test_arena.c $(LIB) include/rune/arena.h include/rune/regio
 
 $(TEST_NUMERIC): tests/test_numeric.c $(LIB) include/rune/numeric.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) tests/test_numeric.c $(LIB) -o $@
+
+$(CORPUS): corpus/rune_corpus.c $(LIB) include/rune/arena.h include/rune/numeric.h include/rune/region.h include/rune/status.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) corpus/rune_corpus.c $(LIB) -o $@
+
+corpus-smoke: $(CORPUS)
+	./$(CORPUS) --profile smoke > $(BUILD_DIR)/corpus-smoke.jsonl
+	test "$(wc -l < $(BUILD_DIR)/corpus-smoke.jsonl)" -eq 17
+	grep -q '"contract":"rune.corpus.summary.v1"' $(BUILD_DIR)/corpus-smoke.jsonl
 
 test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC)
 	./$(TEST_REGION)

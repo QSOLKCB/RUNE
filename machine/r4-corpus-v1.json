@@ -1,0 +1,143 @@
+{
+  "contract": "rune.r4-corpus-v1",
+  "phase": "R4",
+  "reference_language": "ISO C99",
+  "runtime_performance_claims_allowed": false,
+  "role": "deterministic-evidence-corpus-not-runtime-abi",
+  "generator": {
+    "default_seed": 303,
+    "identity_inputs": [
+      "seed",
+      "logical_index"
+    ],
+    "floating_point": false,
+    "wall_clock": false,
+    "randomness_source": false,
+    "stored_large_dataset_required": false
+  },
+  "profiles": {
+    "smoke_bytes": 32768,
+    "local_bytes": [
+      4096,
+      32768,
+      262144,
+      1048576,
+      4194304,
+      16777216,
+      67108864
+    ],
+    "explicit_min_bytes": 4096,
+    "explicit_max_bytes": 268435456,
+    "explicit_requires_power_of_two": true,
+    "max_point_is_default_local": false
+  },
+  "receipts": {
+    "format": "json-lines",
+    "workload_contract": "rune.corpus.receipt.v1",
+    "summary_contract": "rune.corpus.summary.v1",
+    "timing_fields_allowed": false,
+    "timing_part_of_result_identity": false,
+    "model_byte_fields_are_hardware_measurements": false,
+    "workload_receipts_per_size": 16,
+    "summary_receipts_per_size": 1
+  },
+  "workload_families": [
+    "C01-sequential-scan",
+    "C02-strided-scan",
+    "C03-deterministic-permutation",
+    "C04-offset-chase",
+    "C05-materialize-reduce",
+    "C06-fused-reduce",
+    "C07-aos-hot-traversal",
+    "C08-soa-hot-fields",
+    "C09-microtile-sweep",
+    "C10-caller-owned-ring",
+    "C11-arena-reset",
+    "C12-fixed-point-reconstruction",
+    "C13-retain",
+    "C13-regenerate",
+    "C14-rivet-like-byte-stream",
+    "C15-huge-logical-domain"
+  ],
+  "exact_equivalence_groups": [
+    [
+      "C01-sequential-scan",
+      "C02-strided-scan",
+      "C03-deterministic-permutation",
+      "C04-offset-chase"
+    ],
+    [
+      "C05-materialize-reduce",
+      "C06-fused-reduce"
+    ],
+    [
+      "C07-aos-hot-traversal",
+      "C08-soa-hot-fields"
+    ],
+    [
+      "C13-retain",
+      "C13-regenerate"
+    ]
+  ],
+  "c09": {
+    "tile_sizes_elements": [
+      32,
+      64,
+      128,
+      256,
+      512,
+      1024,
+      2048,
+      4096
+    ],
+    "all_executed_variants_require_exact_result": true
+  },
+  "c10": {
+    "ring_capacity_elements": 256,
+    "corpus_local_only": true,
+    "creates_R5_runtime_api": false
+  },
+  "c11": {
+    "uses_R2_arena": true,
+    "reset_between_rounds": true,
+    "requires_cumulative_consumed_greater_than_high_water": true
+  },
+  "c12": {
+    "representation": "Q16.16-raw-exact",
+    "full_entries": 4096,
+    "compact_base_entries": 1024,
+    "reconstruction_is_exact": true,
+    "lossy_interpolation_claim": false
+  },
+  "c14": {
+    "parser_semantics": false,
+    "chunk_sizes_bytes": [
+      7,
+      31,
+      257
+    ],
+    "all_chunks_require_exact_classification_identity": true
+  },
+  "c15": {
+    "logical_items": 1099511627776,
+    "full_materialization_forbidden": true,
+    "window_count": 64,
+    "window_items": 64,
+    "metadata_is_constant_size": true
+  },
+  "harness": {
+    "bounded_libc_malloc_allowed": true,
+    "malloc_is_runtime_requirement": false,
+    "exported_runtime_api": false
+  },
+  "validation": {
+    "executable": "build/rune_corpus",
+    "smoke_command": "make corpus-smoke",
+    "local_command": "./build/rune_corpus --profile local",
+    "compilers": [
+      "gcc",
+      "clang"
+    ],
+    "performance_benchmark": false
+  }
+}

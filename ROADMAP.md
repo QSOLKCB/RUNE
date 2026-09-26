@@ -76,7 +76,7 @@ Success criterion:
 
 ## R3 — Integer numeric core
 
-**Current phase.**
+**Complete — merged in PR #4.**
 
 Add only arithmetic required by real RUNE workloads.
 
@@ -97,6 +97,8 @@ Success criterion:
 > RUNE can express bounded fractional and scaling semantics without requiring floating point.
 
 ## R4 — RUNE-CORPUS-v1
+
+**Current phase.**
 
 Create a deterministic procedural local-memory corpus before adding advanced execution machinery.
 

@@ -46,19 +46,21 @@ MORE COMPUTE != BETTER EXECUTION
 
 ## Status
 
-**R3 — Integer numeric core.**
+**R4 — RUNE-CORPUS-v1.**
 
-R0 through R2 are merged. RUNE now adds a small deterministic integer numeric layer: checked unsigned/signed arithmetic, checked left shift, explicit rounded integer division, and a Q16.16 proof type using guaranteed C99 wider intermediates.
+R0 through R3 are merged. RUNE now includes a deterministic procedural local-memory corpus covering C01–C15: locality, materialization/fusion, AoS/SoA, microtiles, corpus-local rings, arena reuse, exact fixed-point reconstruction, retain/regenerate, chunked byte streams, and huge logical domains under bounded resident state.
 
-Q16.16 is **a demonstrated representation, not a universal RUNE numeric format**. R3 still contains no floating point, SIMD, threads, universal math framework, or runtime performance claim.
+R4 adds **workload definitions and correctness receipts, not performance claims**. Timing is deliberately absent from the R4 receipt identity and remains deferred to the later CPU memory-wall study.
 
-See [R3-INTEGER-NUMERIC.md](R3-INTEGER-NUMERIC.md) and [ROADMAP.md](ROADMAP.md).
+See [R4-CORPUS-v1.md](R4-CORPUS-v1.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Build and test
 
 ~~~sh
 make test
 make clean test CC=clang
+make corpus-smoke
+./build/rune_corpus --profile local
 ~~~
 
 The tests exercise deterministic correctness only. They are not performance benchmarks.
@@ -69,7 +71,7 @@ The tests exercise deterministic correctness only. They are not performance benc
 Project: RUNE
 Name: Runtime for Unified Numeric Execution
 Reference language: ISO C99
-Current phase: R3 — Integer numeric core
+Current phase: R4 — RUNE-CORPUS-v1
 Architecture: CPU-only
 Numeric boundary: integer-only
 Memory model: explicit and bounded
@@ -276,6 +278,7 @@ Human-facing files:
 - [R1-REGION-CORE.md](R1-REGION-CORE.md)
 - [R2-ARENA-SCRATCH.md](R2-ARENA-SCRATCH.md)
 - [R3-INTEGER-NUMERIC.md](R3-INTEGER-NUMERIC.md)
+- [R4-CORPUS-v1.md](R4-CORPUS-v1.md)
 
 Machine-facing files:
 
@@ -286,6 +289,7 @@ Machine-facing files:
 - [machine/r1-region-core.v1.json](machine/r1-region-core.v1.json)
 - [machine/r2-arena-scratch.v1.json](machine/r2-arena-scratch.v1.json)
 - [machine/r3-integer-numeric.v1.json](machine/r3-integer-numeric.v1.json)
+- [machine/r4-corpus-v1.json](machine/r4-corpus-v1.json)
 
 A contradiction between the two surfaces is a defect. Automated agents must fail closed rather than invent a reconciliation.
 

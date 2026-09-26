@@ -4,7 +4,7 @@ MODE=MACHINE_ONLY
 PROJECT=RUNE
 REFERENCE_LANGUAGE=ISO_C99
 LICENSE=MPL-2.0
-CURRENT_PHASE=R3
+CURRENT_PHASE=R4
 RUNTIME_IMPLEMENTATION_ALLOWED=true
 RUNTIME_PERFORMANCE_CLAIMS_ALLOWED=false
 
@@ -15,6 +15,7 @@ READ_ORDER:
 4=machine/r1-region-core.v1.json
 5=machine/r2-arena-scratch.v1.json
 6=machine/r3-integer-numeric.v1.json
+7=machine/r4-corpus-v1.json
 
 HUMAN_PROSE:
 README.md
@@ -24,6 +25,7 @@ DONORS-v1.md
 R1-REGION-CORE.md
 R2-ARENA-SCRATCH.md
 R3-INTEGER-NUMERIC.md
+R4-CORPUS-v1.md
 
 MACHINE_AUTHORITY:
 machine/project-v1.json
@@ -32,6 +34,7 @@ machine/donors-v1.json
 machine/r1-region-core.v1.json
 machine/r2-arena-scratch.v1.json
 machine/r3-integer-numeric.v1.json
+machine/r4-corpus-v1.json
 
 CONFLICT_POLICY=FAIL_CLOSED
 ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
@@ -39,7 +42,7 @@ DO_NOT_INVENT_RECONCILIATION=true
 
 CORE_RULES:
 - preserve_all_invariants
-- runtime_code_allowed_only_within_current_R3_integer_numeric_scope
+- runtime_code_allowed_only_within_current_R4_corpus_scope
 - cpu_only
 - integer_only_public_semantics
 - fractional_rounding_behavior_must_be_declared
@@ -53,6 +56,14 @@ CORE_RULES:
 - platform_specific_facilities_require_explicit_boundary
 - os_specific_api_may_not_be_core_requirement
 - bounded_external_growth
+- corpus_inputs_are_deterministic_and_procedural
+- corpus_receipts_must_not_include_timing_in_R4
+- corpus_result_identity_excludes_timing
+- corpus_model_byte_traffic_is_not_hardware_counter_evidence
+- corpus_bounded_malloc_is_harness_only_not_runtime_heap_dependency
+- corpus_C10_ring_is_local_workload_not_R5_runtime_api
+- corpus_C15_logical_scale_must_not_materialize_full_logical_domain
+- corpus_equivalent_paths_must_produce_exact_result_identity
 - arena_alignment_is_storage_span_relative
 - arena_checkpoint_owner_pointer_is_transient_not_portable_identity
 - arena_incarnation_token_is_transient_not_portable_identity
@@ -74,7 +85,7 @@ CORE_RULES:
 - optional_internal_optimization_unavailable_or_losing_requires_fallback_to_correct_simpler_path
 - requested_contract_capability_unsupported_requires_explicit_failure
 - optional_internal_optimization_absence_is_not_unsupported_capability_failure
-- runtime_performance_claims_forbidden_in_R3
+- runtime_performance_claims_forbidden_in_R4
 - causal_performance_claim_requires_support_beyond_timing
 - portable_identity_requires_explicit_versioned_representation
 - fixed_width_integer_identity_is_allowed_but_not_the_only_allowed_explicit_representation
