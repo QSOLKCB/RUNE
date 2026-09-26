@@ -126,9 +126,11 @@ C05 and C06 must produce exactly the same result.
 
 ### C07 — AoS hot traversal
 
-A six-field record stores three hot and three cold uint32 fields.
+A six-field logical record stores three hot and three cold uint32 fields.
 
-The reduction consumes only the hot fields.
+The logical record width is frozen at **24 bytes** (six 4-byte fields), independent of host structure padding. Host sizeof(rune_corpus_record) is used only to obtain enough harness allocation space.
+
+The reduction consumes only the three hot fields. C07 therefore models **12 bytes read per logical item**; cold fields and ABI padding remain resident representation, not declared algorithmic reads.
 
 ### C08 — SoA hot fields
 
@@ -224,6 +226,8 @@ R4 does not iterate or materialize 2^40 items.
 
 It deterministically selects 64 windows of 64 items and represents the huge domain with constant-size metadata.
 
+The sampled values are generated directly from (seed, logical_index) and immediately reduced into the result hash. They are not materialized or read back from storage, so C15 declares zero modeled byte reads/writes for generated values.
+
 This freezes the invariant:
 
 ~~~text
@@ -292,6 +296,8 @@ That does not create a mandatory heap requirement for the RUNE runtime.
 
 The harness allocation is bounded by the selected profile and is not exported as runtime API.
 
+If a bounded harness allocation cannot be obtained, the run reports **corpus resource exhausted** rather than misclassifying the host resource limit as a correctness-contract mismatch.
+
 ## Build and run
 
 ~~~sh
@@ -301,6 +307,8 @@ make corpus-smoke
 ./build/rune_corpus --bytes 1048576 --seed 303
 ~~~
 
-CI runs the smoke corpus with GCC and Clang.
+A zero exit status also requires every JSONL receipt and summary write, plus the final stdout flush, to succeed. Truncated output is therefore a run failure.
+
+CI runs the smoke corpus with GCC and Clang and pins the seed-303 smoke summary fingerprint once the R4 receipt semantics are frozen.
 
 R4 makes no runtime performance claim.

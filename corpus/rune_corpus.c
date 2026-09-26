@@ -16,6 +16,8 @@
 #define RUNE_CORPUS_SMOKE_BYTES UINT64_C(32768)
 #define RUNE_CORPUS_MAX_BYTES UINT64_C(268435456)
 #define RUNE_CORPUS_MAX_RECEIPTS 24u
+#define RUNE_CORPUS_LOGICAL_RECORD_BYTES UINT64_C(24)
+#define RUNE_CORPUS_HOT_FIELD_BYTES UINT64_C(12)
 
 typedef struct rune_corpus_receipt {
     const char *workload;
@@ -42,6 +44,8 @@ typedef struct rune_corpus_node {
     uint32_t next;
     uint32_t payload;
 } rune_corpus_node;
+
+static int rune_corpus_resource_exhausted = 0;
 
 typedef struct rune_corpus_counts {
     uint64_t lt;
@@ -109,7 +113,15 @@ static void *rune_corpus_malloc(uint64_t bytes)
         return NULL;
     }
 
-    return malloc(host_bytes);
+    {
+        void *allocation;
+
+        allocation = malloc(host_bytes);
+        if (allocation == NULL && bytes != 0u) {
+            rune_corpus_resource_exhausted = 1;
+        }
+        return allocation;
+    }
 }
 
 static int rune_corpus_add_receipt(
@@ -173,13 +185,13 @@ static uint64_t rune_corpus_receipt_fingerprint(
     return hash;
 }
 
-static void rune_corpus_emit_receipt(
+static int rune_corpus_emit_receipt(
     const char *profile,
     uint64_t working_set_bytes,
     const rune_corpus_receipt *receipt
 )
 {
-    printf(
+    return printf(
         "{\"contract\":\"rune.corpus.receipt.v1\","
         "\"profile\":\"%s\","
         "\"working_set_bytes\":%" PRIu64 ","
@@ -203,10 +215,10 @@ static void rune_corpus_emit_receipt(
         receipt->model_bytes_written,
         receipt->result_u64,
         receipt->variants_checked
-    );
+    ) >= 0;
 }
 
-static void rune_corpus_emit_summary(
+static int rune_corpus_emit_summary(
     const char *profile,
     uint64_t working_set_bytes,
     uint64_t seed,
@@ -217,7 +229,7 @@ static void rune_corpus_emit_summary(
     uint64_t fingerprint;
 
     fingerprint = rune_corpus_receipt_fingerprint(receipts, receipt_count);
-    printf(
+    return printf(
         "{\"contract\":\"rune.corpus.summary.v1\","
         "\"profile\":\"%s\","
         "\"working_set_bytes\":%" PRIu64 ","
@@ -229,7 +241,7 @@ static void rune_corpus_emit_summary(
         seed,
         (unsigned long)receipt_count,
         fingerprint
-    );
+    ) >= 0;
 }
 
 static int rune_corpus_build_values(
@@ -489,18 +501,27 @@ static int rune_corpus_run_c07_c08(
     uint64_t i;
     uint64_t aos_result;
     uint64_t soa_result;
-    uint64_t aos_bytes;
+    uint64_t aos_allocation_bytes;
+    uint64_t aos_resident_bytes;
+    uint64_t hot_read_bytes;
     uint64_t soa_bytes;
 
-    count = working_set_bytes / (uint64_t)sizeof(rune_corpus_record);
+    count = working_set_bytes / RUNE_CORPUS_LOGICAL_RECORD_BYTES;
     if (count == 0u) {
         count = 1u;
     }
 
-    aos_bytes = count * (uint64_t)sizeof(rune_corpus_record);
-    soa_bytes = count * UINT64_C(3) * (uint64_t)sizeof(uint32_t);
+    aos_allocation_bytes =
+        count * (uint64_t)sizeof(rune_corpus_record);
+    aos_resident_bytes =
+        count * RUNE_CORPUS_LOGICAL_RECORD_BYTES;
+    hot_read_bytes =
+        count * RUNE_CORPUS_HOT_FIELD_BYTES;
+    soa_bytes = hot_read_bytes;
 
-    records = (rune_corpus_record *)rune_corpus_malloc(aos_bytes);
+    records = (rune_corpus_record *)rune_corpus_malloc(
+        aos_allocation_bytes
+    );
     x = (uint32_t *)rune_corpus_malloc(
         count * (uint64_t)sizeof(uint32_t)
     );
@@ -567,9 +588,9 @@ static int rune_corpus_run_c07_c08(
             "C07-aos-hot-traversal",
             seed,
             count,
-            aos_bytes,
+            aos_resident_bytes,
             0u,
-            aos_bytes,
+            hot_read_bytes,
             0u,
             aos_result,
             1u) ||
@@ -581,7 +602,7 @@ static int rune_corpus_run_c07_c08(
             count,
             soa_bytes,
             0u,
-            soa_bytes,
+            hot_read_bytes,
             0u,
             soa_result,
             1u)) {
@@ -1212,7 +1233,7 @@ static int rune_corpus_run_c15(
         logical_items,
         UINT64_C(48),
         UINT64_C(48),
-        window_count * window_items * (uint64_t)sizeof(uint32_t),
+        0u,
         0u,
         hash,
         1u
@@ -1252,6 +1273,7 @@ static int rune_corpus_run_size(
     }
 
     receipt_count = 0u;
+    rune_corpus_resource_exhausted = 0;
 
     if (!rune_corpus_run_c01_to_c06(
             seed,
@@ -1299,24 +1321,41 @@ static int rune_corpus_run_size(
             receipts,
             &receipt_count)) {
         free(values);
-        fprintf(stderr, "corpus correctness contract failed\n");
+        if (rune_corpus_resource_exhausted) {
+            fprintf(stderr, "corpus resource exhausted\n");
+        } else {
+            fprintf(stderr, "corpus correctness contract failed\n");
+        }
         return 0;
     }
 
     for (i = 0u; i < receipt_count; ++i) {
-        rune_corpus_emit_receipt(
+        if (!rune_corpus_emit_receipt(
+                profile,
+                working_set_bytes,
+                &receipts[i])) {
+            free(values);
+            fprintf(stderr, "could not write corpus receipt\n");
+            return 0;
+        }
+    }
+
+    if (!rune_corpus_emit_summary(
             profile,
             working_set_bytes,
-            &receipts[i]
-        );
+            seed,
+            receipts,
+            receipt_count)) {
+        free(values);
+        fprintf(stderr, "could not write corpus summary\n");
+        return 0;
     }
-    rune_corpus_emit_summary(
-        profile,
-        working_set_bytes,
-        seed,
-        receipts,
-        receipt_count
-    );
+
+    if (fflush(stdout) == EOF || ferror(stdout)) {
+        free(values);
+        fprintf(stderr, "could not flush corpus output\n");
+        return 0;
+    }
 
     free(values);
     return 1;

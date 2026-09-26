@@ -52,6 +52,7 @@ corpus-smoke: $(CORPUS)
 	./$(CORPUS) --profile smoke > $(BUILD_DIR)/corpus-smoke.jsonl
 	test "`wc -l < $(BUILD_DIR)/corpus-smoke.jsonl`" -eq 17
 	grep -q '"contract":"rune.corpus.summary.v1"' $(BUILD_DIR)/corpus-smoke.jsonl
+	tail -n 1 $(BUILD_DIR)/corpus-smoke.jsonl
 
 test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC)
 	./$(TEST_REGION)

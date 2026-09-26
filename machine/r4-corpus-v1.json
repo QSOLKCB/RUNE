@@ -39,7 +39,10 @@
     "timing_part_of_result_identity": false,
     "model_byte_fields_are_hardware_measurements": false,
     "workload_receipts_per_size": 16,
-    "summary_receipts_per_size": 1
+    "summary_receipts_per_size": 1,
+    "complete_output_delivery_required_for_zero_exit": true,
+    "stdout_flush_must_succeed": true,
+    "model_byte_fields_count_only_canonical_algorithmic_storage_access": true
   },
   "workload_families": [
     "C01-sequential-scan",
@@ -123,12 +126,16 @@
     "full_materialization_forbidden": true,
     "window_count": 64,
     "window_items": 64,
-    "metadata_is_constant_size": true
+    "metadata_is_constant_size": true,
+    "model_bytes_read": 0,
+    "generated_values_are_storage_reads": false
   },
   "harness": {
     "bounded_libc_malloc_allowed": true,
     "malloc_is_runtime_requirement": false,
-    "exported_runtime_api": false
+    "exported_runtime_api": false,
+    "resource_exhaustion_is_correctness_failure": false,
+    "resource_exhaustion_diagnostic": "corpus resource exhausted"
   },
   "validation": {
     "executable": "build/rune_corpus",
@@ -139,5 +146,17 @@
       "clang"
     ],
     "performance_benchmark": false
+  },
+  "c07_c08": {
+    "logical_record_width_bytes": 24,
+    "logical_count_independent_of_host_struct_padding": true,
+    "c07_resident_bytes": "count*24-logical-payload-bytes",
+    "c07_host_allocation_may_use_sizeof_record": true,
+    "hot_fields": [
+      "x",
+      "y",
+      "flags"
+    ],
+    "modeled_hot_read_bytes_per_item": 12
   }
 }
