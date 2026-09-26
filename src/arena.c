@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MPL-2.0 */
 #include "rune/arena.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 static int rune_arena_alignment_valid(uint64_t alignment)
