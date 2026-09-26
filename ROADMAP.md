@@ -6,7 +6,7 @@ No later phase may be pulled forward merely because it is exciting.
 
 ## R0 — Constitutional foundation
 
-**Current phase.**
+**Complete — merged in PR #1.**
 
 Goals:
 
@@ -27,6 +27,8 @@ Success criterion:
 
 ## R1 — Region core
 
+**Current phase.**
+
 Build the smallest useful C99 memory substrate.
 
 Candidate scope:
@@ -43,6 +45,8 @@ Candidate scope:
 - no mandatory heap.
 
 Portable semantic offsets must not silently depend on host pointer width.
+
+R1 makes correctness and portability claims only. Runtime performance claims remain out of scope.
 
 Success criterion:
 
