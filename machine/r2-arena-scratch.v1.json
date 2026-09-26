@@ -14,7 +14,10 @@
     "monotonic_within_generation": true,
     "cursor_unit": "bytes-relative-to-storage-span-start",
     "generation_initial_value": 1,
-    "zero_capacity_allowed": true
+    "zero_capacity_allowed": true,
+    "incarnation": "process-local-monotonic-token-per-successful-init",
+    "reinitialization_invalidates_prior_checkpoints": true,
+    "incarnation_is_portable_identity": false
   },
   "alignment": {
     "required": true,
@@ -34,7 +37,9 @@
       "returns_aligned_empty_span": true,
       "consumes_cursor": false,
       "contributes_accounting": false
-    }
+    },
+    "output_may_alias_arena_storage_descriptor": false,
+    "aliasing_arena_storage_descriptor_fails": "RUNE_ERR_INVALID_ARGUMENT"
   },
   "accounting": {
     "current_live_consumed_bytes": "cursor",
@@ -54,7 +59,8 @@
     "restore_may_move_cursor_forward": false,
     "rejected_checkpoint": "RUNE_ERR_STALE_CHECKPOINT",
     "arena_object_address_must_remain_stable_while_checkpoints_exist": true,
-    "restore_logically_expires": "all-scratch-spans-allocated-after-restored-checkpoint"
+    "restore_logically_expires": "all-scratch-spans-allocated-after-restored-checkpoint",
+    "incarnation_must_match": true
   },
   "reset": {
     "operation": "rune_arena_reset",

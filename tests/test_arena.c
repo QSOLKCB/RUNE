@@ -369,6 +369,93 @@ static void test_reset_generation_overflow(void)
     CHECK(arena.generation == UINT64_MAX);
 }
 
+
+static void test_reinitialize_invalidates_old_checkpoint(void)
+{
+    uint8_t bytes_a[16];
+    uint8_t bytes_b[16];
+    rune_region region_a;
+    rune_region region_b;
+    rune_span storage_a;
+    rune_span storage_b;
+    rune_arena arena;
+    rune_arena_checkpoint old_mark;
+    rune_span first;
+    rune_span current;
+    uint64_t old_incarnation;
+
+    init_arena(bytes_a, 16u, &region_a, &storage_a, &arena);
+    CHECK_STATUS(rune_arena_alloc(&arena, 4u, 1u, &first), RUNE_OK);
+    CHECK_STATUS(rune_arena_checkpoint_save(&arena, &old_mark), RUNE_OK);
+    old_incarnation = arena.incarnation;
+
+    CHECK_STATUS(
+        rune_region_attach(
+            &region_b,
+            bytes_b,
+            16u,
+            RUNE_ACCESS_READ | RUNE_ACCESS_WRITE
+        ),
+        RUNE_OK
+    );
+    CHECK_STATUS(
+        rune_span_init(
+            &storage_b,
+            &region_b,
+            0u,
+            16u,
+            RUNE_ACCESS_READ | RUNE_ACCESS_WRITE
+        ),
+        RUNE_OK
+    );
+    CHECK_STATUS(rune_arena_init(&arena, &storage_b), RUNE_OK);
+    CHECK(arena.incarnation != old_incarnation);
+
+    CHECK_STATUS(rune_arena_alloc(&arena, 8u, 1u, &current), RUNE_OK);
+    CHECK(arena.cursor == 8u);
+    CHECK_STATUS(
+        rune_arena_checkpoint_restore(&arena, &old_mark),
+        RUNE_ERR_STALE_CHECKPOINT
+    );
+    CHECK(arena.cursor == 8u);
+}
+
+static void test_allocation_output_cannot_alias_storage_descriptor(void)
+{
+    uint8_t bytes[16];
+    rune_region region;
+    rune_span storage;
+    rune_arena arena;
+    rune_span original_storage;
+    uint64_t cursor;
+    uint64_t high_water;
+    uint64_t payload;
+    uint64_t consumed;
+    uint64_t count;
+
+    init_arena(bytes, 16u, &region, &storage, &arena);
+    original_storage = arena.storage;
+    cursor = arena.cursor;
+    high_water = arena.high_water;
+    payload = arena.cumulative_payload_bytes;
+    consumed = arena.cumulative_consumed_bytes;
+    count = arena.allocation_count;
+
+    CHECK_STATUS(
+        rune_arena_alloc(&arena, 4u, 1u, &arena.storage),
+        RUNE_ERR_INVALID_ARGUMENT
+    );
+    CHECK(arena.storage.region == original_storage.region);
+    CHECK(arena.storage.offset == original_storage.offset);
+    CHECK(arena.storage.length == original_storage.length);
+    CHECK(arena.storage.access == original_storage.access);
+    CHECK(arena.cursor == cursor);
+    CHECK(arena.high_water == high_water);
+    CHECK(arena.cumulative_payload_bytes == payload);
+    CHECK(arena.cumulative_consumed_bytes == consumed);
+    CHECK(arena.allocation_count == count);
+}
+
 static void test_zero_capacity_arena(void)
 {
     rune_region region;
@@ -411,6 +498,8 @@ int main(void)
     test_exhaustion_is_non_mutating();
     test_checkpoint_restore_and_reset();
     test_checkpoint_owner_binding();
+    test_reinitialize_invalidates_old_checkpoint();
+    test_allocation_output_cannot_alias_storage_descriptor();
     test_accounting_overflow_is_non_mutating();
     test_reset_generation_overflow();
     test_zero_capacity_arena();

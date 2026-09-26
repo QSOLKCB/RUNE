@@ -4,6 +4,28 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/*
+ * R2 is single-threaded. Each successful initialization consumes one
+ * process-local incarnation token so checkpoints cannot survive reinit.
+ * The token is transient validation state, not portable result identity.
+ */
+static uint64_t rune_arena_next_incarnation = (uint64_t)1u;
+
+static rune_status rune_arena_take_incarnation(uint64_t *out)
+{
+    if (out == NULL) {
+        return RUNE_ERR_NULL_ARGUMENT;
+    }
+
+    if (rune_arena_next_incarnation == 0u) {
+        return RUNE_ERR_OVERFLOW;
+    }
+
+    *out = rune_arena_next_incarnation;
+    rune_arena_next_incarnation += (uint64_t)1u;
+    return RUNE_OK;
+}
+
 static int rune_arena_alignment_valid(uint64_t alignment)
 {
     return alignment != 0u &&
@@ -30,7 +52,7 @@ static rune_status rune_arena_validate(const rune_arena *arena)
         return status;
     }
 
-    if (arena->generation == 0u) {
+    if (arena->incarnation == 0u || arena->generation == 0u) {
         return RUNE_ERR_INVALID_ARGUMENT;
     }
 
@@ -102,6 +124,7 @@ rune_status rune_arena_init(
 {
     rune_span validated;
     rune_arena candidate;
+    uint64_t incarnation;
     rune_status status;
 
     if (out == NULL || storage == NULL) {
@@ -119,12 +142,18 @@ rune_status rune_arena_init(
         return status;
     }
 
+    status = rune_arena_take_incarnation(&incarnation);
+    if (status != RUNE_OK) {
+        return status;
+    }
+
     candidate.storage = validated;
     candidate.cursor = 0u;
     candidate.high_water = 0u;
     candidate.cumulative_payload_bytes = 0u;
     candidate.cumulative_consumed_bytes = 0u;
     candidate.allocation_count = 0u;
+    candidate.incarnation = incarnation;
     candidate.generation = 1u;
 
     *out = candidate;
@@ -146,6 +175,10 @@ rune_status rune_arena_alloc(
 
     if (arena == NULL || out == NULL) {
         return RUNE_ERR_NULL_ARGUMENT;
+    }
+
+    if (out == &arena->storage) {
+        return RUNE_ERR_INVALID_ARGUMENT;
     }
 
     status = rune_arena_validate(arena);
@@ -237,6 +270,7 @@ rune_status rune_arena_checkpoint_save(
 
     out->owner = arena;
     out->cursor = arena->cursor;
+    out->incarnation = arena->incarnation;
     out->generation = arena->generation;
     return RUNE_OK;
 }
@@ -258,6 +292,7 @@ rune_status rune_arena_checkpoint_restore(
     }
 
     if (checkpoint->owner != arena ||
+        checkpoint->incarnation != arena->incarnation ||
         checkpoint->generation != arena->generation ||
         checkpoint->cursor > arena->cursor ||
         checkpoint->cursor > arena->storage.length) {

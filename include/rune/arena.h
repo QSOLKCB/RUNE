@@ -22,17 +22,20 @@ typedef struct rune_arena {
     uint64_t cumulative_payload_bytes;
     uint64_t cumulative_consumed_bytes;
     uint64_t allocation_count;
+    uint64_t incarnation;
     uint64_t generation;
 } rune_arena;
 
 /*
- * owner is process-local transient identity used only to reject checkpoints
- * from a different arena object. It is not a portable or serialized identity.
- * The arena object's address must remain stable while its checkpoints are used.
+ * owner and incarnation are process-local transient identity used only to
+ * reject checkpoints from a different arena object or arena incarnation. They
+ * are not portable or serialized identity. The arena object's address must
+ * remain stable while its checkpoints are used.
  */
 typedef struct rune_arena_checkpoint {
     const rune_arena *owner;
     uint64_t cursor;
+    uint64_t incarnation;
     uint64_t generation;
 } rune_arena_checkpoint;
 

@@ -74,13 +74,15 @@ PEAK LIVE BYTES != CUMULATIVE ALLOCATION TRAFFIC
 
 ## Checkpoints
 
-rune_arena_checkpoint_save() records the arena object identity, current cursor, and generation.
+rune_arena_checkpoint_save() records the arena object identity, arena incarnation, current cursor, and generation.
 
-The arena pointer in a checkpoint is a transient process-local guard. It is not a portable serialized RUNE identity. The arena object's address must remain stable while checkpoints derived from it are in use.
+The arena pointer and incarnation token in a checkpoint are transient process-local guards. They are not portable serialized RUNE identity. Each successful rune_arena_init() receives a new incarnation token, so reinitializing the same arena object invalidates every checkpoint from its prior incarnation. The arena object's address must remain stable while checkpoints derived from the current incarnation are in use.
 
 rune_arena_checkpoint_restore() may only rewind to a checkpoint from the same arena object and current generation whose cursor is not ahead of the current cursor.
 
 A rejected checkpoint returns RUNE_ERR_STALE_CHECKPOINT.
+
+rune_arena_alloc() also rejects an output pointer that aliases arena.storage. Allocation output is allowed to describe bytes within the backing storage, but it may not overwrite the arena's own storage descriptor.
 
 Restoring a checkpoint does not clear bytes and does not reduce historical accounting.
 
