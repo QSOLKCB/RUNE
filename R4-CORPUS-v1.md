@@ -309,6 +309,12 @@ make corpus-smoke
 
 A zero exit status also requires every JSONL receipt and summary write, plus the final stdout flush, to succeed. Truncated output is therefore a run failure.
 
-CI runs the smoke corpus with GCC and Clang and pins the seed-303 smoke summary fingerprint once the R4 receipt semantics are frozen.
+CI runs the smoke corpus with GCC and Clang and pins this exact seed-303, 32 KiB summary fingerprint:
+
+~~~text
+1219082291126340103
+~~~
+
+A change to the generator, workload result identity, modeled canonical byte traffic, or other fingerprinted receipt field therefore fails the R4 smoke gate unless the R4 contract is intentionally revised.
 
 R4 makes no runtime performance claim.

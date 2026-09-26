@@ -51,8 +51,7 @@ $(CORPUS): corpus/rune_corpus.c $(LIB) include/rune/arena.h include/rune/numeric
 corpus-smoke: $(CORPUS)
 	./$(CORPUS) --profile smoke > $(BUILD_DIR)/corpus-smoke.jsonl
 	test "`wc -l < $(BUILD_DIR)/corpus-smoke.jsonl`" -eq 17
-	grep -q '"contract":"rune.corpus.summary.v1"' $(BUILD_DIR)/corpus-smoke.jsonl
-	tail -n 1 $(BUILD_DIR)/corpus-smoke.jsonl
+	grep -Fxq '{"contract":"rune.corpus.summary.v1","profile":"smoke","working_set_bytes":32768,"seed":303,"receipt_count":16,"fingerprint_u64":1219082291126340103}' $(BUILD_DIR)/corpus-smoke.jsonl
 
 test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC)
 	./$(TEST_REGION)

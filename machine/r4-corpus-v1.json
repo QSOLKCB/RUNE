@@ -145,7 +145,11 @@
       "gcc",
       "clang"
     ],
-    "performance_benchmark": false
+    "performance_benchmark": false,
+    "smoke_seed": 303,
+    "smoke_working_set_bytes": 32768,
+    "smoke_fingerprint_u64": 1219082291126340000,
+    "smoke_fingerprint_is_frozen": true
   },
   "c07_c08": {
     "logical_record_width_bytes": 24,

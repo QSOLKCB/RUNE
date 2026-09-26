@@ -26,3 +26,10 @@ jobs:
 
       - name: Build and run R1/R2/R3 tests and R4 smoke corpus
         run: make clean test corpus-smoke CC="${{ matrix.cc }}"
+
+      - name: Reject truncated corpus output
+        run: |
+          if ./build/rune_corpus --profile smoke > /dev/full 2>/dev/null; then
+            echo "corpus unexpectedly succeeded with unwritable stdout" >&2
+            exit 1
+          fi
