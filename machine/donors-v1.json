@@ -14,8 +14,20 @@
       "licensing_boundary",
       "reference_path",
       "rune_specific_validation",
-      "environment_scoped_performance_evidence_when_performance_is_claimed"
+      "environment_scoped_performance_evidence_when_performance_is_claimed",
+      "complete_applicable_lifecycle_and_memory_costs_when_performance_is_claimed"
     ],
+    "performance_promotion_policy": {
+      "complete_applicable_lifecycle_costs_required": true,
+      "memory_costs_required": true,
+      "kernel_only_measurement_is_sufficient": false,
+      "lifecycle_examples": [
+        "allocation",
+        "setup",
+        "execution",
+        "teardown"
+      ]
+    },
     "rune_specific_validation_required": true,
     "license_review_required_for_source_reuse": true
   },

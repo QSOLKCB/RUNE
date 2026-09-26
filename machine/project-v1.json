@@ -18,7 +18,9 @@
     "integer_only_public_execution_semantics": true,
     "deterministic_reference_first": true,
     "memory_model": "explicit-bounded",
-    "primary_integration_target": "RIVET"
+    "primary_integration_target": "RIVET",
+    "platform_specific_facilities_require_explicit_boundary": true,
+    "os_specific_api_may_be_core_requirement": false
   },
   "authority": {
     "separation_required": true,
@@ -34,7 +36,14 @@
       "machine/donors-v1.json"
     ],
     "agent_entrypoint": "AGENTS.md",
-    "contradiction_policy": "fail-closed-and-report"
+    "contradiction_policy": "fail-closed-and-report",
+    "constitutional_change_policy": {
+      "versioned_constitution_or_explicit_amendment_required": true,
+      "corresponding_machine_contract_changes_required": true,
+      "migration_statement_required": true,
+      "evidence_of_preserved_or_intentionally_superseded_frozen_semantics_required": true,
+      "implementation_convenience_is_sufficient_reason": false
+    }
   },
   "core_equations": [
     "RESULT_IDENTITY != EXECUTION_PLAN_IDENTITY",
@@ -67,6 +76,65 @@
     "cross_compile_is_execution_evidence": false,
     "emulation_is_physical_hardware_evidence": false
   },
+  "numeric_policy": {
+    "public_semantics_require_floating_point": false,
+    "fractional_semantics_require_explicit_versioned_integer_representation": true,
+    "fractional_rounding_behavior_must_be_declared": true
+  },
+  "movement_policy": {
+    "managed_storage_requires_explicit_ownership": true,
+    "managed_storage_requires_explicit_lifetime": true,
+    "meaningful_movement_identity_when_representable_requires": [
+      "source",
+      "destination",
+      "extent"
+    ]
+  },
+  "optimization_policy": {
+    "ordered_pre_acceleration_steps": [
+      "choose_representation",
+      "choose_algorithm",
+      "bound_resident_state",
+      "remove_unnecessary_materialisation_and_movement",
+      "remove_duplicate_work",
+      "improve_locality",
+      "measure"
+    ],
+    "acceleration_may_precede_required_steps": false,
+    "acceleration_examples": [
+      "SIMD",
+      "threading",
+      "topology_tuning",
+      "specialized_CPU_paths"
+    ]
+  },
+  "resource_failure_policy": {
+    "explicit_failure_required_for": [
+      "bounds_failure",
+      "overflow",
+      "impossible_alignment",
+      "exhausted_scratch",
+      "insufficient_destination_capacity",
+      "unsupported_capability"
+    ],
+    "silent_budget_exceed_allowed": false,
+    "silent_invalid_extent_wrap_allowed": false,
+    "silent_truncation_allowed_unless_declared_operation": false
+  },
+  "semantic_scope": {
+    "excluded_from_rune_semantics": [
+      "browser",
+      "HTML",
+      "CSS",
+      "document",
+      "GUI",
+      "window",
+      "image_format",
+      "application",
+      "business"
+    ],
+    "general_primitives_may_support_excluded_domains_without_absorbing_their_meaning": true
+  },
   "evidence": {
     "donor_benchmarks_transferable": false,
     "requested_or_planned_work_is_execution_evidence": false,
@@ -82,6 +150,17 @@
       "memory_profile",
       "measurement_method"
     ],
+    "performance_cost_scope": {
+      "complete_applicable_lifecycle_costs_required": true,
+      "memory_costs_required": true,
+      "kernel_only_measurement_is_sufficient_for_promotion": false,
+      "lifecycle_examples": [
+        "allocation",
+        "setup",
+        "execution",
+        "teardown"
+      ]
+    },
     "correctness_precedes_performance": true
   },
   "machine_contracts": {

@@ -34,7 +34,7 @@ RUNE adoption:
 
 - use OPT as the optimization decision catalogue;
 - preserve scalar/reference parity before promotion;
-- measure complete lifecycle cost rather than kernel-only wins;
+- measure complete applicable lifecycle and memory cost rather than kernel-only wins;
 - keep reuse bound to complete effective identity.
 
 Not inherited:
@@ -238,6 +238,6 @@ A donor mechanism may enter RUNE only when all of the following are explicit:
 4. the licensing boundary;
 5. the reference path;
 6. the RUNE-specific validation;
-7. the environment-scoped evidence required for any performance claim.
+7. the environment-scoped evidence required for any performance claim, including complete applicable lifecycle and memory costs rather than kernel-only timing.
 
 If those are not known, the donor remains research material.
