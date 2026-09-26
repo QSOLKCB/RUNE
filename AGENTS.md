@@ -1,0 +1,91 @@
+RUNE_AGENT_CONTRACT_V1
+
+MODE=MACHINE_ONLY
+PROJECT=RUNE
+REFERENCE_LANGUAGE=ISO_C99
+LICENSE=MPL-2.0
+CURRENT_PHASE=R0
+RUNTIME_IMPLEMENTATION_ALLOWED=false
+RUNTIME_PERFORMANCE_CLAIMS_ALLOWED=false
+
+READ_ORDER:
+1=machine/project-v1.json
+2=machine/invariants-v1.json
+3=machine/donors-v1.json
+
+HUMAN_PROSE:
+README.md
+CONSTITUTION.md
+ROADMAP.md
+DONORS-v1.md
+
+MACHINE_AUTHORITY:
+machine/project-v1.json
+machine/invariants-v1.json
+machine/donors-v1.json
+
+CONFLICT_POLICY=FAIL_CLOSED
+ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
+DO_NOT_INVENT_RECONCILIATION=true
+
+CORE_RULES:
+- preserve_all_invariants
+- no_runtime_code_in_R0
+- cpu_only
+- integer_only_public_semantics
+- fractional_rounding_behavior_must_be_declared
+- c99_reference
+- platform_specific_facilities_require_explicit_boundary
+- os_specific_api_may_not_be_core_requirement
+- bounded_external_growth
+- meaningful_movement_requires_source_destination_extent_when_representable
+- explicit_resource_failure_includes_unsupported_capability
+- reference_before_optimization
+- optimization_order_requires_locality_then_measurement_before_acceleration
+- work_elimination_before_acceleration
+- second_implementation_earns_abstraction
+- second_implementation_must_demonstrate_common_abstraction_before_promotion
+- acceleration_promotion_requires_material_benefit_under_declared_workload
+- optional_internal_optimization_unavailable_or_losing_requires_fallback_to_correct_simpler_path
+- requested_contract_capability_unsupported_requires_explicit_failure
+- optional_internal_optimization_absence_is_not_unsupported_capability_failure
+- runtime_performance_claims_forbidden_in_R0
+- causal_performance_claim_requires_support_beyond_timing
+- portable_identity_requires_explicit_versioned_representation
+- fixed_width_integer_identity_is_allowed_but_not_the_only_allowed_explicit_representation
+- donor_benchmark_not_transferable
+- donor_source_not_automatically_reusable
+- donor_promotion_requires_all_machine_declared_gates
+- performance_promotion_requires_complete_applicable_lifecycle_and_memory_costs
+- plan_not_execution_evidence
+- execution_evidence_requires_evidence_class
+- performance_evidence_requires_source_workload_toolchain_build_platform_memory_method
+- benchmark_not_correctness_identity
+- exclude_browser_html_css_document_gui_window_image_format_application_business_semantics
+- keep_RIVET_semantics_outside_RUNE
+
+FORBIDDEN_IN_CORE_UNLESS_FUTURE_VERSIONED_AUTHORITY_CHANGES:
+- cplusplus_requirement
+- floating_point_requirement
+- gpu_backend
+- managed_runtime
+- garbage_collector
+- jit
+- mandatory_threads
+- mandatory_simd
+- generic_scheduler_framework
+- generic_plugin_framework
+- generic_cache_framework
+- application_semantics
+- image_format_semantics
+- direct_platform_specific_core_dependency
+
+CHANGE_RULES:
+- edit_human_and_machine_surfaces_together_when_semantics_change
+- constitutional_change_requires_versioned_constitution_or_explicit_amendment
+- constitutional_change_requires_corresponding_machine_contract_changes
+- constitutional_change_requires_migration_statement
+- constitutional_change_requires_evidence_of_preserved_or_intentionally_superseded_frozen_semantics
+- implementation_convenience_is_not_sufficient_for_constitutional_change
+- performance_claim_requires_environment_scoped_evidence
+- incompatible_donor_source_requires_clean_room_or_explicit_license_basis

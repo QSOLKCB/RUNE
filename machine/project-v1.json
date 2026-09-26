@@ -1,0 +1,202 @@
+{
+  "contract": "rune.project.v1",
+  "project": "RUNE",
+  "expanded_name": "Runtime for Unified Numeric Execution",
+  "phase": {
+    "id": "R0",
+    "name": "Constitutional foundation",
+    "runtime_implementation_allowed": false,
+    "runtime_performance_claims_allowed": false,
+    "performance_measurement_planning_allowed": true,
+    "performance_observations_may_be_published_as_runtime_claims": false
+  },
+  "license": "MPL-2.0",
+  "reference_language": {
+    "standard": "ISO C99",
+    "normative": true
+  },
+  "architecture": {
+    "cpu_only": true,
+    "gpu_runtime": false,
+    "integer_only_public_execution_semantics": true,
+    "deterministic_reference_first": true,
+    "memory_model": "explicit-bounded",
+    "primary_integration_target": "RIVET",
+    "platform_specific_facilities_require_explicit_boundary": true,
+    "os_specific_api_may_be_core_requirement": false
+  },
+  "authority": {
+    "separation_required": true,
+    "human_prose": [
+      "README.md",
+      "CONSTITUTION.md",
+      "ROADMAP.md",
+      "DONORS-v1.md"
+    ],
+    "machine_readable": [
+      "machine/project-v1.json",
+      "machine/invariants-v1.json",
+      "machine/donors-v1.json"
+    ],
+    "agent_entrypoint": "AGENTS.md",
+    "contradiction_policy": "fail-closed-and-report",
+    "constitutional_change_policy": {
+      "versioned_constitution_or_explicit_amendment_required": true,
+      "corresponding_machine_contract_changes_required": true,
+      "migration_statement_required": true,
+      "evidence_of_preserved_or_intentionally_superseded_frozen_semantics_required": true,
+      "implementation_convenience_is_sufficient_reason": false
+    }
+  },
+  "core_equations": [
+    "RESULT_IDENTITY != EXECUTION_PLAN_IDENTITY",
+    "BENCHMARK_OBSERVATION != CORRECTNESS_IDENTITY",
+    "LOGICAL_SCALE != RESIDENT_SCALE",
+    "MORE_COMPUTE != BETTER_EXECUTION",
+    "PLAN != EXECUTION_EVIDENCE"
+  ],
+  "runtime_nonrequirements": [
+    "C++",
+    "floating-point",
+    "GPU",
+    "managed-runtime",
+    "garbage-collector",
+    "JIT",
+    "mandatory-threads",
+    "mandatory-SIMD",
+    "generic-scheduler",
+    "plugin-system"
+  ],
+  "portability": {
+    "host_pointer_width_is_portable_identity": false,
+    "host_size_t_is_portable_semantic_identity": false,
+    "portable_identity_representation": {
+      "explicit_versioned_representation_required": true,
+      "explicit_fixed_width_integer_representation_allowed": true,
+      "other_explicit_versioned_representation_allowed": true,
+      "native_host_type_alone_is_sufficient": false
+    },
+    "cross_compile_is_execution_evidence": false,
+    "emulation_is_physical_hardware_evidence": false
+  },
+  "numeric_policy": {
+    "public_semantics_require_floating_point": false,
+    "fractional_semantics_require_explicit_versioned_integer_representation": true,
+    "fractional_rounding_behavior_must_be_declared": true
+  },
+  "movement_policy": {
+    "managed_storage_requires_explicit_ownership": true,
+    "managed_storage_requires_explicit_lifetime": true,
+    "meaningful_movement_identity_when_representable_requires": [
+      "source",
+      "destination",
+      "extent"
+    ]
+  },
+  "optimization_policy": {
+    "ordered_pre_acceleration_steps": [
+      "choose_representation",
+      "choose_algorithm",
+      "bound_resident_state",
+      "remove_unnecessary_materialisation_and_movement",
+      "remove_duplicate_work",
+      "improve_locality",
+      "measure"
+    ],
+    "acceleration_may_precede_required_steps": false,
+    "acceleration_examples": [
+      "SIMD",
+      "threading",
+      "topology_tuning",
+      "specialized_CPU_paths"
+    ],
+    "promotion_policy": {
+      "exact_reference_parity_when_contract_requires_exactness": true,
+      "environment_scoped_measurement_required": true,
+      "lifecycle_and_memory_costs_included": true,
+      "material_benefit_under_declared_workload_required": true,
+      "fallback_to_correct_simpler_path_when_optimized_path_loses": true,
+      "genuine_resource_or_correctness_failure_may_fail_explicitly": true,
+      "fallback_scope": "optional-internal-optimization-only",
+      "requested_contract_capability_unsupported_must_fail_explicitly": true,
+      "optional_internal_optimization_unavailable_must_fallback_to_correct_simpler_path": true
+    }
+  },
+  "resource_failure_policy": {
+    "explicit_failure_required_for": [
+      "bounds_failure",
+      "overflow",
+      "impossible_alignment",
+      "exhausted_scratch",
+      "insufficient_destination_capacity",
+      "unsupported_capability"
+    ],
+    "silent_budget_exceed_allowed": false,
+    "silent_invalid_extent_wrap_allowed": false,
+    "silent_truncation_allowed_unless_declared_operation": false,
+    "unsupported_capability_scope": "requested-contract-capability",
+    "optional_internal_optimization_absence_is_unsupported_capability_failure": false
+  },
+  "semantic_scope": {
+    "excluded_from_rune_semantics": [
+      "browser",
+      "HTML",
+      "CSS",
+      "document",
+      "GUI",
+      "window",
+      "image_format",
+      "application",
+      "business"
+    ],
+    "general_primitives_may_support_excluded_domains_without_absorbing_their_meaning": true
+  },
+  "evidence": {
+    "donor_benchmarks_transferable": false,
+    "requested_or_planned_work_is_execution_evidence": false,
+    "execution_evidence_must_state_what_executed": true,
+    "execution_evidence_class_required": true,
+    "performance_claims_environment_scoped": true,
+    "performance_observation_required_dimensions": [
+      "source_revision",
+      "workload",
+      "compiler_toolchain",
+      "build_configuration",
+      "cpu_platform",
+      "memory_profile",
+      "measurement_method"
+    ],
+    "performance_cost_scope": {
+      "complete_applicable_lifecycle_costs_required": true,
+      "memory_costs_required": true,
+      "kernel_only_measurement_is_sufficient_for_promotion": false,
+      "lifecycle_examples": [
+        "allocation",
+        "setup",
+        "execution",
+        "teardown"
+      ]
+    },
+    "correctness_precedes_performance": true,
+    "causal_performance_claim_policy": {
+      "timing_observation_alone_is_sufficient": false,
+      "supporting_evidence_beyond_timing_required": true,
+      "examples_requiring_extra_support": [
+        "cache_effect",
+        "NUMA_effect",
+        "memory_bandwidth_effect",
+        "hardware_topology_cause"
+      ]
+    },
+    "runtime_performance_claim_policy": {
+      "current_phase": "R0",
+      "runtime_performance_claims_allowed": false,
+      "fully_documented_benchmark_receipt_does_not_override_phase_prohibition": true,
+      "first_permitted_phase_requires_future_versioned_authority": true
+    }
+  },
+  "machine_contracts": {
+    "invariants": "machine/invariants-v1.json",
+    "donors": "machine/donors-v1.json"
+  }
+}
