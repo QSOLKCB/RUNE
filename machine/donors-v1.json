@@ -6,6 +6,16 @@
     "constants_transfer_automatically": false,
     "benchmarks_transfer_automatically": false,
     "source_code_transfer_automatically": false,
+    "promotion_requires_all_gates": true,
+    "promotion_gates": [
+      "explicit_rune_problem",
+      "preserved_correctness_contract",
+      "memory_resource_contract",
+      "licensing_boundary",
+      "reference_path",
+      "rune_specific_validation",
+      "environment_scoped_performance_evidence_when_performance_is_claimed"
+    ],
     "rune_specific_validation_required": true,
     "license_review_required_for_source_reuse": true
   },

@@ -70,7 +70,7 @@
     {
       "id": "RUNE-INV-014",
       "slug": "environment-scoped-performance",
-      "statement": "Performance observations bind source, workload, toolchain, platform and method; no universal benchmark inference."
+      "statement": "Performance observations bind source revision, workload, compiler/toolchain, build configuration, CPU/platform, memory profile, and measurement method; no universal benchmark inference."
     },
     {
       "id": "RUNE-INV-015",
@@ -84,13 +84,13 @@
     },
     {
       "id": "RUNE-INV-017",
-      "slug": "explicit-width-portable-identity",
-      "statement": "Host pointer/size types do not automatically define portable offsets, counts or serialized identities."
+      "slug": "explicit-portable-identity-representation",
+      "statement": "Host pointer/size types do not automatically define portable offsets, counts or serialized identities; portable identity uses explicit versioned widths or another explicit versioned representation."
     },
     {
       "id": "RUNE-INV-018",
       "slug": "plan-not-execution",
-      "statement": "Requested/planned capability, cross-compilation or templates do not prove execution."
+      "statement": "Requested/planned capability, advertised CPU features, cross-compilation, or templates do not prove execution; execution evidence must state what actually executed and its evidence class."
     },
     {
       "id": "RUNE-INV-019",

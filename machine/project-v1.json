@@ -58,14 +58,30 @@
   "portability": {
     "host_pointer_width_is_portable_identity": false,
     "host_size_t_is_portable_semantic_identity": false,
-    "explicit_width_portable_identities_required": true,
+    "portable_identity_representation": {
+      "explicit_versioned_representation_required": true,
+      "explicit_fixed_width_integer_representation_allowed": true,
+      "other_explicit_versioned_representation_allowed": true,
+      "native_host_type_alone_is_sufficient": false
+    },
     "cross_compile_is_execution_evidence": false,
     "emulation_is_physical_hardware_evidence": false
   },
   "evidence": {
     "donor_benchmarks_transferable": false,
     "requested_or_planned_work_is_execution_evidence": false,
+    "execution_evidence_must_state_what_executed": true,
+    "execution_evidence_class_required": true,
     "performance_claims_environment_scoped": true,
+    "performance_observation_required_dimensions": [
+      "source_revision",
+      "workload",
+      "compiler_toolchain",
+      "build_configuration",
+      "cpu_platform",
+      "memory_profile",
+      "measurement_method"
+    ],
     "correctness_precedes_performance": true
   },
   "machine_contracts": {
