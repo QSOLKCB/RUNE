@@ -46,13 +46,13 @@ MORE COMPUTE != BETTER EXECUTION
 
 ## Status
 
-**R2 — Arena and scratch lifetime.**
+**R3 — Integer numeric core.**
 
-R0 and R1 are merged. RUNE now layers a monotonic caller-owned arena over the bounded region core, with explicit arena-relative alignment, deterministic checkpoints/reset, exhaustion, high-water accounting, and cumulative allocation traffic.
+R0 through R2 are merged. RUNE now adds a small deterministic integer numeric layer: checked unsigned/signed arithmetic, checked left shift, explicit rounded integer division, and a Q16.16 proof type using guaranteed C99 wider intermediates.
 
-R2 still contains **no general-purpose heap, threading, SIMD, floating point, scheduler, cache framework, or runtime performance claim**.
+Q16.16 is **a demonstrated representation, not a universal RUNE numeric format**. R3 still contains no floating point, SIMD, threads, universal math framework, or runtime performance claim.
 
-See [R1-REGION-CORE.md](R1-REGION-CORE.md), [R2-ARENA-SCRATCH.md](R2-ARENA-SCRATCH.md), and [ROADMAP.md](ROADMAP.md).
+See [R3-INTEGER-NUMERIC.md](R3-INTEGER-NUMERIC.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Build and test
 
@@ -69,7 +69,7 @@ The tests exercise deterministic correctness only. They are not performance benc
 Project: RUNE
 Name: Runtime for Unified Numeric Execution
 Reference language: ISO C99
-Current phase: R2 — Arena and scratch lifetime
+Current phase: R3 — Integer numeric core
 Architecture: CPU-only
 Numeric boundary: integer-only
 Memory model: explicit and bounded
@@ -275,6 +275,7 @@ Human-facing files:
 - [DONORS-v1.md](DONORS-v1.md)
 - [R1-REGION-CORE.md](R1-REGION-CORE.md)
 - [R2-ARENA-SCRATCH.md](R2-ARENA-SCRATCH.md)
+- [R3-INTEGER-NUMERIC.md](R3-INTEGER-NUMERIC.md)
 
 Machine-facing files:
 
@@ -284,6 +285,7 @@ Machine-facing files:
 - [machine/donors-v1.json](machine/donors-v1.json)
 - [machine/r1-region-core.v1.json](machine/r1-region-core.v1.json)
 - [machine/r2-arena-scratch.v1.json](machine/r2-arena-scratch.v1.json)
+- [machine/r3-integer-numeric.v1.json](machine/r3-integer-numeric.v1.json)
 
 A contradiction between the two surfaces is a defect. Automated agents must fail closed rather than invent a reconciliation.
 

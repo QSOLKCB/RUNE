@@ -24,6 +24,8 @@ const char *rune_status_name(rune_status status)
         return "RUNE_ERR_EXHAUSTED";
     case RUNE_ERR_STALE_CHECKPOINT:
         return "RUNE_ERR_STALE_CHECKPOINT";
+    case RUNE_ERR_DIVIDE_BY_ZERO:
+        return "RUNE_ERR_DIVIDE_BY_ZERO";
     default:
         return "RUNE_STATUS_UNKNOWN";
     }

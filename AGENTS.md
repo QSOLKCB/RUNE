@@ -4,7 +4,7 @@ MODE=MACHINE_ONLY
 PROJECT=RUNE
 REFERENCE_LANGUAGE=ISO_C99
 LICENSE=MPL-2.0
-CURRENT_PHASE=R2
+CURRENT_PHASE=R3
 RUNTIME_IMPLEMENTATION_ALLOWED=true
 RUNTIME_PERFORMANCE_CLAIMS_ALLOWED=false
 
@@ -14,6 +14,7 @@ READ_ORDER:
 3=machine/donors-v1.json
 4=machine/r1-region-core.v1.json
 5=machine/r2-arena-scratch.v1.json
+6=machine/r3-integer-numeric.v1.json
 
 HUMAN_PROSE:
 README.md
@@ -22,6 +23,7 @@ ROADMAP.md
 DONORS-v1.md
 R1-REGION-CORE.md
 R2-ARENA-SCRATCH.md
+R3-INTEGER-NUMERIC.md
 
 MACHINE_AUTHORITY:
 machine/project-v1.json
@@ -29,6 +31,7 @@ machine/invariants-v1.json
 machine/donors-v1.json
 machine/r1-region-core.v1.json
 machine/r2-arena-scratch.v1.json
+machine/r3-integer-numeric.v1.json
 
 CONFLICT_POLICY=FAIL_CLOSED
 ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
@@ -36,10 +39,16 @@ DO_NOT_INVENT_RECONCILIATION=true
 
 CORE_RULES:
 - preserve_all_invariants
-- runtime_code_allowed_only_within_current_R2_arena_scratch_scope
+- runtime_code_allowed_only_within_current_R3_integer_numeric_scope
 - cpu_only
 - integer_only_public_semantics
 - fractional_rounding_behavior_must_be_declared
+- lossy_integer_numeric_boundaries_require_explicit_rounding_mode
+- checked_integer_arithmetic_must_not_silently_wrap
+- unsigned_underflow_reports_RUNE_ERR_OVERFLOW
+- q16_16_is_proof_type_not_universal_numeric_format
+- q16_16_multiply_uses_guaranteed_int64_wider_intermediate
+- nonstandard_int128_must_not_be_required_for_R3_correctness
 - c99_reference
 - platform_specific_facilities_require_explicit_boundary
 - os_specific_api_may_not_be_core_requirement
@@ -65,7 +74,7 @@ CORE_RULES:
 - optional_internal_optimization_unavailable_or_losing_requires_fallback_to_correct_simpler_path
 - requested_contract_capability_unsupported_requires_explicit_failure
 - optional_internal_optimization_absence_is_not_unsupported_capability_failure
-- runtime_performance_claims_forbidden_in_R2
+- runtime_performance_claims_forbidden_in_R3
 - causal_performance_claim_requires_support_beyond_timing
 - portable_identity_requires_explicit_versioned_representation
 - fixed_width_integer_identity_is_allowed_but_not_the_only_allowed_explicit_representation

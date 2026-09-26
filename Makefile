@@ -8,9 +8,10 @@ INCLUDES = -Iinclude
 
 BUILD_DIR = build
 LIB = $(BUILD_DIR)/librune.a
-OBJS = $(BUILD_DIR)/status.o $(BUILD_DIR)/region.o $(BUILD_DIR)/arena.o
+OBJS = $(BUILD_DIR)/status.o $(BUILD_DIR)/region.o $(BUILD_DIR)/arena.o $(BUILD_DIR)/numeric.o
 TEST_REGION = $(BUILD_DIR)/test_region
 TEST_ARENA = $(BUILD_DIR)/test_arena
+TEST_NUMERIC = $(BUILD_DIR)/test_numeric
 
 .PHONY: all test clean
 
@@ -28,6 +29,9 @@ $(BUILD_DIR)/region.o: src/region.c include/rune/region.h include/rune/status.h 
 $(BUILD_DIR)/arena.o: src/arena.c include/rune/arena.h include/rune/region.h include/rune/status.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) -c $< -o $@
 
+$(BUILD_DIR)/numeric.o: src/numeric.c include/rune/numeric.h include/rune/status.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) -c $< -o $@
+
 $(LIB): $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 
@@ -37,9 +41,13 @@ $(TEST_REGION): tests/test_region.c $(LIB) include/rune/region.h include/rune/st
 $(TEST_ARENA): tests/test_arena.c $(LIB) include/rune/arena.h include/rune/region.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) tests/test_arena.c $(LIB) -o $@
 
-test: $(TEST_REGION) $(TEST_ARENA)
+$(TEST_NUMERIC): tests/test_numeric.c $(LIB) include/rune/numeric.h include/rune/status.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) tests/test_numeric.c $(LIB) -o $@
+
+test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC)
 	./$(TEST_REGION)
 	./$(TEST_ARENA)
+	./$(TEST_NUMERIC)
 
 clean:
 	rm -rf $(BUILD_DIR)

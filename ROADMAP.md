@@ -54,7 +54,7 @@ Success criterion:
 
 ## R2 — Arena and scratch lifetime
 
-**Current phase.**
+**Complete — merged in PR #3.**
 
 Introduce controlled transient storage only after R1 exists.
 
@@ -75,6 +75,8 @@ Success criterion:
 > temporary state has an explicit maximum residency and deterministic lifetime.
 
 ## R3 — Integer numeric core
+
+**Current phase.**
 
 Add only arithmetic required by real RUNE workloads.
 

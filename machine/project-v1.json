@@ -3,8 +3,8 @@
   "project": "RUNE",
   "expanded_name": "Runtime for Unified Numeric Execution",
   "phase": {
-    "id": "R2",
-    "name": "Arena and scratch lifetime",
+    "id": "R3",
+    "name": "Integer numeric core",
     "runtime_implementation_allowed": true,
     "runtime_performance_claims_allowed": false,
     "performance_measurement_planning_allowed": true,
@@ -33,14 +33,16 @@
       "ROADMAP.md",
       "DONORS-v1.md",
       "R1-REGION-CORE.md",
-      "R2-ARENA-SCRATCH.md"
+      "R2-ARENA-SCRATCH.md",
+      "R3-INTEGER-NUMERIC.md"
     ],
     "machine_readable": [
       "machine/project-v1.json",
       "machine/invariants-v1.json",
       "machine/donors-v1.json",
       "machine/r1-region-core.v1.json",
-      "machine/r2-arena-scratch.v1.json"
+      "machine/r2-arena-scratch.v1.json",
+      "machine/r3-integer-numeric.v1.json"
     ],
     "agent_entrypoint": "AGENTS.md",
     "contradiction_policy": "fail-closed-and-report",
@@ -86,7 +88,11 @@
   "numeric_policy": {
     "public_semantics_require_floating_point": false,
     "fractional_semantics_require_explicit_versioned_integer_representation": true,
-    "fractional_rounding_behavior_must_be_declared": true
+    "fractional_rounding_behavior_must_be_declared": true,
+    "current_proof_representation": "Q16.16 signed int32 raw",
+    "current_proof_representation_is_universal": false,
+    "lossy_boundaries_require_rounding_mode": true,
+    "silent_integer_wrap_allowed": false
   },
   "movement_policy": {
     "managed_storage_requires_explicit_ownership": true,
@@ -193,7 +199,7 @@
       ]
     },
     "runtime_performance_claim_policy": {
-      "current_phase": "R2",
+      "current_phase": "R3",
       "runtime_performance_claims_allowed": false,
       "fully_documented_benchmark_receipt_does_not_override_phase_prohibition": true,
       "first_permitted_phase_requires_future_versioned_authority": true
@@ -203,6 +209,7 @@
     "invariants": "machine/invariants-v1.json",
     "donors": "machine/donors-v1.json",
     "r1_region_core": "machine/r1-region-core.v1.json",
-    "r2_arena_scratch": "machine/r2-arena-scratch.v1.json"
+    "r2_arena_scratch": "machine/r2-arena-scratch.v1.json",
+    "r3_integer_numeric": "machine/r3-integer-numeric.v1.json"
   }
 }
