@@ -1,0 +1,85 @@
+{
+  "contract": "rune.r3-integer-numeric.v1",
+  "phase": "R3",
+  "reference_language": "ISO C99",
+  "runtime_performance_claims_allowed": false,
+  "floating_point_required": false,
+  "checked_integer": {
+    "types": [
+      "uint64_t",
+      "int64_t"
+    ],
+    "operations": [
+      "add",
+      "subtract",
+      "multiply"
+    ],
+    "silent_wrap_allowed": false,
+    "overflow_status": "RUNE_ERR_OVERFLOW",
+    "unsigned_underflow_status": "RUNE_ERR_OVERFLOW",
+    "failure_mutates_output": false
+  },
+  "shift": {
+    "operation": "uint64-left-shift",
+    "valid_shift_range": [
+      0,
+      63
+    ],
+    "shifted_out_bits_allowed": false,
+    "invalid_shift_status": "RUNE_ERR_INVALID_ARGUMENT",
+    "overflow_status": "RUNE_ERR_OVERFLOW"
+  },
+  "rounding": {
+    "required_at_lossy_boundaries": true,
+    "modes": [
+      "RUNE_ROUND_TOWARD_ZERO",
+      "RUNE_ROUND_FLOOR",
+      "RUNE_ROUND_CEIL",
+      "RUNE_ROUND_NEAREST_EVEN"
+    ],
+    "nearest_tie_rule": "even",
+    "part_of_result_identity": true
+  },
+  "integer_division": {
+    "operation": "rune_i64_div_round",
+    "divide_by_zero_status": "RUNE_ERR_DIVIDE_BY_ZERO",
+    "INT64_MIN_div_negative_one": "RUNE_ERR_OVERFLOW"
+  },
+  "q16_16": {
+    "role": "proof-type-not-universal-format",
+    "storage": "int32_t raw",
+    "scale": 65536,
+    "fractional_bits": 16,
+    "multiply_intermediate": "int64_t",
+    "multiply_intermediate_is_wider_than_storage": true,
+    "compiler_specific_int128_required": false,
+    "ratio_conversion_intermediate": "int64_t",
+    "output_overflow": "RUNE_ERR_OVERFLOW",
+    "lossy_operations_require_rounding": true
+  },
+  "public_files": [
+    "include/rune/numeric.h",
+    "src/numeric.c"
+  ],
+  "validation": {
+    "deterministic_tests": "tests/test_numeric.c",
+    "build_command": "make test",
+    "compilers": [
+      "gcc",
+      "clang"
+    ],
+    "performance_benchmark": false
+  },
+  "excluded": [
+    "floating_point",
+    "arbitrary_precision",
+    "decimal",
+    "trigonometry",
+    "transcendentals",
+    "universal_vector_matrix_framework",
+    "mandatory_saturation",
+    "SIMD",
+    "threading",
+    "performance_claim"
+  ]
+}
