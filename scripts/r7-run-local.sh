@@ -43,6 +43,8 @@ sanitize_capture_environment()
     unset DYLD_FALLBACK_FRAMEWORK_PATH
     unset LIBPATH
     unset SHLIB_PATH
+
+    unset TAR_OPTIONS
 }
 
 sanitize_capture_environment
@@ -82,6 +84,35 @@ resolve_build_tool()
     PATH="$build_path" command -v "$1"
 }
 
+canonicalize_existing_path()
+{
+    canonical_path=$1
+    case "$canonical_path" in
+        /*) ;;
+        *) return 1 ;;
+    esac
+
+    canonical_hops=0
+    while [ -L "$canonical_path" ]; do
+        canonical_hops=$((canonical_hops + 1))
+        [ "$canonical_hops" -le 40 ] || return 1
+        canonical_link=$("$readlink_path" "$canonical_path") || return 1
+        case "$canonical_link" in
+            /*) canonical_path=$canonical_link ;;
+            *) canonical_path=${canonical_path%/*}/$canonical_link ;;
+        esac
+        canonical_parent=${canonical_path%/*}
+        canonical_base=${canonical_path##*/}
+        canonical_parent=$(CDPATH= cd -- "$canonical_parent" && pwd -P) || return 1
+        canonical_path=$canonical_parent/$canonical_base
+    done
+
+    canonical_parent=${canonical_path%/*}
+    canonical_base=${canonical_path##*/}
+    canonical_parent=$(CDPATH= cd -- "$canonical_parent" && pwd -P) || return 1
+    printf '%s/%s\n' "$canonical_parent" "$canonical_base"
+}
+
 validate_build_path
 
 git_path=$(resolve_provenance_tool git) ||
@@ -111,13 +142,19 @@ provenance_rm_path=$(resolve_provenance_tool rm) ||
     fail "rm not found in fixed provenance path"
 mv_path=$(resolve_provenance_tool mv) ||
     fail "mv not found in fixed provenance path"
+cp_path=$(resolve_provenance_tool cp) ||
+    fail "cp not found in fixed provenance path"
+find_path=$(resolve_provenance_tool find) ||
+    fail "find not found in fixed provenance path"
+readlink_path=$(resolve_provenance_tool readlink) ||
+    fail "readlink not found in fixed provenance path"
 date_path=$(resolve_provenance_tool date) ||
     fail "date not found in fixed provenance path"
 dirname_path=$(resolve_provenance_tool dirname) ||
     fail "dirname not found in fixed provenance path"
 basename_path=$(resolve_provenance_tool basename) ||
     fail "basename not found in fixed provenance path"
-for provenance_tool_path in "$sed_path" "$awk_path" "$bundle_mkdir_path" "$tar_path" "$chmod_path" "$provenance_rm_path" "$mv_path" "$date_path" "$dirname_path" "$basename_path"; do
+for provenance_tool_path in "$sed_path" "$awk_path" "$bundle_mkdir_path" "$tar_path" "$chmod_path" "$provenance_rm_path" "$mv_path" "$cp_path" "$find_path" "$readlink_path" "$date_path" "$dirname_path" "$basename_path"; do
     case "$provenance_tool_path" in
         /*) ;;
         *) fail "provenance tool path is not absolute: $provenance_tool_path" ;;
@@ -360,6 +397,31 @@ R7_TRACKED_INPUTS
 
 validate_source_identity
 
+validate_snapshot_source_entries()
+{
+    snapshot_entries=$("$find_path" "$source_snapshot" \( -type f -o -type l \) -print) ||
+        fail "could not enumerate source snapshot entries"
+
+    while IFS= read -r snapshot_entry; do
+        [ -n "$snapshot_entry" ] || continue
+        snapshot_rel=${snapshot_entry#"$source_snapshot"/}
+        [ "$snapshot_rel" != "$snapshot_entry" ] ||
+            fail "snapshot entry escaped snapshot root: $snapshot_entry"
+        [ ! -L "$snapshot_entry" ] ||
+            fail "source snapshot symlink is forbidden: $snapshot_rel"
+        case "
+$tracked_inputs
+" in
+            *"
+$snapshot_rel
+"*) ;;
+            *) fail "unexpected source snapshot entry: $snapshot_rel" ;;
+        esac
+    done <<R7_SNAPSHOT_ENTRIES
+$snapshot_entries
+R7_SNAPSHOT_ENTRIES
+}
+
 validate_snapshot_identity()
 {
     while IFS= read -r tracked_path; do
@@ -404,6 +466,7 @@ materialize_source_snapshot()
     "$provenance_rm_path" -f "$archive_path" ||
         fail "could not remove temporary source archive"
 
+    validate_snapshot_source_entries
     validate_snapshot_identity
     "$chmod_path" -R a-w         "$source_snapshot/Makefile"         "$source_snapshot/src"         "$source_snapshot/include"         "$source_snapshot/study" ||
         fail "could not make source snapshot read-only"
@@ -425,6 +488,8 @@ dirty=false
 
 cc_path=$(resolve_provenance_tool "$cc_name") ||
     fail "compiler not found in fixed provenance path: $cc_name"
+cc_path=$(canonicalize_existing_path "$cc_path") ||
+    fail "could not canonicalize compiler path: $cc_path"
 case "$cc_path" in
     /usr/bin/*|/bin/*|/usr/sbin/*|/sbin/*) ;;
     *) fail "compiler escaped fixed provenance path: $cc_path" ;;
@@ -439,6 +504,8 @@ compiler_version=$("$cc_path" --version 2>&1) ||
 
 ar_path=$(resolve_provenance_tool "$ar_name") ||
     fail "archiver not found in fixed provenance path: $ar_name"
+ar_path=$(canonicalize_existing_path "$ar_path") ||
+    fail "could not canonicalize archiver path: $ar_path"
 case "$ar_path" in
     /usr/bin/*|/bin/*|/usr/sbin/*|/sbin/*) ;;
     *) fail "archiver escaped fixed provenance path: $ar_path" ;;
@@ -458,6 +525,8 @@ fi
 
 make_path=$(resolve_provenance_tool "$make_name") ||
     fail "build driver not found in fixed provenance path: $make_name"
+make_path=$(canonicalize_existing_path "$make_path") ||
+    fail "could not canonicalize build-driver path: $make_path"
 case "$make_path" in
     /usr/bin/*|/bin/*|/usr/sbin/*|/sbin/*) ;;
     *) fail "build-driver escaped fixed provenance path: $make_path" ;;
@@ -573,8 +642,9 @@ build_dir_rel="build/r7-evidence-$stamp-$$"
 build_dir="$source_snapshot/$build_dir_rel"
 study_target="$build_dir_rel/rune_r7_study"
 study_executable="$source_snapshot/$study_target"
-bundle_stage_rel="build/r7-bundle-stage-$stamp-$$"
+bundle_stage_rel="build/r7-bundle-stage-$stamp-$"
 bundle_stage="$repo_root/$bundle_stage_rel"
+publish_stage="$out_parent_abs/.r7-publish-$stamp-$"
 cleanup_capture_state()
 {
     if [ -n "${source_snapshot:-}" ] && [ -e "$source_snapshot" ]; then
@@ -583,6 +653,9 @@ cleanup_capture_state()
     fi
     if [ -n "${bundle_stage:-}" ] && [ -e "$bundle_stage" ]; then
         "$provenance_rm_path" -rf "$bundle_stage" >/dev/null 2>&1 || :
+    fi
+    if [ -n "${publish_stage:-}" ] && [ -e "$publish_stage" ]; then
+        "$provenance_rm_path" -rf "$publish_stage" >/dev/null 2>&1 || :
     fi
 }
 
@@ -634,6 +707,9 @@ observations_path="$bundle_stage/observations.tsv"
     printf 'chmod_resolved=%s\n' "$chmod_path"
     printf 'provenance_rm_resolved=%s\n' "$provenance_rm_path"
     printf 'mv_resolved=%s\n' "$mv_path"
+    printf 'cp_resolved=%s\n' "$cp_path"
+    printf 'find_resolved=%s\n' "$find_path"
+    printf 'readlink_resolved=%s\n' "$readlink_path"
     printf 'bundle_stage=%s\n' "$bundle_stage"
     printf '%s\n' "bundle_publish_mode=publish_after_success_via_trusted_mv"
     printf 'date_resolved=%s\n' "$date_path"
@@ -690,6 +766,9 @@ observations_path="$bundle_stage/observations.tsv"
     printf 'chmod_path=%s\n' "$chmod_path"
     printf 'provenance_rm_path=%s\n' "$provenance_rm_path"
     printf 'mv_path=%s\n' "$mv_path"
+    printf 'cp_path=%s\n' "$cp_path"
+    printf 'find_path=%s\n' "$find_path"
+    printf 'readlink_path=%s\n' "$readlink_path"
     printf 'date_path=%s\n' "$date_path"
     printf 'dirname_path=%s\n' "$dirname_path"
     printf 'basename_path=%s\n' "$basename_path"
@@ -705,10 +784,12 @@ observations_path="$bundle_stage/observations.tsv"
 } > "$bundle_stage/compiler.txt"
 
 {
+    printf "set -eu\n"
     printf "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE\n"
     printf "export GIT_NO_REPLACE_OBJECTS=1\n"
     printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX\n"
     printf "unset LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH DYLD_FRAMEWORK_PATH DYLD_FALLBACK_LIBRARY_PATH DYLD_FALLBACK_FRAMEWORK_PATH LIBPATH SHLIB_PATH\n"
+    printf "unset TAR_OPTIONS\n"
     shell_quote "$bundle_mkdir_path"
     printf " -p "
     shell_quote "$repo_root/build"
@@ -821,9 +902,38 @@ validate_source_identity
 if [ -e "$out_dir" ] || [ -L "$out_dir" ]; then
     fail "evidence destination appeared during capture; refusing publish: $out_dir"
 fi
+[ ! -e "$publish_stage" ] && [ ! -L "$publish_stage" ] ||
+    fail "publish staging destination already exists: $publish_stage"
 
-"$mv_path" "$bundle_stage" "$out_dir" ||
-    fail "could not publish completed evidence bundle: $out_dir"
+"$bundle_mkdir_path" "$publish_stage" ||
+    fail "could not create sibling publish staging directory"
+"$cp_path" -R "$bundle_stage/." "$publish_stage/" ||
+    fail "could not copy completed bundle to destination filesystem"
+
+case "$hash_mode" in
+    sha256sum)
+        (
+            cd "$publish_stage"
+            "$hash_path" -c SHA256SUMS
+        ) || fail "copied publish staging bundle failed SHA-256 verification"
+        ;;
+    shasum)
+        (
+            cd "$publish_stage"
+            "$hash_path" -a 256 -c SHA256SUMS
+        ) || fail "copied publish staging bundle failed SHA-256 verification"
+        ;;
+esac
+
+"$provenance_rm_path" -rf "$bundle_stage" ||
+    fail "could not remove repository bundle staging directory"
+
+if [ -e "$out_abs" ] || [ -L "$out_abs" ]; then
+    fail "evidence destination appeared during publish; refusing rename: $out_abs"
+fi
+
+"$mv_path" "$publish_stage" "$out_abs" ||
+    fail "could not rename completed sibling staging bundle into place"
 trap - 0 1 2 3 15
 
 echo "R7 evidence bundle: $out_dir"
