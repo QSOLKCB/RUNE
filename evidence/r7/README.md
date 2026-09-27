@@ -59,7 +59,7 @@ page count and page size.
 
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
 the evidence build. Ambient `PATH` is replaced by a recorded sanitized build
-path (default `/usr/bin:/bin`), from which make/mkdir/rm are resolved. Each
+path (default `/usr/bin:/bin:/usr/sbin:/sbin`), from which make/mkdir/rm are resolved. Each
 capture builds into a fresh unique `BUILD_DIR` and never relies on
 `make clean`, so a fake ambient `rm` cannot preserve and certify a stale
 study executable.
