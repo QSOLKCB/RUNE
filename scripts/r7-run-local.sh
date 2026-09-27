@@ -103,7 +103,13 @@ awk_path=$(resolve_provenance_tool awk) ||
     fail "awk not found in fixed provenance path"
 bundle_mkdir_path=$(resolve_provenance_tool mkdir) ||
     fail "mkdir not found in fixed provenance path"
-for provenance_tool_path in "$sed_path" "$awk_path" "$bundle_mkdir_path"; do
+tar_path=$(resolve_provenance_tool tar) ||
+    fail "tar not found in fixed provenance path"
+chmod_path=$(resolve_provenance_tool chmod) ||
+    fail "chmod not found in fixed provenance path"
+provenance_rm_path=$(resolve_provenance_tool rm) ||
+    fail "rm not found in fixed provenance path"
+for provenance_tool_path in "$sed_path" "$awk_path" "$bundle_mkdir_path" "$tar_path" "$chmod_path" "$provenance_rm_path"; do
     case "$provenance_tool_path" in
         /*) ;;
         *) fail "provenance tool path is not absolute: $provenance_tool_path" ;;
@@ -345,10 +351,61 @@ R7_TRACKED_INPUTS
 }
 
 validate_source_identity
+
+validate_snapshot_identity()
+{
+    while IFS= read -r tracked_path; do
+        [ -n "$tracked_path" ] || continue
+        [ -f "$source_snapshot/$tracked_path" ] ||
+            fail "snapshot compiler input is missing: $tracked_path"
+        snapshot_blob=$("$git_path" -C "$repo_root" hash-object --no-filters -- "$source_snapshot/$tracked_path") ||
+            fail "could not hash snapshot bytes: $tracked_path"
+        revision_blob=$("$git_path" -C "$repo_root" rev-parse "$revision:$tracked_path") ||
+            fail "could not resolve revision blob for snapshot: $tracked_path"
+        [ "$snapshot_blob" = "$revision_blob" ] ||
+            fail "snapshot bytes differ from source revision: $tracked_path"
+    done <<R7_SNAPSHOT_INPUTS
+$tracked_inputs
+R7_SNAPSHOT_INPUTS
+}
+
+materialize_source_snapshot()
+{
+    [ ! -e "$source_snapshot" ] && [ ! -L "$source_snapshot" ] ||
+        fail "source snapshot destination already exists: $source_snapshot"
+
+    "$bundle_mkdir_path" "$source_snapshot" ||
+        fail "could not create source snapshot directory: $source_snapshot"
+
+    archive_path="$source_snapshot/.r7-source.tar"
+    "$git_path" -C "$repo_root" archive --format=tar "$revision" -- Makefile src include study > "$archive_path" ||
+        fail "could not materialize source archive for revision: $revision"
+    "$tar_path" -xf "$archive_path" -C "$source_snapshot" ||
+        fail "could not extract source snapshot"
+    "$provenance_rm_path" -f "$archive_path" ||
+        fail "could not remove temporary source archive"
+
+    validate_snapshot_identity
+    "$chmod_path" -R a-w         "$source_snapshot/Makefile"         "$source_snapshot/src"         "$source_snapshot/include"         "$source_snapshot/study" ||
+        fail "could not make source snapshot read-only"
+}
+
+cleanup_snapshot()
+{
+    "$provenance_rm_path" -rf "$source_snapshot" ||
+        fail "could not remove source snapshot: $source_snapshot"
+    [ ! -e "$source_snapshot" ] && [ ! -L "$source_snapshot" ] ||
+        fail "source snapshot remains after cleanup: $source_snapshot"
+}
+
 dirty=false
 
-cc_path=$(command -v "$cc_name") ||
-    fail "compiler not found: $cc_name"
+cc_path=$(resolve_provenance_tool "$cc_name") ||
+    fail "compiler not found in fixed provenance path: $cc_name"
+case "$cc_path" in
+    /usr/bin/*|/bin/*|/usr/sbin/*|/sbin/*) ;;
+    *) fail "compiler escaped fixed provenance path: $cc_path" ;;
+esac
 [ -n "$cc_path" ] && [ -x "$cc_path" ] ||
     fail "compiler path is not executable: $cc_path"
 
@@ -357,8 +414,12 @@ compiler_version=$("$cc_path" --version 2>&1) ||
 [ -n "$compiler_version" ] ||
     fail "compiler identity output is empty"
 
-ar_path=$(command -v "$ar_name") ||
-    fail "archiver not found: $ar_name"
+ar_path=$(resolve_provenance_tool "$ar_name") ||
+    fail "archiver not found in fixed provenance path: $ar_name"
+case "$ar_path" in
+    /usr/bin/*|/bin/*|/usr/sbin/*|/sbin/*) ;;
+    *) fail "archiver escaped fixed provenance path: $ar_path" ;;
+esac
 [ -n "$ar_path" ] && [ -x "$ar_path" ] ||
     fail "archiver path is not executable: $ar_path"
 
@@ -403,7 +464,7 @@ esac
 build_study()
 {
     PATH="$build_path" MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
-    "$make_path" -C "$repo_root" -f Makefile "$study_target" \
+    "$make_path" -C "$source_snapshot" -f Makefile "$study_target" \
         BUILD_DIR="$build_dir_rel" \
         CC="$cc_path" \
         AR="$ar_path" \
@@ -483,23 +544,25 @@ if [ -z "$cpu_model" ] && [ -n "$sysctl_path" ]; then
     done
 fi
 
-build_dir_rel="build/r7-evidence-$stamp-$$"
-build_dir="$repo_root/$build_dir_rel"
+source_snapshot_rel="build/r7-source-$stamp-$"
+source_snapshot="$repo_root/$source_snapshot_rel"
+build_dir_rel="build/r7-evidence-$stamp-$"
+build_dir="$source_snapshot/$build_dir_rel"
 study_target="$build_dir_rel/rune_r7_study"
-study_executable="$repo_root/$study_target"
-
-if [ -e "$build_dir" ] || [ -L "$build_dir" ]; then
-    fail "fresh evidence build directory already exists: $build_dir"
-fi
+study_executable="$source_snapshot/$study_target"
 
 if [ "$fresh_build_self_test" = true ]; then
+    materialize_source_snapshot
     build_study
+    validate_snapshot_identity
     "$study_executable" --bytes 32768 --repeats 1 >/dev/null
-    cleanup_build
+    cleanup_snapshot
     exit 0
 fi
 
+materialize_source_snapshot
 build_study
+validate_snapshot_identity
 validate_source_identity
 
 "$bundle_mkdir_path" "$out_dir" ||
@@ -528,6 +591,11 @@ observations_path="$out_abs/observations.tsv"
     printf 'sed_resolved=%s\n' "$sed_path"
     printf 'awk_resolved=%s\n' "$awk_path"
     printf 'bundle_mkdir_resolved=%s\n' "$bundle_mkdir_path"
+    printf 'tar_resolved=%s\n' "$tar_path"
+    printf 'chmod_resolved=%s\n' "$chmod_path"
+    printf 'provenance_rm_resolved=%s\n' "$provenance_rm_path"
+    printf 'source_snapshot=%s\n' "$source_snapshot"
+    printf 'source_snapshot_revision=%s\n' "$revision"
     printf 'uname_resolved=%s\n' "$uname_path"
     printf 'sha256_mode=%s\n' "$hash_mode"
     printf 'sha256_resolved=%s\n' "$hash_path"
@@ -571,6 +639,9 @@ observations_path="$out_abs/observations.tsv"
     printf 'sed_path=%s\n' "$sed_path"
     printf 'awk_path=%s\n' "$awk_path"
     printf 'bundle_mkdir_path=%s\n' "$bundle_mkdir_path"
+    printf 'tar_path=%s\n' "$tar_path"
+    printf 'chmod_path=%s\n' "$chmod_path"
+    printf 'provenance_rm_path=%s\n' "$provenance_rm_path"
     printf 'uname_path=%s\n' "$uname_path"
     printf 'sha256_path=%s\n' "$hash_path"
     printf '%s\n' "$hash_version"
@@ -587,12 +658,44 @@ observations_path="$out_abs/observations.tsv"
     printf "export GIT_NO_REPLACE_OBJECTS=1\n"
     printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX\n"
     printf "unset LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH DYLD_FRAMEWORK_PATH DYLD_FALLBACK_LIBRARY_PATH DYLD_FALLBACK_FRAMEWORK_PATH LIBPATH SHLIB_PATH\n"
+    shell_quote "$bundle_mkdir_path"
+    printf " "
+    shell_quote "$source_snapshot"
+    printf '\n'
+    shell_quote "$git_path"
+    printf " -C "
+    shell_quote "$repo_root"
+    printf " archive --format=tar "
+    shell_quote "$revision"
+    printf " -- Makefile src include study > "
+    shell_quote "$source_snapshot/.r7-source.tar"
+    printf '\n'
+    shell_quote "$tar_path"
+    printf " -xf "
+    shell_quote "$source_snapshot/.r7-source.tar"
+    printf " -C "
+    shell_quote "$source_snapshot"
+    printf '\n'
+    shell_quote "$provenance_rm_path"
+    printf " -f "
+    shell_quote "$source_snapshot/.r7-source.tar"
+    printf '\n'
+    shell_quote "$chmod_path"
+    printf " -R a-w "
+    shell_quote "$source_snapshot/Makefile"
+    printf " "
+    shell_quote "$source_snapshot/src"
+    printf " "
+    shell_quote "$source_snapshot/include"
+    printf " "
+    shell_quote "$source_snapshot/study"
+    printf '\n'
     printf "PATH="
     shell_quote "$build_path"
     printf " MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' "
     shell_quote "$make_path"
     printf " -C "
-    shell_quote "$repo_root"
+    shell_quote "$source_snapshot"
     printf " -f Makefile "
     shell_quote "$study_target"
     printf " BUILD_DIR="
@@ -613,13 +716,18 @@ observations_path="$out_abs/observations.tsv"
     printf " > "
     shell_quote "$observations_path"
     printf '\n'
+    shell_quote "$provenance_rm_path"
+    printf " -rf "
+    shell_quote "$source_snapshot"
+    printf '\n'
 } > "$out_dir/command.txt"
 
 "$study_executable" --profile local --repeats "$repeats" \
     > "$observations_path"
 
+validate_snapshot_identity
 validate_source_identity
-cleanup_build
+cleanup_snapshot
 
 case "$hash_mode" in
     sha256sum)
