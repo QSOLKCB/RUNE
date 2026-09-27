@@ -263,7 +263,13 @@ cppflags=${CPPFLAGS:-}
 cflags=${CFLAGS:-}
 
 case "$cppflags" in
-    *'
+    *'$'*) fail "CPPFLAGS must not contain dollar signs or Make variable references; resolve them before capture" ;;
+esac
+case "$cflags" in
+    *'$'*) fail "CFLAGS must not contain dollar signs or Make variable references; resolve them before capture" ;;
+esac
+
+repeats=${RUNE_R7_REPEATS:-5}
 case "$repeats" in
     ''|*[!0-9]*)
         fail "RUNE_R7_REPEATS must be an integer from 1 through 100"
