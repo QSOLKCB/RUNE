@@ -313,6 +313,20 @@ static void test_wrap_and_fifo_order(void)
     CHECK(views.second.length == 4u);
 }
 
+static void check_ring_equal(
+    const rune_ring *actual,
+    const rune_ring *expected
+)
+{
+    CHECK(actual->storage.region == expected->storage.region);
+    CHECK(actual->storage.offset == expected->storage.offset);
+    CHECK(actual->storage.length == expected->storage.length);
+    CHECK(actual->storage.access == expected->storage.access);
+    CHECK(actual->read_cursor == expected->read_cursor);
+    CHECK(actual->write_cursor == expected->write_cursor);
+    CHECK(actual->size == expected->size);
+}
+
 static void test_commit_failures_are_non_mutating(void)
 {
     uint8_t bytes[8] = { 0u };
@@ -334,7 +348,7 @@ static void test_commit_failures_are_non_mutating(void)
         rune_ring_produce(&ring, 9u),
         RUNE_ERR_CAPACITY
     );
-    CHECK(memcmp(&ring, &before, sizeof(ring)) == 0);
+    check_ring_equal(&ring, &before);
 
     CHECK_STATUS(rune_ring_produce(&ring, 5u), RUNE_OK);
     before = ring;
@@ -342,7 +356,7 @@ static void test_commit_failures_are_non_mutating(void)
         rune_ring_consume(&ring, 6u),
         RUNE_ERR_OUT_OF_BOUNDS
     );
-    CHECK(memcmp(&ring, &before, sizeof(ring)) == 0);
+    check_ring_equal(&ring, &before);
 
     CHECK_STATUS(rune_ring_produce(&ring, 3u), RUNE_OK);
     before = ring;
@@ -350,7 +364,7 @@ static void test_commit_failures_are_non_mutating(void)
         rune_ring_produce(&ring, 1u),
         RUNE_ERR_CAPACITY
     );
-    CHECK(memcmp(&ring, &before, sizeof(ring)) == 0);
+    check_ring_equal(&ring, &before);
 }
 
 static void test_invalid_state_is_rejected(void)
@@ -543,18 +557,27 @@ static void test_logical_stream_exceeds_resident_state(void)
             }
 
             for (i = 0u; i < first_take; ++i) {
-                observed_sum += (uint64_t)
-                    views.first.region->data[
-                        (size_t)(views.first.offset + i)
-                    ];
+                uint8_t value;
+
+                value = views.first.region->data[
+                    (size_t)(views.first.offset + i)
+                ];
+                CHECK(value == stream_byte(consumed + i));
+                observed_sum += (uint64_t)value;
             }
 
             second_take = take - first_take;
             for (i = 0u; i < second_take; ++i) {
-                observed_sum += (uint64_t)
-                    views.second.region->data[
-                        (size_t)(views.second.offset + i)
-                    ];
+                uint8_t value;
+
+                value = views.second.region->data[
+                    (size_t)(views.second.offset + i)
+                ];
+                CHECK(
+                    value ==
+                    stream_byte(consumed + first_take + i)
+                );
+                observed_sum += (uint64_t)value;
             }
 
             CHECK_STATUS(rune_ring_consume(&ring, take), RUNE_OK);
