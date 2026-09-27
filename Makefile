@@ -15,9 +15,12 @@ TEST_NUMERIC = $(BUILD_DIR)/test_numeric
 TEST_RING = $(BUILD_DIR)/test_ring
 TEST_OPERATION = $(BUILD_DIR)/test_operation
 R6_PROOF = $(BUILD_DIR)/rune_r6_proof
+R7_STUDY = $(BUILD_DIR)/rune_r7_study
+R7_CLOCK_REGRESSION = $(BUILD_DIR)/test_r7_clock
+R7_FLOAT_CLOCK_REGRESSION = $(BUILD_DIR)/test_r7_clock_float
 CORPUS = $(BUILD_DIR)/rune_corpus
 
-.PHONY: all test r6-proof corpus-smoke clean
+.PHONY: all test r6-proof r7-study-smoke r7-study r7-clock-regression r7-evidence-regression corpus-smoke clean
 
 all: $(LIB)
 
@@ -66,6 +69,32 @@ $(R6_PROOF): proof/r6_proof.c $(LIB) include/rune/operation.h include/rune/regio
 r6-proof: $(R6_PROOF)
 	./$(R6_PROOF) > $(BUILD_DIR)/r6-proof.tsv
 	cmp $(BUILD_DIR)/r6-proof.tsv proof/r6-proof-receipts.v1.tsv
+
+$(R7_STUDY): study/r7_memory_wall.c $(LIB) include/rune/arena.h include/rune/region.h include/rune/status.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) study/r7_memory_wall.c $(LIB) -o $@
+
+r7-study-smoke: $(R7_STUDY)
+	./$(R7_STUDY) --bytes 32768 --repeats 1 > $(BUILD_DIR)/r7-study-smoke.tsv
+	test "`wc -l < $(BUILD_DIR)/r7-study-smoke.tsv`" -eq 20
+	awk -F '\t' 'NF != 17 { exit 1 } END { if (NR != 20) exit 1 }' $(BUILD_DIR)/r7-study-smoke.tsv
+
+r7-study: $(R7_STUDY)
+	./$(R7_STUDY) --profile local --repeats 5
+
+$(R7_CLOCK_REGRESSION): tests/test_r7_clock.c $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) -fsanitize=undefined -fno-sanitize-recover=undefined tests/test_r7_clock.c $(LIB) -o $@
+
+$(R7_FLOAT_CLOCK_REGRESSION): tests/test_r7_clock_float.c tests/r7_float_clock/time.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) -Itests/r7_float_clock $(INCLUDES) -fsanitize=undefined,float-cast-overflow -fno-sanitize-recover=undefined,float-cast-overflow tests/test_r7_clock_float.c $(LIB) -o $@
+
+r7-clock-regression: $(R7_CLOCK_REGRESSION) $(R7_FLOAT_CLOCK_REGRESSION)
+	./$(R7_CLOCK_REGRESSION)
+	./$(R7_FLOAT_CLOCK_REGRESSION)
+
+r7-evidence-regression:
+	@r7_cc='$(CC)'; \
+	if [ "$$r7_cc" = cc ]; then r7_cc=/usr/bin/cc; fi; \
+	CC="$$r7_cc" AR="$(AR)" sh tests/test_r7_run_local.sh
 
 $(CORPUS): corpus/rune_corpus.c $(LIB) include/rune/arena.h include/rune/numeric.h include/rune/region.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) corpus/rune_corpus.c $(LIB) -o $@

@@ -154,7 +154,7 @@ Success criterion:
 
 ## R6 — Deterministic operation descriptors and receipts
 
-**Current phase.**
+**Complete — merged in PR #7.**
 
 Define only the reusable execution description demonstrated by real RUNE operations.
 
@@ -176,6 +176,8 @@ Success criterion:
 > one operation can be replayed from explicit identity, parameters, bounded storage, and result contract without depending on hidden process state.
 
 ## R7 — CPU memory-wall study
+
+**Current phase.**
 
 Use RUNE-CORPUS-v1 to test the core thesis.
 

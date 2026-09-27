@@ -46,13 +46,13 @@ MORE COMPUTE != BETTER EXECUTION
 
 ## Status
 
-**R6 — Deterministic operation descriptors and receipts.**
+**R7 — CPU memory-wall study.**
 
-R0 through R5 are merged. RUNE now has a small replayable operation vocabulary demonstrated by two existing byte operations: move and fill. Descriptors use fixed-width operation/version/region-slot semantics; replay binds those slots to caller-owned regions at execution time, and receipts record executed-versus-rejected evidence, status, compact byte accounting, scratch requirements, and output identity.
+R0 through R6 are merged. RUNE now includes a local-first study harness for the frozen R4 corpus questions: locality, materialization/fusion, AoS/SoA, microtiles, retain/regenerate, lookup/recompute, peak-live versus cumulative traffic, and logical-domain versus resident-state scale.
 
-R6 deliberately avoids a task graph, scheduler, hidden process state, pointer identity, timing fields, and runtime performance claims.
+R7 can capture raw environment-scoped timing observations, but **performance claims remain prohibited until a local evidence bundle is committed and reviewed**. GitHub-hosted CI runs only a harness smoke check and is not performance evidence.
 
-See [R6-OPERATIONS-RECEIPTS.md](R6-OPERATIONS-RECEIPTS.md) and [ROADMAP.md](ROADMAP.md).
+See [R7-MEMORY-WALL-STUDY.md](R7-MEMORY-WALL-STUDY.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Build and test
 
@@ -60,7 +60,8 @@ See [R6-OPERATIONS-RECEIPTS.md](R6-OPERATIONS-RECEIPTS.md) and [ROADMAP.md](ROAD
 make test
 make clean test CC=clang
 make corpus-smoke
-./build/rune_corpus --profile local
+make r7-study-smoke
+./scripts/r7-run-local.sh
 ~~~
 
 The tests exercise deterministic correctness only. They are not performance benchmarks.
@@ -71,7 +72,7 @@ The tests exercise deterministic correctness only. They are not performance benc
 Project: RUNE
 Name: Runtime for Unified Numeric Execution
 Reference language: ISO C99
-Current phase: R6 — Deterministic operation descriptors and receipts
+Current phase: R7 — CPU memory-wall study
 Architecture: CPU-only
 Numeric boundary: integer-only
 Memory model: explicit and bounded
@@ -281,6 +282,7 @@ Human-facing files:
 - [R4-CORPUS-v1.md](R4-CORPUS-v1.md)
 - [R5-RINGS-STREAMING.md](R5-RINGS-STREAMING.md)
 - [R6-OPERATIONS-RECEIPTS.md](R6-OPERATIONS-RECEIPTS.md)
+- [R7-MEMORY-WALL-STUDY.md](R7-MEMORY-WALL-STUDY.md)
 
 Machine-facing files:
 
@@ -294,6 +296,7 @@ Machine-facing files:
 - [machine/r4-corpus-v1.json](machine/r4-corpus-v1.json)
 - [machine/r5-rings-streaming.v1.json](machine/r5-rings-streaming.v1.json)
 - [machine/r6-operation-receipts.v1.json](machine/r6-operation-receipts.v1.json)
+- [machine/r7-memory-wall-study.v1.json](machine/r7-memory-wall-study.v1.json)
 
 A contradiction between the two surfaces is a defect. Automated agents must fail closed rather than invent a reconciliation.
 

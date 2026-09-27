@@ -24,8 +24,444 @@ jobs:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Build and run R1-R6 tests, R6 proof, and frozen R4 corpus
-        run: make clean test r6-proof corpus-smoke CC="${{ matrix.cc }}"
+      - name: Build R1-R7 checks, R6 proof, frozen R4 corpus, and R7 smoke
+        run: |
+          make clean test r6-proof corpus-smoke r7-study-smoke r7-clock-regression CC="${{ matrix.cc }}"
+          ./build/rune_r7_study --bytes 4096 --repeats 1 > build/r7-study-4k.tsv
+          test "$(wc -l < build/r7-study-4k.tsv)" -eq 20
+          awk -F '\t' '
+            $1 == 4 { seen[$2] = 1; count++ }
+            END {
+              split("32 64 128 256 512 1024 2048 4096", expected, " ")
+              if (count != 8) exit 1
+              for (i = 1; i <= 8; ++i) {
+                if (!(expected[i] in seen)) exit 1
+              }
+            }
+          ' build/r7-study-4k.tsv
+
+      - name: Run deterministic R7 evidence regressions
+        run: |
+          make r7-evidence-regression CC="${{ matrix.cc }}" AR=ar
+
+      - name: Validate R7 local evidence script
+        run: |
+          sh -n scripts/r7-run-local.sh
+          scripts/r7-run-local.sh --self-test-shell-quote
+          mkdir -p build
+          if scripts/r7-run-local.sh build/r7-evidence 2>/dev/null; then
+            echo "R7 evidence script accepted build/ destination" >&2
+            exit 1
+          fi
+
+          invalid_repeats="/tmp/r7-invalid-repeats-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$invalid_repeats"
+          if RUNE_R7_REPEATS=0 scripts/r7-run-local.sh "$invalid_repeats" 2>/dev/null; then
+            echo "R7 evidence script accepted zero repeats" >&2
+            exit 1
+          fi
+          test ! -e "$invalid_repeats"
+
+          symlink_target=$(mktemp -d)
+          ln -s "$symlink_target" build/r7-out-link
+          if scripts/r7-run-local.sh build/r7-out-link/run 2>/dev/null; then
+            echo "R7 evidence script accepted symlink-routed build/ destination" >&2
+            exit 1
+          fi
+          test ! -e "$symlink_target/run"
+          rm build/r7-out-link
+          rm -rf "$symlink_target"
+
+          touch r7-untracked-evidence-probe
+          if scripts/r7-run-local.sh evidence/r7/ci-dirty-probe 2>/dev/null; then
+            echo "R7 evidence script accepted dirty worktree" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-dirty-probe
+          rm r7-untracked-evidence-probe
+          printf 'all:\n\t@false\n' > GNUmakefile
+          printf 'GNUmakefile\n' >> .git/info/exclude
+          if git status --porcelain --untracked-files=all | grep -q 'GNUmakefile'; then
+            echo "ignored GNUmakefile unexpectedly visible in normal status" >&2
+            exit 1
+          fi
+          rm GNUmakefile
+
+          printf '#define CLOCKS_PER_SEC 424242\n' > include/time.h
+          printf 'include/time.h\n' >> .git/info/exclude
+          if git status --porcelain --untracked-files=all | grep -q 'include/time.h'; then
+            echo "ignored include/time.h unexpectedly visible in normal status" >&2
+            exit 1
+          fi
+          if scripts/r7-run-local.sh evidence/r7/ci-ignored-header-probe 2>/dev/null; then
+            echo "R7 evidence script accepted ignored compiler input" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-ignored-header-probe
+          rm include/time.h
+
+          foreign_repo=$(mktemp -d)
+          git -C "$foreign_repo" init -q
+          printf 'foreign repository\n' > "$foreign_repo/marker"
+          git -C "$foreign_repo" add marker
+          git -C "$foreign_repo" -c user.name=RUNE -c user.email=rune@example.invalid commit -qm foreign
+          GIT_DIR="$foreign_repo/.git" \
+            GIT_WORK_TREE="$foreign_repo" \
+            GIT_INDEX_FILE="$foreign_repo/.git/index" \
+            scripts/r7-run-local.sh --self-test-git-root
+          rm -rf "$foreign_repo"
+
+          replacement_commit=$(printf 'R7 replacement probe\n' | \
+            git -c user.name=RUNE -c user.email=rune@example.invalid \
+              commit-tree "$(git rev-parse 'HEAD^{tree}')")
+          git replace HEAD "$replacement_commit"
+          if scripts/r7-run-local.sh evidence/r7/ci-replace-probe 2>/dev/null; then
+            echo "R7 evidence script accepted active Git replacement ref" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-replace-probe
+          git replace -d HEAD
+
+          cat > build/r7-preload-probe.c <<'EOF'
+          #include <time.h>
+          clock_t clock(void)
+          {
+              return (clock_t)1;
+          }
+          EOF
+          "${{ matrix.cc }}" -shared -fPIC build/r7-preload-probe.c -o build/r7-preload-probe.so
+          LD_PRELOAD="$PWD/build/r7-preload-probe.so" \
+            LD_LIBRARY_PATH=/tmp/r7-hostile-ld-library \
+            LD_AUDIT= \
+            DYLD_INSERT_LIBRARIES=/tmp/r7-hostile-dyld-insert \
+            DYLD_LIBRARY_PATH=/tmp/r7-hostile-dyld-library \
+            DYLD_FRAMEWORK_PATH=/tmp/r7-hostile-dyld-framework \
+            LIBPATH=/tmp/r7-hostile-libpath \
+            SHLIB_PATH=/tmp/r7-hostile-shlib \
+            scripts/r7-run-local.sh --self-test-dynamic-loader-env
+
+          git update-index --assume-unchanged study/r7_memory_wall.c
+          printf '\n/* hidden mutation probe */\n' >> study/r7_memory_wall.c
+          test -z "$(git status --porcelain --untracked-files=all)"
+          if scripts/r7-run-local.sh evidence/r7/ci-assume-unchanged-probe 2>/dev/null; then
+            echo "R7 evidence script accepted assume-unchanged hidden mutation" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-assume-unchanged-probe
+          git update-index --no-assume-unchanged study/r7_memory_wall.c
+          git checkout -- study/r7_memory_wall.c
+
+          printf 'study/r7_memory_wall.c filter=r7-clean-probe\n' >> .git/info/attributes
+          git config filter.r7-clean-probe.clean "sed '/R7_CLEAN_FILTER_PROBE/d'"
+          git config filter.r7-clean-probe.smudge cat
+          printf '/* R7_CLEAN_FILTER_PROBE */\n' >> study/r7_memory_wall.c
+          git add study/r7_memory_wall.c
+          test -z "$(git status --porcelain --untracked-files=all)"
+          if scripts/r7-run-local.sh evidence/r7/ci-clean-filter-probe 2>/dev/null; then
+            echo "R7 evidence script accepted clean-filter-hidden source mutation" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-clean-filter-probe
+          git config --unset-all filter.r7-clean-probe.clean
+          git config --unset-all filter.r7-clean-probe.smudge
+          sed -i '/r7-clean-probe/d' .git/info/attributes
+          git reset --hard HEAD
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+          CPATH=/tmp/r7-hostile-cpath C_INCLUDE_PATH=/tmp/r7-hostile-c-include \
+            CPLUS_INCLUDE_PATH=/tmp/r7-hostile-cplus \
+            COMPILER_PATH=/tmp/r7-hostile-compiler \
+            LIBRARY_PATH=/tmp/r7-hostile-library \
+            GCC_EXEC_PREFIX=/tmp/r7-hostile-gcc-prefix \
+            scripts/r7-run-local.sh --self-test-compiler-search-env
+
+          quoted_wrapper_bundle="/tmp/r7-quoted-wrapper-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$quoted_wrapper_bundle"
+          if CFLAGS="'-wrapper' /tmp/r7-qwrap" RUNE_R7_REPEATS=1 \
+              CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh "$quoted_wrapper_bundle" 2>/dev/null; then
+            echo "R7 evidence script accepted shell-quoted GCC wrapper control" >&2
+            exit 1
+          fi
+          test ! -e "$quoted_wrapper_bundle"
+          if CFLAGS='\-wrapper /tmp/r7-qwrap' RUNE_R7_REPEATS=1 \
+              CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh "$quoted_wrapper_bundle" 2>/dev/null; then
+            echo "R7 evidence script accepted shell-escaped GCC wrapper control" >&2
+            exit 1
+          fi
+          test ! -e "$quoted_wrapper_bundle"
+
+          fsmonitor_hook="/tmp/r7-fsmonitor-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          fsmonitor_marker="/tmp/r7-fsmonitor-marker-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          fsmonitor_bundle="/tmp/r7-fsmonitor-bundle-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -f "$fsmonitor_hook" "$fsmonitor_marker"
+          rm -rf "$fsmonitor_bundle"
+          cat > "$fsmonitor_hook" <<EOF
+          #!/bin/sh
+          printf 'executed\n' >> "$fsmonitor_marker"
+          exit 0
+          EOF
+          chmod +x "$fsmonitor_hook"
+          git config core.fsmonitor "$fsmonitor_hook"
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0="$fsmonitor_hook" \
+            RUNE_R7_REPEATS=1 CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$fsmonitor_bundle"
+          git config --unset-all core.fsmonitor
+          test ! -e "$fsmonitor_marker"
+          test -s "$fsmonitor_bundle/observations.tsv"
+          rm -rf "$fsmonitor_bundle"
+          rm -f "$fsmonitor_hook" "$fsmonitor_marker"
+
+          fakebin=$(mktemp -d)
+          cat > "$fakebin/rm" <<'EOF'
+          #!/bin/sh
+          exit 0
+          EOF
+          chmod +x "$fakebin/rm"
+          PATH="$fakebin:$PATH" scripts/r7-run-local.sh --self-test-build-tools > /tmp/r7-build-tools.txt
+          if grep -Fq "$fakebin/rm" /tmp/r7-build-tools.txt; then
+            echo "R7 evidence script selected ambient fake rm" >&2
+            exit 1
+          fi
+          git reset --hard HEAD
+          git clean -fdx
+          PATH="$fakebin:$PATH" CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh --self-test-fresh-build
+
+          PATH="$fakebin:$PATH" CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh --self-test-fresh-build > /tmp/r7-fresh-a.log 2>&1 &
+          fresh_a=$!
+          PATH="$fakebin:$PATH" CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh --self-test-fresh-build > /tmp/r7-fresh-b.log 2>&1 &
+          fresh_b=$!
+          wait "$fresh_a"
+          wait "$fresh_b"
+          test -z "$(find build -maxdepth 1 -type d \( -name 'r7-evidence-*' -o -name 'r7-source-*' -o -name 'r7-bundle-stage-*' \) -print -quit)"
+
+          rm -rf "$fakebin"
+          rm /tmp/r7-build-tools.txt /tmp/r7-fresh-a.log /tmp/r7-fresh-b.log
+
+          space_repo="/tmp/RUNE review ${{ matrix.cc }} $GITHUB_RUN_ID"
+          git worktree add --detach "$space_repo" HEAD
+          CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            "$space_repo/scripts/r7-run-local.sh" --self-test-fresh-build
+          git worktree remove --force "$space_repo"
+
+          fakeprobes=$(mktemp -d)
+          cat > "$fakeprobes/uname" <<'EOF'
+          #!/bin/sh
+          printf 'SPOOFED-PLATFORM\n'
+          EOF
+          cat > "$fakeprobes/sha256sum" <<'EOF'
+          #!/bin/sh
+          for arg in "$@"; do
+            printf '%064d  %s\n' 0 "$arg"
+          done
+          EOF
+          cat > "$fakeprobes/sed" <<'EOF'
+          #!/bin/sh
+          cat
+          EOF
+          cat > "$fakeprobes/awk" <<'EOF'
+          #!/bin/sh
+          case "$*" in
+            *"/proc/meminfo"*) printf '1\n'; exit 0 ;;
+          esac
+          exec /usr/bin/awk "$@"
+          EOF
+          cat > "$fakeprobes/mkdir" <<'EOF'
+          #!/bin/sh
+          /bin/mkdir "$@"
+          last=
+          for arg in "$@"; do last=$arg; done
+          external="/tmp/r7-mkdir-shim-target-$"
+          printf 'mutable\n' > "$external"
+          ln -s "$external" "$last/environment.txt"
+          EOF
+          chmod +x "$fakeprobes/uname" "$fakeprobes/sha256sum" "$fakeprobes/sed" "$fakeprobes/awk" "$fakeprobes/mkdir"
+          PATH="$fakeprobes:$PATH" scripts/r7-run-local.sh --self-test-shell-quote
+          probe_bundle="/tmp/r7-probe-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$probe_bundle"
+          PATH="$fakeprobes:$PATH" RUNE_R7_REPEATS=1 \
+            CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$probe_bundle"
+          if grep -Fq 'uname=SPOOFED-PLATFORM' "$probe_bundle/environment.txt"; then
+            echo "R7 evidence script trusted ambient uname shim" >&2
+            exit 1
+          fi
+          actual_mem=$(/usr/bin/awk '/^MemTotal:/ { print $2; exit }' /proc/meminfo)
+          grep -Fxq "mem_total_kib=$actual_mem" "$probe_bundle/environment.txt"
+          test ! -L "$probe_bundle/environment.txt"
+          grep -Fq 'sed_resolved=/usr/bin/sed' "$probe_bundle/environment.txt" || \
+            grep -Fq 'sed_resolved=/bin/sed' "$probe_bundle/environment.txt"
+          grep -Fq 'awk_resolved=/usr/bin/awk' "$probe_bundle/environment.txt" || \
+            grep -Fq 'awk_resolved=/bin/awk' "$probe_bundle/environment.txt"
+          grep -Fq 'bundle_mkdir_resolved=/usr/bin/mkdir' "$probe_bundle/environment.txt" || \
+            grep -Fq 'bundle_mkdir_resolved=/bin/mkdir' "$probe_bundle/environment.txt"
+          grep -Fq 'uname_resolved=/usr/bin/uname' "$probe_bundle/environment.txt" || \
+            grep -Fq 'uname_resolved=/bin/uname' "$probe_bundle/environment.txt"
+          grep -Fq 'sha256_resolved=/usr/bin/sha256sum' "$probe_bundle/environment.txt" || \
+            grep -Fq 'sha256_resolved=/bin/sha256sum' "$probe_bundle/environment.txt"
+          (
+            cd "$probe_bundle"
+            /usr/bin/sha256sum -c SHA256SUMS
+          )
+          rm -rf "$probe_bundle" "$fakeprobes"
+          rm -f /tmp/r7-mkdir-shim-target-*
+          rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
+
+          fakegit=$(mktemp -d)
+          cat > "$fakegit/git" <<'EOF'
+          #!/bin/bash
+          last=
+          for arg in "$@"; do
+            last=$arg
+          done
+          case " $* " in
+            *" status --porcelain "*)
+              exit 0
+              ;;
+            *" hash-object --no-filters -- "*)
+              exec /usr/bin/git -C "$GITHUB_WORKSPACE" rev-parse "HEAD:$last"
+              ;;
+          esac
+          exec /usr/bin/git "$@"
+          EOF
+          chmod +x "$fakegit/git"
+          printf '/* fake-git provenance probe */\n' >> study/r7_memory_wall.c
+          if RUNE_R7_BUILD_PATH="$fakegit:/usr/bin:/bin:/usr/sbin:/sbin" \
+              CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh /tmp/r7-fakegit-${{ matrix.cc }}-$GITHUB_RUN_ID 2>/dev/null; then
+            echo "R7 evidence script allowed build-path Git shim to certify dirty source" >&2
+            exit 1
+          fi
+          test ! -e /tmp/r7-fakegit-${{ matrix.cc }}-$GITHUB_RUN_ID
+          git checkout -- study/r7_memory_wall.c
+          rm -rf "$fakegit"
+
+          cc_wrapper="/tmp/r7-mutating-cc-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          cat > "$cc_wrapper" <<EOF
+          #!/bin/sh
+          exec /usr/bin/${{ matrix.cc }} "\$@"
+          EOF
+          chmod +x "$cc_wrapper"
+          race_bundle="/tmp/r7-source-race-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$race_bundle"
+          if RUNE_R7_REPEATS=1 CC="$cc_wrapper" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh "$race_bundle" 2>/dev/null; then
+            echo "R7 evidence script accepted compiler outside fixed provenance path" >&2
+            exit 1
+          fi
+          test ! -e "$race_bundle"
+          rm -f "$cc_wrapper"
+
+          snapshot_bundle="/tmp/r7-snapshot-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$snapshot_bundle"
+          RUNE_R7_REPEATS=1 CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$snapshot_bundle"
+          grep -Fxq 'build_source_origin=git_archive_recorded_revision' "$snapshot_bundle/environment.txt"
+          grep -Fxq 'build_source_worktree_used=false' "$snapshot_bundle/environment.txt"
+          snapshot_revision=$(git rev-parse HEAD)
+          grep -Fxq "source_snapshot_revision=$snapshot_revision" "$snapshot_bundle/environment.txt"
+          if awk -F '\t' '$16 == 515151 { bad=1 } END { exit bad ? 0 : 1 }' "$snapshot_bundle/observations.tsv"; then
+            echo "R7 snapshot capture unexpectedly used transient clock-scale mutation" >&2
+            exit 1
+          fi
+          rm -rf "$snapshot_bundle"
+          rm -rf "$GITHUB_WORKSPACE"/build/r7-source-* "$GITHUB_WORKSPACE"/build/r7-evidence-*
+
+          replay_bundle="/tmp/r7-replay-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$replay_bundle"
+          CPPFLAGS='-DUNUSED=a\c' CFLAGS=-O2 RUNE_R7_REPEATS=1 \
+            CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$replay_bundle"
+          grep -Fxq 'cppflags=-DUNUSED=a\c' "$replay_bundle/environment.txt"
+          grep -Fxq 'cflags=-O2' "$replay_bundle/environment.txt"
+          grep -Fq 'replay_observations_tmp=' "$replay_bundle/command.txt"
+          grep -Fq 'replay_source_snapshot=' "$replay_bundle/command.txt"
+          grep -Fq 'replay_build_dir_rel=' "$replay_bundle/command.txt"
+          grep -Fq 'replay_study_executable="$replay_source_snapshot/$replay_study_target"' "$replay_bundle/command.txt"
+          grep -Fq ' > "$replay_observations_tmp"' "$replay_bundle/command.txt"
+          grep -Fq "\"\$replay_observations_tmp\" '$replay_bundle/observations.tsv'" "$replay_bundle/command.txt"
+          mv "$replay_bundle/observations.tsv" "$replay_bundle/observations.original.tsv"
+          (
+            cd /tmp
+            sh "$replay_bundle/command.txt" > "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt"
+          )
+          test -s "$replay_bundle/observations.tsv"
+          awk -F '\t' 'NF != 17 { exit 1 } END { if (NR == 0) exit 1 }' "$replay_bundle/observations.tsv"
+          if awk -F '\t' 'NF == 17 { found=1 } END { exit found ? 0 : 1 }' "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt"; then
+            echo "R7 replay leaked observation rows to stdout instead of observations.tsv" >&2
+            exit 1
+          fi
+
+          rm -f "$replay_bundle/observations.tsv"
+          (
+            cd /tmp
+            sh "$replay_bundle/command.txt" > "/tmp/r7-replay-concurrent-a-${{ matrix.cc }}.txt"
+          ) &
+          replay_a=$!
+          (
+            cd /tmp
+            sh "$replay_bundle/command.txt" > "/tmp/r7-replay-concurrent-b-${{ matrix.cc }}.txt"
+          ) &
+          replay_b=$!
+          wait "$replay_a"
+          wait "$replay_b"
+          test -s "$replay_bundle/observations.tsv"
+          awk -F '\t' 'NF != 17 { exit 1 } END { if (NR == 0) exit 1 }' "$replay_bundle/observations.tsv"
+          test -z "$(find "$GITHUB_WORKSPACE/build" -maxdepth 1 -type d -name 'r7-replay-source-*' -print -quit)"
+
+          rm -rf "$replay_bundle" \
+            "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt" \
+            "/tmp/r7-replay-concurrent-a-${{ matrix.cc }}.txt" \
+            "/tmp/r7-replay-concurrent-b-${{ matrix.cc }}.txt"
+          rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
+
+          lowmem_bundle="/tmp/r7-lowmem-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$lowmem_bundle"
+          if (
+            ulimit -v 120000
+            RUNE_R7_REPEATS=1 CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh "$lowmem_bundle" >/tmp/r7-lowmem-${{ matrix.cc }}.log 2>&1
+          ); then
+            echo "R7 low-memory capture unexpectedly succeeded" >&2
+            exit 1
+          fi
+          test ! -e "$lowmem_bundle"
+          test -z "$(find build -maxdepth 1 -type d \( -name 'r7-source-*' -o -name 'r7-bundle-stage-*' \) -print -quit)"
+          rm -f /tmp/r7-lowmem-${{ matrix.cc }}.log
+
+          default_bundle="evidence/r7/ci-default-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$default_bundle"
+          RUNE_R7_REPEATS=1 CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$default_bundle"
+          test -s "$default_bundle/observations.tsv"
+          test -s "$default_bundle/SHA256SUMS"
+          grep -Fxq 'bundle_publish_mode=publish_after_success_via_trusted_mv' "$default_bundle/environment.txt"
+          (
+            cd "$default_bundle"
+            /usr/bin/sha256sum -c SHA256SUMS
+          )
+          test -z "$(find build -maxdepth 1 -type d \( -name 'r7-source-*' -o -name 'r7-bundle-stage-*' \) -print -quit)"
+          rm -rf "$default_bundle"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+          grep -Fq '"$make_path" -C "$source_snapshot" -f Makefile "$study_target"' scripts/r7-run-local.sh
+          grep -Fq 'BUILD_DIR="$build_dir_rel"' scripts/r7-run-local.sh
+          if grep -Fq ' clean build/rune_r7_study' scripts/r7-run-local.sh; then
+            echo "R7 evidence script still depends on clean removing stale study output" >&2
+            exit 1
+          fi
+
+          (
+            cd /tmp
+            MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
+              make -C "$GITHUB_WORKSPACE" -f Makefile clean build/rune_r7_study CC="${{ matrix.cc }}"
+            "$GITHUB_WORKSPACE/build/rune_r7_study" --bytes 32768 --repeats 1 >/dev/null
+          )
+          make -C "$GITHUB_WORKSPACE" -f Makefile build/rune_corpus CC="${{ matrix.cc }}"
 
       - name: Reject truncated corpus output
         run: |
