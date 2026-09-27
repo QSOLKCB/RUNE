@@ -291,8 +291,9 @@ checked against the recorded revision and made read-only before Make runs. Make 
 compiler input. Worktree and snapshot identity are checked again after the build
 and after measurement. The publish destination is not created during the build or measurement. The
 study runs as a tracked child process; HUP, INT, QUIT, and TERM received by the
-wrapper are forwarded to the active study, then normal EXIT cleanup removes the
-source snapshot and staged bundle promptly. This also covers measurement
+wrapper are forwarded to the active study. If cancellation arrives before the
+study starts, the wrapper exits immediately rather than entering measurement.
+Normal EXIT cleanup removes the source snapshot and staged bundle promptly. This also covers measurement
 failures such as resource exhaustion. **Any dirty or divergent checkout/snapshot is rejected.** R7 local
 evidence
 therefore binds directly to the recorded `source_revision`; a bundle may not
@@ -325,12 +326,15 @@ The script records:
   command separators, redirections, shell comments, tilde expansion,
   pathname-globbing metacharacters, `@` compiler response-file syntax,
   Clang `--config...` configuration-file/search-directory controls, GCC
-  `-specs`/`--specs` external specs-file controls, and GCC `-B` compiler
-  subprogram search overrides. Sensitive compiler controls are tokenized using
+  `-specs`/`--specs` external specs-file controls, GCC `-B` compiler
+  subprogram search overrides, and GCC `-wrapper` subprocess wrappers.
+  Sensitive compiler controls are tokenized using
   POSIX shell whitespace, so tab-separated forms cannot bypass the checks.
   Flags must therefore be literal,
   replayable compiler arguments rather than expressions whose effective argv
   depends on unrecorded shell or filesystem state;
+- explicit sanitation of Perl interpreter injection/search variables before
+  any Perl-based `shasum` fallback identity or hashing invocation;
 - explicit sanitation of ambient compiler search/override variables
   (`CPATH`, `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`,
   `OBJC_INCLUDE_PATH`, `COMPILER_PATH`, `LIBRARY_PATH`,

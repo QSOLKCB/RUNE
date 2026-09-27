@@ -88,22 +88,26 @@ physical page count and page size.
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
 the evidence build. Ambient `PATH` is replaced by the fixed recorded
 `/usr/bin:/bin:/usr/sbin:/sbin` path; Make, compiler, archiver and build
-utilities are resolved there. CPPFLAGS/CFLAGS metadata is emitted with
+utilities are resolved there. If the Perl-based `shasum` fallback is needed,
+Perl module/search/option injection variables are cleared before tool identity
+capture and every fallback hash invocation. CPPFLAGS/CFLAGS metadata is emitted with
 `printf`, preserving accepted backslashes exactly. Before Make runs, evidence
 capture rejects Make-variable references, shell-evaluated substitution,
 control, redirection, comment, tilde and pathname-globbing metacharacters,
 `@` compiler response-file syntax, Clang `--config...` configuration
 file/search-directory controls, GCC `-specs`/`--specs` external specs-file
-controls, and GCC `-B` compiler subprogram search overrides. Sensitive
-compiler controls are tokenized over POSIX shell whitespace, including tabs.
+controls, GCC `-B` compiler subprogram search overrides, and GCC
+`-wrapper` subprocess wrappers. Sensitive compiler controls are tokenized over
+POSIX shell whitespace, including tabs.
 The recorded flag text therefore cannot turn into
 unrecorded commands, response/config/specs-file contents, or filesystem-dependent
 argv during recipe/compiler evaluation. Each
 capture uses one UTC-timestamp-plus-PID identity for its source snapshot,
 `BUILD_DIR`, repository bundle stage, and sibling publish stage. During the
 measurement, HUP/INT/QUIT/TERM are forwarded to the tracked study child before
-the EXIT trap removes staged capture state, so cancelling the wrapper does not
-leave the expensive study running in the background. The shared
+the EXIT trap removes staged capture state. If cancellation arrives before the
+study exists, the wrapper exits immediately and never launches measurement, so
+cancelling the wrapper does not leave expensive work running in the background. The shared
 repository `build/` parent is created idempotently, so concurrent captures are
 isolated whether the parent already exists or is created by racing captures.
 The build never relies on `make clean`, so a fake ambient `rm` cannot
@@ -118,9 +122,11 @@ absolute. The bundle records the build-driver identity and Makefile Git blob
 identity. Ignored
 `GNUmakefile` or lowercase `makefile` files cannot replace the build recipe.
 The recorded run command begins with `set -eu`, uses an absolute study
-executable path, and includes the absolute redirection to `observations.tsv`.
-A replay therefore stops on its first failed setup/build/study command instead
-of allowing cleanup to mask the failure. Shell quoting is serialized
+executable path, and writes replay output to a PID-qualified temporary sibling.
+An EXIT trap always cleans that temporary output and the replay source snapshot;
+only a fully successful study atomically replaces `observations.tsv`. A failed
+replay therefore preserves the checksum-bound evidence bundle while still
+stopping on its first failed setup/build/study command. Shell quoting is serialized
 with a fixed-provenance `sed`, so paths containing apostrophes remain valid.
 `command.txt` is replayable from outside the repository while recreating the
 captured output artifact.

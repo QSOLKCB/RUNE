@@ -19,6 +19,18 @@ shell_quote()
     printf "'"
 }
 
+sanitize_perl_hash_environment()
+{
+    unset PERL5OPT
+    unset PERL5LIB
+    unset PERLLIB
+    unset PERL_UNICODE
+    unset PERLIO
+    unset PERL_LOCAL_LIB_ROOT
+    unset PERL_MB_OPT
+    unset PERL_MM_OPT
+}
+
 sanitize_capture_environment()
 {
     unset GIT_DIR
@@ -51,6 +63,8 @@ sanitize_capture_environment()
     unset SHLIB_PATH
 
     unset TAR_OPTIONS
+
+    sanitize_perl_hash_environment
 }
 
 sanitize_capture_environment
@@ -179,6 +193,9 @@ case "$hash_path" in
     /*) ;;
     *) fail "SHA-256 utility path is not absolute: $hash_path" ;;
 esac
+if [ "$hash_mode" = shasum ]; then
+    sanitize_perl_hash_environment
+fi
 [ -x "$hash_path" ] ||
     fail "SHA-256 utility path is not executable: $hash_path"
 
@@ -209,6 +226,12 @@ if [ "${1:-}" = "--self-test-shell-quote" ]; then
     quoted=$(shell_quote "alpha beta'gamma")
     [ "$quoted" = "'alpha beta'\\''gamma'" ] ||
         fail "shell_quote self-test failed"
+    exit 0
+fi
+
+if [ "${1:-}" = "--self-test-perl-hash-env" ]; then
+    [ -z "${PERL5OPT+x}${PERL5LIB+x}${PERLLIB+x}${PERL_UNICODE+x}${PERLIO+x}${PERL_LOCAL_LIB_ROOT+x}${PERL_MB_OPT+x}${PERL_MM_OPT+x}" ] ||
+        fail "Perl hash environment self-test failed"
     exit 0
 fi
 
@@ -294,6 +317,10 @@ validate_literal_build_flags()
             -B*)
                 IFS=$old_ifs
                 fail "$flag_name must not contain GCC -B compiler subprogram search overrides; external compiler executables are not bound evidence inputs"
+                ;;
+            -wrapper|--wrapper|-wrapper=*|--wrapper=*)
+                IFS=$old_ifs
+                fail "$flag_name must not contain GCC subprocess wrapper controls; external compiler wrappers are not bound evidence inputs"
                 ;;
         esac
     done
@@ -695,6 +722,7 @@ case "$hash_mode" in
         publish_lock_id=$(printf '%s' "$out_abs" | "$hash_path" | "$awk_path" '{ print $1 }')
         ;;
     shasum)
+        sanitize_perl_hash_environment
         publish_lock_id=$(printf '%s' "$out_abs" | "$hash_path" -a 256 | "$awk_path" '{ print $1 }')
         ;;
     *)
@@ -735,7 +763,10 @@ forward_termination_signal()
 
     if [ -n "${active_study_pid:-}" ]; then
         kill "-$forwarded_signal" "$active_study_pid" >/dev/null 2>&1 || :
+        return
     fi
+
+    exit "$termination_status"
 }
 
 trap cleanup_capture_state 0
@@ -874,6 +905,35 @@ observations_path="$bundle_stage/observations.tsv"
     printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX CCC_OVERRIDE_OPTIONS\n"
     printf "unset LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH DYLD_FRAMEWORK_PATH DYLD_FALLBACK_LIBRARY_PATH DYLD_FALLBACK_FRAMEWORK_PATH LIBPATH SHLIB_PATH\n"
     printf "unset TAR_OPTIONS\n"
+    printf "unset PERL5OPT PERL5LIB PERLLIB PERL_UNICODE PERLIO PERL_LOCAL_LIB_ROOT PERL_MB_OPT PERL_MM_OPT\n"
+    printf "replay_observations_tmp="
+    shell_quote "$out_abs/.r7-replay-observations-"
+    printf "\$\$\n"
+    printf "replay_cleanup() {\n"
+    printf "  replay_status=\$?\n"
+    printf "  if [ -n \"\${replay_observations_tmp:-}\" ]; then "
+    shell_quote "$provenance_rm_path"
+    printf " -f \"\$replay_observations_tmp\" >/dev/null 2>&1 || :; fi\n"
+    printf "  if [ -d "
+    shell_quote "$source_snapshot"
+    printf " ]; then "
+    shell_quote "$chmod_path"
+    printf " -R u+w "
+    shell_quote "$source_snapshot"
+    printf " >/dev/null 2>&1 || :; fi\n"
+    printf "  "
+    shell_quote "$provenance_rm_path"
+    printf " -rf "
+    shell_quote "$source_snapshot"
+    printf " >/dev/null 2>&1 || :\n"
+    printf "  return \"\$replay_status\"\n"
+    printf "}\n"
+    printf "trap replay_cleanup 0\n"
+    printf "trap 'exit 129' 1\n"
+    printf "trap 'exit 130' 2\n"
+    printf "trap 'exit 131' 3\n"
+    printf "trap 'exit 143' 15\n"
+    printf "[ ! -e \"\$replay_observations_tmp\" ] && [ ! -L \"\$replay_observations_tmp\" ]\n"
     shell_quote "$bundle_mkdir_path"
     printf " -p "
     shell_quote "$repo_root/build"
@@ -933,17 +993,12 @@ observations_path="$bundle_stage/observations.tsv"
     shell_quote "$study_executable"
     printf " --profile local --repeats "
     shell_quote "$repeats"
-    printf " > "
+    printf " > \"\$replay_observations_tmp\"\n"
+    shell_quote "$mv_path"
+    printf " \"\$replay_observations_tmp\" "
     shell_quote "$out_abs/observations.tsv"
     printf '\n'
-    shell_quote "$chmod_path"
-    printf " -R u+w "
-    shell_quote "$source_snapshot"
-    printf '\n'
-    shell_quote "$provenance_rm_path"
-    printf " -rf "
-    shell_quote "$source_snapshot"
-    printf '\n'
+    printf "replay_observations_tmp=\n"
 } > "$bundle_stage/command.txt"
 
 "$study_executable" --profile local --repeats "$repeats" \
@@ -983,6 +1038,7 @@ case "$hash_mode" in
         )
         ;;
     shasum)
+        sanitize_perl_hash_environment
         (
             cd "$bundle_stage"
             "$hash_path" -a 256 \
@@ -1023,6 +1079,7 @@ case "$hash_mode" in
         ) || fail "copied publish staging bundle failed SHA-256 verification"
         ;;
     shasum)
+        sanitize_perl_hash_environment
         (
             cd "$publish_stage"
             "$hash_path" -a 256 -c SHA256SUMS

@@ -42,7 +42,8 @@ cleanup()
     rm -f "/tmp/r7-clang-config-header-$test_id.h" "/tmp/r7-clang-config-$test_id.cfg"
     rm -f "/tmp/r7-gcc-spec-header-$test_id.h" "/tmp/r7-gcc-spec-$test_id.specs"
     rm -rf "/tmp/r7-bprefix-$test_id"
-    rm -f "/tmp/r7-b-header-$test_id.h" "/tmp/r7-signal-$test_id.log"
+    rm -f "/tmp/r7-b-header-$test_id.h" "/tmp/r7-wrapper-header-$test_id.h" "/tmp/r7-wrapper-$test_id"
+    rm -f "/tmp/r7-signal-$test_id.log" "/tmp/r7-prestudy-signal-$test_id.log"
     rm -f "/tmp/r7-concurrent-a-$test_id.log" "/tmp/r7-concurrent-b-$test_id.log"
     rm -f "/tmp/r7-compete-a-$test_id.log" "/tmp/r7-compete-b-$test_id.log"
     rm -rf "$repo_root"/build/r7-source-* "$repo_root"/build/r7-evidence-* "$repo_root"/build/r7-bundle-stage-*
@@ -210,9 +211,40 @@ expect_capture_failure gcc-b-attached-cppflags \
     env "CPPFLAGS=-B$b_prefix/" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
     scripts/r7-run-local.sh
 
+# GCC -wrapper must not introduce mutable subprocess wrappers.
+wrapper_header="/tmp/r7-wrapper-header-$test_id.h"
+wrapper_path="/tmp/r7-wrapper-$test_id"
+cat > "$wrapper_header" <<'EOF'
+#include <time.h>
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 454545
+EOF
+cat > "$wrapper_path" <<EOF
+#!/bin/sh
+program=\$1
+shift
+case "\${program##*/}" in
+    cc1) exec "\$program" -include "$wrapper_header" "\$@" ;;
+    *) exec "\$program" "\$@" ;;
+esac
+EOF
+chmod +x "$wrapper_path"
+expect_capture_failure gcc-wrapper-split-cflags \
+    env "CFLAGS=-wrapper $wrapper_path" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+expect_capture_failure gcc-wrapper-equals-cppflags \
+    env "CPPFLAGS=-wrapper=$wrapper_path" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+
 rm -f "$backtick_header" "$backtick_hook" "$backtick_ran" "$separator_hook" "$separator_ran"
 rm -f "$response_header" "$response_flags" "$clang_config_header" "$clang_config"
 rm -f "$gcc_spec_header" "$gcc_spec"
+
+# Perl interpreter injection/search variables must be cleared for shasum fallback use.
+PERL5OPT=-MR7Hook PERL5LIB=/tmp/r7-perl-hook PERLLIB=/tmp/r7-perllib \
+    PERL_UNICODE=S PERLIO=raw PERL_LOCAL_LIB_ROOT=/tmp/r7-local-lib \
+    PERL_MB_OPT=--install_base=/tmp/r7-mb PERL_MM_OPT=INSTALL_BASE=/tmp/r7-mm \
+    scripts/r7-run-local.sh --self-test-perl-hash-env
 
 # Environment serialization must preserve backslashes and field boundaries.
 scripts/r7-run-local.sh --self-test-environment-serialization
@@ -243,6 +275,49 @@ EOF
         fi
         ;;
 esac
+
+# SIGTERM before the study starts must stop the capture before measurement.
+pre_signal_dest="$tmp_root/prestudy-signal"
+pre_signal_log="/tmp/r7-prestudy-signal-$test_id.log"
+RUNE_R7_REPEATS=100 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh "$pre_signal_dest" >"$pre_signal_log" 2>&1 &
+pre_signal_pid=$!
+pre_signal_source=
+pre_signal_probe=0
+while [ "$pre_signal_probe" -lt 100 ]; do
+    pre_signal_source=$(/usr/bin/find build -maxdepth 1 -type d -name 'r7-source-*' -print -quit)
+    [ -n "$pre_signal_source" ] && break
+    if ! kill -0 "$pre_signal_pid" 2>/dev/null; then
+        cat "$pre_signal_log" >&2
+        fail "pre-study signal capture exited before source snapshot appeared"
+    fi
+    sleep 0.05
+    pre_signal_probe=$((pre_signal_probe + 1))
+done
+[ -n "$pre_signal_source" ] || {
+    kill -TERM "$pre_signal_pid" >/dev/null 2>&1 || :
+    fail "could not observe source snapshot for pre-study signal regression"
+}
+kill -TERM "$pre_signal_pid"
+pre_signal_probe=0
+while kill -0 "$pre_signal_pid" 2>/dev/null && [ "$pre_signal_probe" -lt 100 ]; do
+    sleep 0.05
+    pre_signal_probe=$((pre_signal_probe + 1))
+done
+if kill -0 "$pre_signal_pid" 2>/dev/null; then
+    kill -KILL "$pre_signal_pid" >/dev/null 2>&1 || :
+    fail "pre-study SIGTERM did not terminate wrapper promptly"
+fi
+if wait "$pre_signal_pid"; then
+    fail "pre-study signal capture unexpectedly exited successfully"
+else
+    pre_signal_status=$?
+fi
+[ "$pre_signal_status" -eq 143 ] ||
+    fail "pre-study signal capture exited with status $pre_signal_status instead of 143"
+[ ! -e "$pre_signal_dest" ] || fail "pre-study terminated capture published a destination"
+[ ! -e "$pre_signal_source" ] ||
+    fail "pre-study terminated capture left its source snapshot"
 
 # SIGTERM to the wrapper must promptly terminate the active study and clean staging.
 signal_dest="$tmp_root/signal-forward"
@@ -430,6 +505,29 @@ after_hash=$(/usr/bin/sha256sum "$replay_bundle/observations.tsv" | /usr/bin/awk
 [ "$before_hash" = "$after_hash" ] ||
     fail "failed replay modified observations.tsv"
 rm -f "$snapshot_path"
+
+# Replay study failure must preserve checksum-bound observations and clean snapshot/temp output.
+runtime_replay_bundle="$tmp_root/replay-runtime-failure"
+RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh "$runtime_replay_bundle" >/dev/null
+runtime_snapshot=$(/usr/bin/sed -n 's/^source_snapshot=//p' "$runtime_replay_bundle/environment.txt")
+[ -n "$runtime_snapshot" ] || fail "runtime replay bundle did not record source_snapshot"
+runtime_before_hash=$(/usr/bin/sha256sum "$runtime_replay_bundle/observations.tsv" | /usr/bin/awk '{print $1}')
+if (ulimit -v 120000; /bin/sh "$runtime_replay_bundle/command.txt" >/dev/null 2>&1); then
+    fail "resource-constrained replay unexpectedly succeeded"
+fi
+runtime_after_hash=$(/usr/bin/sha256sum "$runtime_replay_bundle/observations.tsv" | /usr/bin/awk '{print $1}')
+[ "$runtime_before_hash" = "$runtime_after_hash" ] ||
+    fail "failed runtime replay modified observations.tsv"
+[ ! -e "$runtime_snapshot" ] ||
+    fail "failed runtime replay left its source snapshot"
+if /usr/bin/find "$runtime_replay_bundle" -maxdepth 1 -name '.r7-replay-observations-*' -print -quit | /usr/bin/grep -q .; then
+    fail "failed runtime replay left temporary observations"
+fi
+(
+    cd "$runtime_replay_bundle"
+    /usr/bin/sha256sum -c SHA256SUMS >/dev/null
+) || fail "failed runtime replay invalidated the evidence bundle"
 
 # TAR_OPTIONS must be cleared for capture and replay; hook execution is forbidden.
 cat > /tmp/r7-tar-hook-$test_id <<EOF

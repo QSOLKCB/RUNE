@@ -425,7 +425,26 @@
     "GCC_B_subprogram_search_overrides_allowed": false,
     "GCC_B_controls_rejected_before_make": true,
     "termination_signals_forwarded_to_active_study": true,
-    "termination_signal_exit_status_preserved_as_128_plus_signal": true
+    "termination_signal_exit_status_preserved_as_128_plus_signal": true,
+    "GCC_subprocess_wrapper_controls_allowed": false,
+    "GCC_wrapper_controls_rejected_before_make": true,
+    "termination_before_study_start_exits_without_measurement": true,
+    "replay_writes_observations_to_temporary_sibling_until_success": true,
+    "failed_replay_preserves_existing_observations": true,
+    "failed_replay_cleans_source_snapshot": true,
+    "failed_replay_cleans_temporary_observations": true,
+    "successful_replay_replaces_observations_only_after_study_success": true,
+    "shasum_fallback_perl_environment_sanitized": [
+      "PERL5OPT",
+      "PERL5LIB",
+      "PERLLIB",
+      "PERL_UNICODE",
+      "PERLIO",
+      "PERL_LOCAL_LIB_ROOT",
+      "PERL_MB_OPT",
+      "PERL_MM_OPT"
+    ],
+    "shasum_fallback_perl_environment_sanitized_before_identity_and_invocation": true
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,
@@ -474,7 +493,11 @@
       "GCC -specs/--specs external specs-file expansion in CFLAGS/CPPFLAGS",
       "tab-separated GCC -specs external specs-file expansion",
       "GCC -B compiler subprogram search override",
-      "SIGTERM forwarding to active R7 study with prompt staging cleanup"
+      "SIGTERM forwarding to active R7 study with prompt staging cleanup",
+      "GCC -wrapper subprocess override",
+      "SIGTERM before study start exits without launching measurement",
+      "resource-constrained replay preserves observations and cleans snapshot/temp output",
+      "Perl environment sanitation for shasum fallback"
     ],
     "clock_regressions_run_under_UBSan": true,
     "floating_clock_t_regression_source": "tests/test_r7_clock_float.c",
