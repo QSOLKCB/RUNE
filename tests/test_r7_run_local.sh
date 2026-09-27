@@ -491,27 +491,39 @@ expect_capture_failure canonical-cc     env RUNE_R7_REPEATS=1 CC="/usr/bin/../..
 expect_capture_failure canonical-ar     env RUNE_R7_REPEATS=1 CC="$system_cc" AR="/usr/bin/../../tmp/r7-reg-ar-$test_id"     scripts/r7-run-local.sh
 expect_capture_failure canonical-make     env RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" MAKE="/usr/bin/../../tmp/r7-reg-make-$test_id"     scripts/r7-run-local.sh
 
-# Replay must fail immediately and preserve observations when snapshot creation fails.
+# Replay must fail immediately and preserve observations when its PID-qualified
+# snapshot path is blocked before command execution.
 replay_bundle="$tmp_root/replay"
-RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar"     scripts/r7-run-local.sh "$replay_bundle" >/dev/null
-snapshot_path=$(/usr/bin/sed -n 's/^source_snapshot=//p' "$replay_bundle/environment.txt")
-[ -n "$snapshot_path" ] || fail "replay bundle did not record source_snapshot"
+RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh "$replay_bundle" >/dev/null
+snapshot_prefix=$(/usr/bin/sed -n "s/^replay_source_snapshot='\(.*\)'\$\$/\1/p" "$replay_bundle/command.txt")
+[ -n "$snapshot_prefix" ] || fail "replay command did not record replay_source_snapshot prefix"
 before_hash=$(/usr/bin/sha256sum "$replay_bundle/observations.tsv" | /usr/bin/awk '{print $1}')
-printf 'block replay snapshot\n' > "$snapshot_path"
-if (cd /tmp && /bin/sh "$replay_bundle/command.txt" >/dev/null 2>&1); then
+if (
+    cd /tmp
+    SNAPSHOT_PREFIX="$snapshot_prefix" REPLAY_COMMAND="$replay_bundle/command.txt" /bin/sh -c '
+        blocker="${SNAPSHOT_PREFIX}$$"
+        printf "%s\n" "block replay snapshot" > "$blocker"
+        exec /bin/sh "$REPLAY_COMMAND"
+    ' >/dev/null 2>&1
+); then
     fail "replay ignored an early snapshot-creation failure"
 fi
 after_hash=$(/usr/bin/sha256sum "$replay_bundle/observations.tsv" | /usr/bin/awk '{print $1}')
 [ "$before_hash" = "$after_hash" ] ||
     fail "failed replay modified observations.tsv"
-rm -f "$snapshot_path"
+snapshot_parent=${snapshot_prefix%/*}
+snapshot_leaf=${snapshot_prefix##*/}
+if /usr/bin/find "$snapshot_parent" -maxdepth 1 -name "$snapshot_leaf*" -print -quit | /usr/bin/grep -q .; then
+    fail "failed replay left its PID-qualified source snapshot"
+fi
 
 # Replay study failure must preserve checksum-bound observations and clean snapshot/temp output.
 runtime_replay_bundle="$tmp_root/replay-runtime-failure"
 RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
     scripts/r7-run-local.sh "$runtime_replay_bundle" >/dev/null
-runtime_snapshot=$(/usr/bin/sed -n 's/^source_snapshot=//p' "$runtime_replay_bundle/environment.txt")
-[ -n "$runtime_snapshot" ] || fail "runtime replay bundle did not record source_snapshot"
+runtime_snapshot_prefix=$(/usr/bin/sed -n "s/^replay_source_snapshot='\(.*\)'\$\$/\1/p" "$runtime_replay_bundle/command.txt")
+[ -n "$runtime_snapshot_prefix" ] || fail "runtime replay command did not record replay_source_snapshot prefix"
 runtime_before_hash=$(/usr/bin/sha256sum "$runtime_replay_bundle/observations.tsv" | /usr/bin/awk '{print $1}')
 if (ulimit -v 120000; /bin/sh "$runtime_replay_bundle/command.txt" >/dev/null 2>&1); then
     fail "resource-constrained replay unexpectedly succeeded"
@@ -519,8 +531,11 @@ fi
 runtime_after_hash=$(/usr/bin/sha256sum "$runtime_replay_bundle/observations.tsv" | /usr/bin/awk '{print $1}')
 [ "$runtime_before_hash" = "$runtime_after_hash" ] ||
     fail "failed runtime replay modified observations.tsv"
-[ ! -e "$runtime_snapshot" ] ||
-    fail "failed runtime replay left its source snapshot"
+runtime_snapshot_parent=${runtime_snapshot_prefix%/*}
+runtime_snapshot_leaf=${runtime_snapshot_prefix##*/}
+if /usr/bin/find "$runtime_snapshot_parent" -maxdepth 1 -name "$runtime_snapshot_leaf*" -print -quit | /usr/bin/grep -q .; then
+    fail "failed runtime replay left its PID-qualified source snapshot"
+fi
 if /usr/bin/find "$runtime_replay_bundle" -maxdepth 1 -name '.r7-replay-observations-*' -print -quit | /usr/bin/grep -q .; then
     fail "failed runtime replay left temporary observations"
 fi
@@ -528,7 +543,6 @@ fi
     cd "$runtime_replay_bundle"
     /usr/bin/sha256sum -c SHA256SUMS >/dev/null
 ) || fail "failed runtime replay invalidated the evidence bundle"
-
 # TAR_OPTIONS must be cleared for capture and replay; hook execution is forbidden.
 cat > /tmp/r7-tar-hook-$test_id <<EOF
 #!/bin/sh
