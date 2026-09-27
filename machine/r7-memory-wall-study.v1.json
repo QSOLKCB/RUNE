@@ -1,0 +1,190 @@
+{
+  "contract": "rune.r7-memory-wall-study.v1",
+  "phase": "R7",
+  "reference_language": "ISO C99",
+  "role": "local-first-performance-observation-harness",
+  "runtime_core_changes_allowed": false,
+  "raw_observation_capture_allowed": true,
+  "runtime_performance_claims_allowed": false,
+  "completion_requires_committed_reviewed_local_evidence": true,
+  "timer": {
+    "api": "clock",
+    "standard": "ISO C99",
+    "semantic": "process CPU time",
+    "unit": "clock ticks",
+    "scale_field": "clock_ticks_per_second",
+    "wall_clock_claim": false,
+    "unavailable_is_explicit_failure": true
+  },
+  "lifecycle": {
+    "fields": [
+      "setup_ticks",
+      "execute_ticks",
+      "teardown_ticks",
+      "total_ticks"
+    ],
+    "complete_lifecycle_required": true,
+    "kernel_only_sufficient_for_promotion": false
+  },
+  "observation": {
+    "contract": "rune.r7.memory-wall-observation.v1",
+    "encoding": "numeric ASCII TSV",
+    "columns": [
+      "comparison_id",
+      "variant_id",
+      "working_set_bytes",
+      "repeat_index",
+      "logical_items",
+      "resident_bytes",
+      "peak_live_bytes",
+      "cumulative_traffic_bytes",
+      "model_bytes_read",
+      "model_bytes_written",
+      "result_u64",
+      "setup_ticks",
+      "execute_ticks",
+      "teardown_ticks",
+      "total_ticks",
+      "clock_ticks_per_second",
+      "lifecycle_complete"
+    ],
+    "timing_part_of_correctness_identity": false,
+    "model_byte_fields_are_hardware_counter_evidence": false
+  },
+  "comparisons": {
+    "1": {
+      "name": "locality",
+      "variants": {
+        "1": "sequential",
+        "2": "odd-stride-full-cycle"
+      },
+      "exact_result_parity_required": true
+    },
+    "2": {
+      "name": "materialized-vs-fused",
+      "variants": {
+        "1": "materialized",
+        "2": "fused"
+      },
+      "exact_result_parity_required": true
+    },
+    "3": {
+      "name": "aos-vs-soa",
+      "variants": {
+        "1": "six-u32-lane-AoS",
+        "2": "three-hot-field-SoA"
+      },
+      "logical_aos_record_bytes": 24,
+      "host_struct_padding_used": false,
+      "exact_result_parity_required": true
+    },
+    "4": {
+      "name": "microtile-sweep",
+      "variant_id_is_tile_elements": true,
+      "tile_sizes": [
+        32,
+        64,
+        128,
+        256,
+        512,
+        1024,
+        2048,
+        4096
+      ],
+      "exact_result_parity_required": true
+    },
+    "5": {
+      "name": "retain-vs-regenerate",
+      "variants": {
+        "1": "retain",
+        "2": "regenerate"
+      },
+      "exact_result_parity_required": true
+    },
+    "6": {
+      "name": "lookup-vs-recompute",
+      "variants": {
+        "1": "4096-entry-lookup",
+        "2": "integer-recompute"
+      },
+      "exact_result_parity_required": true
+    },
+    "7": {
+      "name": "peak-live-vs-cumulative-traffic",
+      "uses_R2_arena": true,
+      "high_water_recorded": true,
+      "cumulative_consumed_recorded": true
+    },
+    "8": {
+      "name": "logical-domain-vs-resident",
+      "logical_items": "1099511627776",
+      "resident_bytes": 48,
+      "full_materialization": false
+    }
+  },
+  "profiles": {
+    "smoke": {
+      "working_set_bytes": 32768,
+      "repeats": 1,
+      "expected_rows": 20
+    },
+    "local": {
+      "working_set_bytes": [
+        4096,
+        32768,
+        262144,
+        1048576,
+        4194304,
+        16777216,
+        67108864
+      ],
+      "default_repeats": 5
+    },
+    "explicit": {
+      "min_bytes": 4096,
+      "max_bytes": 67108864,
+      "power_of_two_required": true,
+      "repeats_min": 1,
+      "repeats_max": 100
+    }
+  },
+  "evidence_bundle": {
+    "script": "scripts/r7-run-local.sh",
+    "required_files": [
+      "environment.txt",
+      "compiler.txt",
+      "command.txt",
+      "observations.tsv",
+      "SHA256SUMS"
+    ],
+    "required_dimensions": [
+      "source_revision",
+      "workload",
+      "compiler_toolchain",
+      "build_configuration",
+      "cpu_platform",
+      "memory_profile",
+      "measurement_method"
+    ],
+    "dirty_state_recorded": true,
+    "integrity": "SHA-256"
+  },
+  "interpretation": {
+    "github_hosted_CI_timing_is_performance_evidence": false,
+    "timing_alone_can_establish_cache_cause": false,
+    "timing_alone_can_establish_NUMA_cause": false,
+    "timing_alone_can_establish_memory_bandwidth_cause": false,
+    "negative_results_must_be_retained": true,
+    "universal_claims_allowed": false
+  },
+  "validation": {
+    "source": "study/r7_memory_wall.c",
+    "smoke_command": "make r7-study-smoke",
+    "local_capture_command": "./scripts/r7-run-local.sh",
+    "compilers": [
+      "gcc",
+      "clang"
+    ],
+    "CI_validates_harness_not_performance": true
+  }
+}

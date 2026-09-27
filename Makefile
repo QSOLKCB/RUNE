@@ -15,9 +15,10 @@ TEST_NUMERIC = $(BUILD_DIR)/test_numeric
 TEST_RING = $(BUILD_DIR)/test_ring
 TEST_OPERATION = $(BUILD_DIR)/test_operation
 R6_PROOF = $(BUILD_DIR)/rune_r6_proof
+R7_STUDY = $(BUILD_DIR)/rune_r7_study
 CORPUS = $(BUILD_DIR)/rune_corpus
 
-.PHONY: all test r6-proof corpus-smoke clean
+.PHONY: all test r6-proof r7-study-smoke r7-study corpus-smoke clean
 
 all: $(LIB)
 
@@ -66,6 +67,17 @@ $(R6_PROOF): proof/r6_proof.c $(LIB) include/rune/operation.h include/rune/regio
 r6-proof: $(R6_PROOF)
 	./$(R6_PROOF) > $(BUILD_DIR)/r6-proof.tsv
 	cmp $(BUILD_DIR)/r6-proof.tsv proof/r6-proof-receipts.v1.tsv
+
+$(R7_STUDY): study/r7_memory_wall.c $(LIB) include/rune/arena.h include/rune/region.h include/rune/status.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) study/r7_memory_wall.c $(LIB) -o $@
+
+r7-study-smoke: $(R7_STUDY)
+	./$(R7_STUDY) --bytes 32768 --repeats 1 > $(BUILD_DIR)/r7-study-smoke.tsv
+	test "`wc -l < $(BUILD_DIR)/r7-study-smoke.tsv`" -eq 20
+	awk -F '\t' 'NF != 17 { exit 1 } END { if (NR != 20) exit 1 }' $(BUILD_DIR)/r7-study-smoke.tsv
+
+r7-study: $(R7_STUDY)
+	./$(R7_STUDY) --profile local --repeats 5
 
 $(CORPUS): corpus/rune_corpus.c $(LIB) include/rune/arena.h include/rune/numeric.h include/rune/region.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) corpus/rune_corpus.c $(LIB) -o $@

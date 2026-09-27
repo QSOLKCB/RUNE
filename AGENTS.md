@@ -4,8 +4,8 @@ MODE=MACHINE_ONLY
 PROJECT=RUNE
 REFERENCE_LANGUAGE=ISO_C99
 LICENSE=MPL-2.0
-CURRENT_PHASE=R6
-RUNTIME_IMPLEMENTATION_ALLOWED=true
+CURRENT_PHASE=R7
+RUNTIME_IMPLEMENTATION_ALLOWED=false
 RUNTIME_PERFORMANCE_CLAIMS_ALLOWED=false
 
 READ_ORDER:
@@ -18,6 +18,7 @@ READ_ORDER:
 7=machine/r4-corpus-v1.json
 8=machine/r5-rings-streaming.v1.json
 9=machine/r6-operation-receipts.v1.json
+10=machine/r7-memory-wall-study.v1.json
 
 HUMAN_PROSE:
 README.md
@@ -30,6 +31,7 @@ R3-INTEGER-NUMERIC.md
 R4-CORPUS-v1.md
 R5-RINGS-STREAMING.md
 R6-OPERATIONS-RECEIPTS.md
+R7-MEMORY-WALL-STUDY.md
 
 MACHINE_AUTHORITY:
 machine/project-v1.json
@@ -41,6 +43,7 @@ machine/r3-integer-numeric.v1.json
 machine/r4-corpus-v1.json
 machine/r5-rings-streaming.v1.json
 machine/r6-operation-receipts.v1.json
+machine/r7-memory-wall-study.v1.json
 
 CONFLICT_POLICY=FAIL_CLOSED
 ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
@@ -48,7 +51,7 @@ DO_NOT_INVENT_RECONCILIATION=true
 
 CORE_RULES:
 - preserve_all_invariants
-- runtime_code_allowed_only_within_current_R6_operation_receipt_scope
+- runtime_core_changes_forbidden_in_R7_study_phase
 - cpu_only
 - integer_only_public_semantics
 - fractional_rounding_behavior_must_be_declared
@@ -144,7 +147,17 @@ CORE_RULES:
 - optional_internal_optimization_unavailable_or_losing_requires_fallback_to_correct_simpler_path
 - requested_contract_capability_unsupported_requires_explicit_failure
 - optional_internal_optimization_absence_is_not_unsupported_capability_failure
-- runtime_performance_claims_forbidden_in_R6
+- runtime_performance_claims_forbidden_until_R7_local_evidence_is_committed_and_reviewed
+- R7_raw_observation_capture_is_allowed
+- R7_raw_observations_are_not_performance_claims
+- R7_CI_smoke_timing_is_not_performance_evidence
+- R7_reference_timer_is_C99_clock_process_CPU_time
+- R7_observations_record_setup_execute_teardown_and_total_ticks
+- R7_pairwise_comparisons_require_exact_result_identity
+- R7_environment_bundle_requires_source_workload_toolchain_build_CPU_memory_method
+- R7_negative_results_must_be_retained
+- R7_timing_alone_must_not_claim_cache_NUMA_or_bandwidth_cause
+- R7_runtime_core_changes_are_out_of_scope
 - causal_performance_claim_requires_support_beyond_timing
 - portable_identity_requires_explicit_versioned_representation
 - fixed_width_integer_identity_is_allowed_but_not_the_only_allowed_explicit_representation
