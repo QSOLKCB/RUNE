@@ -25,7 +25,20 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Build R1-R7 checks, R6 proof, frozen R4 corpus, and R7 smoke
-        run: make clean test r6-proof corpus-smoke r7-study-smoke CC="${{ matrix.cc }}"
+        run: |
+          make clean test r6-proof corpus-smoke r7-study-smoke CC="${{ matrix.cc }}"
+          ./build/rune_r7_study --bytes 4096 --repeats 1 > build/r7-study-4k.tsv
+          test "$(wc -l < build/r7-study-4k.tsv)" -eq 20
+          awk -F '\t' '
+            $1 == 4 { seen[$2] = 1; count++ }
+            END {
+              split("32 64 128 256 512 1024 2048 4096", expected, " ")
+              if (count != 8) exit 1
+              for (i = 1; i <= 8; ++i) {
+                if (!(expected[i] in seen)) exit 1
+              }
+            }
+          ' build/r7-study-4k.tsv
 
       - name: Validate R7 local evidence script
         run: |
@@ -183,6 +196,38 @@ jobs:
           CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
             "$space_repo/scripts/r7-run-local.sh" --self-test-fresh-build
           git worktree remove --force "$space_repo"
+
+          fakeprobes=$(mktemp -d)
+          cat > "$fakeprobes/uname" <<'EOF'
+          #!/bin/sh
+          printf 'SPOOFED-PLATFORM\n'
+          EOF
+          cat > "$fakeprobes/sha256sum" <<'EOF'
+          #!/bin/sh
+          for arg in "$@"; do
+            printf '%064d  %s\n' 0 "$arg"
+          done
+          EOF
+          chmod +x "$fakeprobes/uname" "$fakeprobes/sha256sum"
+          probe_bundle="/tmp/r7-probe-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$probe_bundle"
+          PATH="$fakeprobes:$PATH" RUNE_R7_REPEATS=1 \
+            CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$probe_bundle"
+          if grep -Fq 'uname=SPOOFED-PLATFORM' "$probe_bundle/environment.txt"; then
+            echo "R7 evidence script trusted ambient uname shim" >&2
+            exit 1
+          fi
+          grep -Fq 'uname_resolved=/usr/bin/uname' "$probe_bundle/environment.txt" || \
+            grep -Fq 'uname_resolved=/bin/uname' "$probe_bundle/environment.txt"
+          grep -Fq 'sha256_resolved=/usr/bin/sha256sum' "$probe_bundle/environment.txt" || \
+            grep -Fq 'sha256_resolved=/bin/sha256sum' "$probe_bundle/environment.txt"
+          (
+            cd "$probe_bundle"
+            /usr/bin/sha256sum -c SHA256SUMS
+          )
+          rm -rf "$probe_bundle" "$fakeprobes"
+          rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
 
           fakegit=$(mktemp -d)
           cat > "$fakegit/git" <<'EOF'
