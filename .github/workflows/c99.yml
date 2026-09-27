@@ -26,7 +26,7 @@ jobs:
 
       - name: Build R1-R7 checks, R6 proof, frozen R4 corpus, and R7 smoke
         run: |
-          make clean test r6-proof corpus-smoke r7-study-smoke CC="${{ matrix.cc }}"
+          make clean test r6-proof corpus-smoke r7-study-smoke r7-clock-regression CC="${{ matrix.cc }}"
           ./build/rune_r7_study --bytes 4096 --repeats 1 > build/r7-study-4k.tsv
           test "$(wc -l < build/r7-study-4k.tsv)" -eq 20
           awk -F '\t' '
@@ -39,6 +39,10 @@ jobs:
               }
             }
           ' build/r7-study-4k.tsv
+
+      - name: Run deterministic R7 evidence regressions
+        run: |
+          make r7-evidence-regression CC="${{ matrix.cc }}" AR=ar
 
       - name: Validate R7 local evidence script
         run: |
