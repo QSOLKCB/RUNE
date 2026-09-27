@@ -14,14 +14,16 @@ shell_quote()
     printf "'"
 }
 
-if [ "${1:-}" = "--self-test-shell-quote" ]; then
-    quoted=$(shell_quote "alpha beta'gamma")
-    [ "$quoted" = "'alpha beta'\\''gamma'" ] ||
-        fail "shell_quote self-test failed"
-    exit 0
-fi
+sanitize_capture_environment()
+{
+    unset GIT_DIR
+    unset GIT_WORK_TREE
+    unset GIT_INDEX_FILE
+    unset GIT_OBJECT_DIRECTORY
+    unset GIT_ALTERNATE_OBJECT_DIRECTORIES
+    unset GIT_COMMON_DIR
+    unset GIT_NAMESPACE
 
-if [ "${1:-}" = "--self-test-compiler-search-env" ]; then
     unset CPATH
     unset C_INCLUDE_PATH
     unset CPLUS_INCLUDE_PATH
@@ -30,13 +32,49 @@ if [ "${1:-}" = "--self-test-compiler-search-env" ]; then
     unset LIBRARY_PATH
     unset GCC_EXEC_PREFIX
 
+    unset LD_PRELOAD
+    unset LD_LIBRARY_PATH
+    unset LD_AUDIT
+    unset DYLD_INSERT_LIBRARIES
+    unset DYLD_LIBRARY_PATH
+    unset DYLD_FRAMEWORK_PATH
+    unset DYLD_FALLBACK_LIBRARY_PATH
+    unset DYLD_FALLBACK_FRAMEWORK_PATH
+    unset LIBPATH
+    unset SHLIB_PATH
+}
+
+sanitize_capture_environment
+
+if [ "${1:-}" = "--self-test-shell-quote" ]; then
+    quoted=$(shell_quote "alpha beta'gamma")
+    [ "$quoted" = "'alpha beta'\\''gamma'" ] ||
+        fail "shell_quote self-test failed"
+    exit 0
+fi
+
+if [ "${1:-}" = "--self-test-compiler-search-env" ]; then
     [ -z "${CPATH+x}${C_INCLUDE_PATH+x}${CPLUS_INCLUDE_PATH+x}${OBJC_INCLUDE_PATH+x}${COMPILER_PATH+x}${LIBRARY_PATH+x}${GCC_EXEC_PREFIX+x}" ] ||
         fail "compiler search environment self-test failed"
     exit 0
 fi
 
+if [ "${1:-}" = "--self-test-dynamic-loader-env" ]; then
+    [ -z "${LD_PRELOAD+x}${LD_LIBRARY_PATH+x}${LD_AUDIT+x}${DYLD_INSERT_LIBRARIES+x}${DYLD_LIBRARY_PATH+x}${DYLD_FRAMEWORK_PATH+x}${DYLD_FALLBACK_LIBRARY_PATH+x}${DYLD_FALLBACK_FRAMEWORK_PATH+x}${LIBPATH+x}${SHLIB_PATH+x}" ] ||
+        fail "dynamic-loader environment self-test failed"
+    exit 0
+fi
+
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$repo_root"
+
+if [ "${1:-}" = "--self-test-git-root" ]; then
+    git_root=$(git -C "$repo_root" rev-parse --show-toplevel) ||
+        fail "Git root self-test could not resolve repository"
+    [ "$git_root" = "$repo_root" ] ||
+        fail "Git root self-test resolved foreign repository: $git_root"
+    exit 0
+fi
 
 cc_name=${CC:-cc}
 ar_name=${AR:-ar}
@@ -77,38 +115,36 @@ if [ -e "$out_dir" ] || [ -L "$out_dir" ]; then
     fail "evidence destination already exists; refusing overwrite: $out_dir"
 fi
 
-revision=$(git rev-parse HEAD) ||
+revision=$(git -C "$repo_root" rev-parse HEAD) ||
     fail "could not resolve source revision"
 
-git ls-files --error-unmatch Makefile >/dev/null 2>&1 ||
+git -C "$repo_root" ls-files --error-unmatch Makefile >/dev/null 2>&1 ||
     fail "tracked Makefile is missing"
-makefile_blob=$(git rev-parse "$revision:Makefile") ||
+makefile_blob=$(git -C "$repo_root" rev-parse "$revision:Makefile") ||
     fail "could not resolve tracked Makefile at source revision"
 [ -n "$makefile_blob" ] ||
     fail "tracked Makefile identity is empty"
 
-index_hidden=$(git ls-files -v | awk '
+index_hidden=$(git -C "$repo_root" ls-files -v | awk '
     /^[a-z]/ || /^S / { print; exit }
 ') || fail "could not inspect Git index visibility flags"
 
 [ -z "$index_hidden" ] ||
     fail "tracked files use assume-unchanged or skip-worktree flags; clear them before evidence capture"
 
-git_status=$(git status --porcelain --untracked-files=all) ||
+ignored_inputs=$(git -C "$repo_root" ls-files --others --ignored --exclude-standard -- src include study) ||
+    fail "could not inspect ignored compiler-input trees"
+
+[ -z "$ignored_inputs" ] ||
+    fail "ignored untracked files exist under compiler-input trees; remove them before evidence capture: $ignored_inputs"
+
+git_status=$(git -C "$repo_root" status --porcelain --untracked-files=all) ||
     fail "could not inspect Git working-tree state"
 
 [ -z "$git_status" ] ||
     fail "working tree is dirty; commit/stash tracked and untracked changes before evidence capture"
 
 dirty=false
-
-unset CPATH
-unset C_INCLUDE_PATH
-unset CPLUS_INCLUDE_PATH
-unset OBJC_INCLUDE_PATH
-unset COMPILER_PATH
-unset LIBRARY_PATH
-unset GCC_EXEC_PREFIX
 
 cc_path=$(command -v "$cc_name") ||
     fail "compiler not found: $cc_name"
@@ -218,7 +254,10 @@ mkdir "$out_dir" ||
     echo "ar_resolved=$ar_path"
     echo "cppflags=$cppflags"
     echo "cflags=$cflags"
+    echo "git_routing_environment=GIT_DIR,GIT_WORK_TREE,GIT_INDEX_FILE,GIT_OBJECT_DIRECTORY,GIT_ALTERNATE_OBJECT_DIRECTORIES,GIT_COMMON_DIR,GIT_NAMESPACE cleared"
     echo "compiler_search_environment=CPATH,C_INCLUDE_PATH,CPLUS_INCLUDE_PATH,OBJC_INCLUDE_PATH,COMPILER_PATH,LIBRARY_PATH,GCC_EXEC_PREFIX cleared"
+    echo "dynamic_loader_environment=LD_PRELOAD,LD_LIBRARY_PATH,LD_AUDIT,DYLD_INSERT_LIBRARIES,DYLD_LIBRARY_PATH,DYLD_FRAMEWORK_PATH,DYLD_FALLBACK_LIBRARY_PATH,DYLD_FALLBACK_FRAMEWORK_PATH,LIBPATH,SHLIB_PATH cleared"
+    echo "ignored_compiler_inputs=forbidden under src,include,study"
     echo "make_control_environment=MAKEFLAGS,GNUMAKEFLAGS,MFLAGS,MAKEFILES,MAKEOVERRIDES cleared"
     echo "uname=$platform_identity"
     if command -v getconf >/dev/null 2>&1; then
@@ -239,10 +278,12 @@ mkdir "$out_dir" ||
 } > "$out_dir/compiler.txt"
 
 {
+    printf "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE\n"
     printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX\n"
-    printf "MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' make -f "
-    shell_quote "$repo_root/Makefile"
-    printf " clean build/rune_r7_study CC="
+    printf "unset LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH DYLD_FRAMEWORK_PATH DYLD_FALLBACK_LIBRARY_PATH DYLD_FALLBACK_FRAMEWORK_PATH LIBPATH SHLIB_PATH\n"
+    printf "MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' make -C "
+    shell_quote "$repo_root"
+    printf " -f Makefile clean build/rune_r7_study CC="
     shell_quote "$cc_path"
     printf " AR="
     shell_quote "$ar_path"
@@ -252,19 +293,21 @@ mkdir "$out_dir" ||
     shell_quote "$cflags"
     printf '\n'
 
-    printf "./build/rune_r7_study --profile local --repeats "
+    shell_quote "$repo_root/build/rune_r7_study"
+    printf " --profile local --repeats "
     shell_quote "$repeats"
     printf '\n'
 } > "$out_dir/command.txt"
 
 MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
-make -f "$repo_root/Makefile" clean build/rune_r7_study \
+make -C "$repo_root" -f Makefile clean build/rune_r7_study \
     CC="$cc_path" \
     AR="$ar_path" \
     CPPFLAGS="$cppflags" \
     CFLAGS="$cflags"
 
-./build/rune_r7_study --profile local --repeats "$repeats"     > "$out_dir/observations.tsv"
+"$repo_root/build/rune_r7_study" --profile local --repeats "$repeats" \
+    > "$out_dir/observations.tsv"
 
 if command -v sha256sum >/dev/null 2>&1; then
     (
