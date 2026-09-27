@@ -131,9 +131,9 @@ static void rune_r6_init_vectors(rune_r6_vector vectors[3])
     vectors[0].expected_status = RUNE_OK;
     vectors[0].expected_execution_class = RUNE_OPERATION_EXECUTED;
     vectors[0].expected_descriptor_identity =
-        UINT64_C(16324389352355133681);
+        UINT64_C(4032546263986865687);
     vectors[0].expected_result_identity =
-        UINT64_C(9228107187407362555);
+        UINT64_C(13725386680924731485);
     vectors[0].expected_bytes_read = 4u;
     vectors[0].expected_bytes_written = 4u;
 
@@ -158,9 +158,9 @@ static void rune_r6_init_vectors(rune_r6_vector vectors[3])
     vectors[1].expected_status = RUNE_OK;
     vectors[1].expected_execution_class = RUNE_OPERATION_EXECUTED;
     vectors[1].expected_descriptor_identity =
-        UINT64_C(8963280653204300439);
+        UINT64_C(3063641660719482025);
     vectors[1].expected_result_identity =
-        UINT64_C(10571198817530485323);
+        UINT64_C(16441241574006009789);
     vectors[1].expected_bytes_read = 0u;
     vectors[1].expected_bytes_written = 3u;
 
@@ -181,7 +181,7 @@ static void rune_r6_init_vectors(rune_r6_vector vectors[3])
     vectors[2].expected_status = RUNE_ERR_OUT_OF_BOUNDS;
     vectors[2].expected_execution_class = RUNE_OPERATION_REJECTED;
     vectors[2].expected_descriptor_identity =
-        UINT64_C(8165298778968118994);
+        UINT64_C(15416456910336191404);
     vectors[2].expected_result_identity = 0u;
     vectors[2].expected_bytes_read = 0u;
     vectors[2].expected_bytes_written = 0u;
@@ -195,6 +195,10 @@ static int rune_r6_check_vector_result(
     const uint8_t *region1
 )
 {
+    static const uint8_t vector1_region0_expected[8] = {
+        0x00u, 0x01u, 0x02u, 0x03u,
+        0x04u, 0x05u, 0x06u, 0x07u
+    };
     static const uint8_t vector1_region1_expected[8] = {
         0x10u, 0x11u, 0x01u, 0x02u,
         0x03u, 0x04u, 0x16u, 0x17u
@@ -222,6 +226,11 @@ static int rune_r6_check_vector_result(
 
     if (vector->vector_id == UINT64_C(1)) {
         return memcmp(
+            region0,
+            vector1_region0_expected,
+            sizeof(vector1_region0_expected)
+        ) == 0 &&
+        memcmp(
             region1,
             vector1_region1_expected,
             sizeof(vector1_region1_expected)

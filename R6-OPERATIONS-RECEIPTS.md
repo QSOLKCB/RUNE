@@ -51,7 +51,14 @@ portable descriptor
         +-- scratch_required
 ~~~
 
-Descriptor identity is computed by hashing those fields individually in a fixed byte order.
+Descriptor identity is computed by hashing those fields individually in a fixed byte order with canonical FNV-1a-64:
+
+~~~text
+offset basis = 14695981039346656037
+prime        = 1099511628211
+~~~
+
+The same standard FNV-1a-64 constants are used for successful output result identity.
 
 RUNE never hashes the raw C structure bytes, so compiler padding is not semantic identity.
 
@@ -125,6 +132,8 @@ region_slot = UINT32_MAX
 offset      = 0
 length      = 0
 ~~~
+
+UINT32_MAX is reserved exclusively for canonical NONE. Any required BYTES_MOVE input/output or BYTES_FILL output whose region_slot is UINT32_MAX is structurally invalid, regardless of offset or length; it is rejected before binding resolution.
 
 ## Scratch
 
@@ -200,7 +209,7 @@ It freezes three deterministic replay vectors:
 2. successful three-byte fill;
 3. rejected out-of-bounds fill.
 
-The proof vectors include explicit initial byte state and expected descriptor/result identities.
+The proof vectors include explicit initial byte state and expected descriptor/result identities. The move vector checks **both** frozen regions after execution, so the proof rejects an implementation that produces the correct destination while corrupting its source.
 
 The canonical proof receipt fixture is:
 

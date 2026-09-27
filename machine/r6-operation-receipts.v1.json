@@ -26,7 +26,10 @@
       "region_slot": "UINT32_MAX",
       "offset": 0,
       "length": 0
-    }
+    },
+    "fnv1a_offset_basis_u64_decimal": "14695981039346656037",
+    "fnv1a_prime_u64_decimal": "1099511628211",
+    "required_span_region_slot_must_not_equal": "UINT32_MAX"
   },
   "bindings": {
     "slot_width": "uint32",
@@ -86,7 +89,9 @@
     "rejected_scratch_used": 0,
     "successful_result_identity": "FNV-1a-64-of-exact-output-span-bytes",
     "timing_fields": false,
-    "native_address_fields": false
+    "native_address_fields": false,
+    "fnv1a_offset_basis_u64_decimal": "14695981039346656037",
+    "fnv1a_prime_u64_decimal": "1099511628211"
   },
   "replay_vectors": [
     {
@@ -116,10 +121,11 @@
       ],
       "expected_status": 0,
       "expected_execution_class": 1,
-      "expected_descriptor_identity_u64_decimal": "16324389352355133681",
-      "expected_result_identity_u64_decimal": "9228107187407362555",
+      "expected_descriptor_identity_u64_decimal": "4032546263986865687",
+      "expected_result_identity_u64_decimal": "13725386680924731485",
       "expected_bytes_read": 4,
-      "expected_bytes_written": 4
+      "expected_bytes_written": 4,
+      "proof_checks_all_expected_regions": true
     },
     {
       "vector_id": 2,
@@ -142,8 +148,8 @@
       ],
       "expected_status": 0,
       "expected_execution_class": 1,
-      "expected_descriptor_identity_u64_decimal": "8963280653204300439",
-      "expected_result_identity_u64_decimal": "10571198817530485323",
+      "expected_descriptor_identity_u64_decimal": "3063641660719482025",
+      "expected_result_identity_u64_decimal": "16441241574006009789",
       "expected_bytes_read": 0,
       "expected_bytes_written": 3
     },
@@ -168,7 +174,7 @@
       ],
       "expected_status": 4,
       "expected_execution_class": 0,
-      "expected_descriptor_identity_u64_decimal": "8165298778968118994",
+      "expected_descriptor_identity_u64_decimal": "15416456910336191404",
       "expected_result_identity_u64_decimal": "0",
       "expected_bytes_read": 0,
       "expected_bytes_written": 0

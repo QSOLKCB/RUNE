@@ -378,6 +378,46 @@ static void test_unsupported_and_invalid_descriptors(void)
     );
 }
 
+
+static void test_reserved_none_slot_rejected_for_required_spans(void)
+{
+    rune_operation_descriptor descriptor;
+    rune_operation_span_ref invalid_required;
+
+    invalid_required = span_ref(
+        RUNE_OPERATION_REGION_NONE,
+        1u,
+        1u
+    );
+
+    CHECK_STATUS(
+        rune_operation_make_fill(
+            &descriptor,
+            invalid_required,
+            (uint8_t)0x11u
+        ),
+        RUNE_ERR_INVALID_ARGUMENT
+    );
+
+    CHECK_STATUS(
+        rune_operation_make_move(
+            &descriptor,
+            invalid_required,
+            span_ref(0u, 0u, 1u)
+        ),
+        RUNE_ERR_INVALID_ARGUMENT
+    );
+
+    CHECK_STATUS(
+        rune_operation_make_move(
+            &descriptor,
+            span_ref(0u, 0u, 1u),
+            invalid_required
+        ),
+        RUNE_ERR_INVALID_ARGUMENT
+    );
+}
+
 static void test_binding_failures(void)
 {
     uint8_t bytes[4] = { 0u };
@@ -427,6 +467,7 @@ int main(void)
     test_overlapping_move_uses_r1_semantics();
     test_rejection_receipt_and_nonmutation();
     test_unsupported_and_invalid_descriptors();
+    test_reserved_none_slot_rejected_for_required_spans();
     test_binding_failures();
 
     if (failures != 0) {

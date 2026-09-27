@@ -43,7 +43,7 @@ static uint64_t rune_operation_hash_bytes(
     uint64_t hash;
     uint64_t i;
 
-    hash = UINT64_C(1469598103934665603);
+    hash = UINT64_C(14695981039346656037);
     for (i = 0u; i < span->length; ++i) {
         hash ^= (uint64_t)span->region->data[
             (size_t)(span->offset + i)
@@ -61,6 +61,13 @@ static int rune_operation_span_ref_is_none(
     return ref.region_slot == RUNE_OPERATION_REGION_NONE &&
         ref.offset == 0u &&
         ref.length == 0u;
+}
+
+static int rune_operation_span_ref_is_required(
+    rune_operation_span_ref ref
+)
+{
+    return ref.region_slot != RUNE_OPERATION_REGION_NONE;
 }
 
 static rune_status rune_operation_resolve_span(
@@ -110,8 +117,8 @@ static rune_status rune_operation_validate_descriptor(
     }
 
     if (descriptor->operation_id == RUNE_OPERATION_BYTES_MOVE) {
-        if (rune_operation_span_ref_is_none(descriptor->input) ||
-            rune_operation_span_ref_is_none(descriptor->output) ||
+        if (!rune_operation_span_ref_is_required(descriptor->input) ||
+            !rune_operation_span_ref_is_required(descriptor->output) ||
             descriptor->input.length != descriptor->output.length ||
             descriptor->parameter_u64 != 0u) {
             return RUNE_ERR_INVALID_ARGUMENT;
@@ -122,7 +129,7 @@ static rune_status rune_operation_validate_descriptor(
 
     if (descriptor->operation_id == RUNE_OPERATION_BYTES_FILL) {
         if (!rune_operation_span_ref_is_none(descriptor->input) ||
-            rune_operation_span_ref_is_none(descriptor->output) ||
+            !rune_operation_span_ref_is_required(descriptor->output) ||
             descriptor->parameter_u64 > UINT64_C(255)) {
             return RUNE_ERR_INVALID_ARGUMENT;
         }
@@ -240,7 +247,7 @@ rune_status rune_operation_descriptor_identity(
         return RUNE_ERR_NULL_ARGUMENT;
     }
 
-    hash = UINT64_C(1469598103934665603);
+    hash = UINT64_C(14695981039346656037);
     hash = rune_operation_hash_u32(hash, descriptor->operation_id);
     hash = rune_operation_hash_u32(hash, descriptor->semantic_version);
     hash = rune_operation_hash_u32(hash, descriptor->input.region_slot);
