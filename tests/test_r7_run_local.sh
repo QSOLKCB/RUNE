@@ -25,7 +25,7 @@ case "$ar_name" in
     *) fail "CI regression expects /usr/bin/ar: $ar_name" ;;
 esac
 
-test_id=$
+test_id=$$
 tmp_root="/tmp/rune-r7-evidence-regression-$test_id"
 publish_parent="/dev/shm/r7-publish-regression-$test_id"
 mkdir -p "$tmp_root"
