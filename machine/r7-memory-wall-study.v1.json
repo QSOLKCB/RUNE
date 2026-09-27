@@ -203,6 +203,8 @@
     "build_target_must_be_rebuilt_from_recorded_source_configuration": true,
     "destination_under_build_directory_allowed": false,
     "destination_path_checked_against_physical_parent": true,
+    "destination_lexical_route_through_build_allowed": false,
+    "destination_parent_traversal_allowed": false,
     "getconf_memory_profile_requires_both_nonzero_numeric_phys_pages_and_page_size": true,
     "AR_recorded_and_bound": true,
     "archiver_command_must_be_single_executable": true,
@@ -215,8 +217,20 @@
     "shell_safe_quoting_handles_spaces_and_single_quotes": true,
     "toolchain_identity_includes": [
       "compiler",
-      "archiver"
+      "archiver",
+      "build_driver"
     ],
+    "build_driver_path_resolution_required": true,
+    "build_driver_identity_capture_required": true,
+    "build_driver_identity_failure_is_capture_failure": true,
+    "ambient_PATH_inherited_by_evidence_build": false,
+    "sanitized_build_PATH_default": "/usr/bin:/bin",
+    "sanitized_build_PATH_override": "RUNE_R7_BUILD_PATH",
+    "sanitized_build_PATH_entries_must_be_nonempty_absolute_directories": true,
+    "make_mkdir_rm_resolved_from_sanitized_build_PATH": true,
+    "fresh_unique_BUILD_DIR_required": true,
+    "make_clean_required_for_evidence_build": false,
+    "fresh_build_self_test": "scripts/r7-run-local.sh --self-test-fresh-build",
     "clean_working_tree_required": true,
     "dirty_working_tree_capture_allowed": false,
     "source_revision_must_identify_exact_built_contents": true,
@@ -244,6 +258,16 @@
     ],
     "git_provenance_commands_anchored_with_git_C_repo_root": true,
     "git_routing_sanitation_self_test": "scripts/r7-run-local.sh --self-test-git-root",
+    "git_no_replace_objects_required": true,
+    "git_replacement_refs_allowed": false,
+    "raw_worktree_identity_paths": [
+      "Makefile",
+      "src",
+      "include",
+      "study"
+    ],
+    "raw_worktree_identity_hash_uses_no_filters": true,
+    "raw_worktree_bytes_must_equal_revision_blobs": true,
     "ignored_untracked_compiler_inputs_allowed": false,
     "ignored_compiler_input_trees": [
       "src",
