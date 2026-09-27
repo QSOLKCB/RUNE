@@ -309,7 +309,7 @@ validate_literal_build_flags()
     flag_value=$2
 
     case "$flag_value" in
-        *'
+        *'$'*|*'`'*|*';'*|*'&'*|*'|'*|*'<'*|*'>'*|*'#'*|*'~'*|*'*'*|*'?'*|*'['*|*']'*|*'{'*|*'}'*|*'@'*)
             fail "$flag_name must not contain shell substitution, control, redirection, comment, tilde, glob, brace-expansion, or compiler response-file metacharacters; use literal replayable compiler arguments"
             ;;
     esac
