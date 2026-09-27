@@ -16,8 +16,9 @@ RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 ~~~
 
 The destination must not already exist; evidence bundles are immutable capture
-records and are never overwritten. Destinations resolving inside `build/` are
-also rejected because evidence capture performs a clean rebuild.
+records and are never overwritten. Destinations that resolve inside or
+lexically route through the repository `build/` tree are rejected, and
+parent-directory traversal is not accepted.
 
 A bundle contains:
 
@@ -38,9 +39,11 @@ created, so source_revision identifies the exact contents built.
 `assume-unchanged` and `skip-worktree` index flags are forbidden because
 they can hide tracked modifications from ordinary status checks. Git routing
 overrides are cleared and all provenance reads are rooted at the repository.
-Ignored untracked files under `src/`, `include/`, or `study/` are also
-forbidden because they can satisfy compiler includes without appearing in
-ordinary status output.
+Git replacement objects are disabled, active replacement refs are rejected, and
+tracked Makefile/source/include/study files are raw-hashed with filters disabled
+and must match their blobs at `source_revision`. Ignored untracked files under
+`src/`, `include/`, or `study/` are also forbidden because they can
+satisfy compiler includes without appearing in ordinary status output.
 
 For evidence capture, CC and AR must each identify one executable; compound
 commands are rejected. Ambient compiler search variables (CPATH,
@@ -55,11 +58,15 @@ missing memory profile causes the capture to fail. The getconf fallback requires
 page count and page size.
 
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
-the evidence build so a dry-run flag such as MAKEFLAGS=-n cannot certify a stale
-executable.
+the evidence build. Ambient `PATH` is replaced by a recorded sanitized build
+path (default `/usr/bin:/bin`), from which make/mkdir/rm are resolved. Each
+capture builds into a fresh unique `BUILD_DIR` and never relies on
+`make clean`, so a fake ambient `rm` cannot preserve and certify a stale
+study executable.
 
 The evidence build also uses the tracked repository Makefile explicitly via
-`make -C <repo> -f Makefile` and records its Git blob identity. Ignored
+the resolved absolute make path with `-C <repo> -f Makefile`, records that
+build-driver identity, and records the Makefile Git blob identity. Ignored
 `GNUmakefile` or lowercase `makefile` files cannot replace the build recipe.
 The recorded run command uses an absolute study executable path, making
 `command.txt` replayable from outside the repository.
