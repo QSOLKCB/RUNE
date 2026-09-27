@@ -132,7 +132,7 @@ Success criterion:
 
 ## R5 — Queues, rings and bounded streaming
 
-**Current phase.**
+**Complete — merged in PR #6.**
 
 Add dataflow primitives only after region/arena/numeric semantics and the first corpus exist.
 
@@ -153,6 +153,8 @@ Success criterion:
 > a logical stream larger than active memory can be processed under a fixed resident ceiling.
 
 ## R6 — Deterministic operation descriptors and receipts
+
+**Current phase.**
 
 Define only the reusable execution description demonstrated by real RUNE operations.
 

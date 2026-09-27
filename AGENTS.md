@@ -4,7 +4,7 @@ MODE=MACHINE_ONLY
 PROJECT=RUNE
 REFERENCE_LANGUAGE=ISO_C99
 LICENSE=MPL-2.0
-CURRENT_PHASE=R5
+CURRENT_PHASE=R6
 RUNTIME_IMPLEMENTATION_ALLOWED=true
 RUNTIME_PERFORMANCE_CLAIMS_ALLOWED=false
 
@@ -17,6 +17,7 @@ READ_ORDER:
 6=machine/r3-integer-numeric.v1.json
 7=machine/r4-corpus-v1.json
 8=machine/r5-rings-streaming.v1.json
+9=machine/r6-operation-receipts.v1.json
 
 HUMAN_PROSE:
 README.md
@@ -28,6 +29,7 @@ R2-ARENA-SCRATCH.md
 R3-INTEGER-NUMERIC.md
 R4-CORPUS-v1.md
 R5-RINGS-STREAMING.md
+R6-OPERATIONS-RECEIPTS.md
 
 MACHINE_AUTHORITY:
 machine/project-v1.json
@@ -38,6 +40,7 @@ machine/r2-arena-scratch.v1.json
 machine/r3-integer-numeric.v1.json
 machine/r4-corpus-v1.json
 machine/r5-rings-streaming.v1.json
+machine/r6-operation-receipts.v1.json
 
 CONFLICT_POLICY=FAIL_CLOSED
 ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
@@ -45,7 +48,7 @@ DO_NOT_INVENT_RECONCILIATION=true
 
 CORE_RULES:
 - preserve_all_invariants
-- runtime_code_allowed_only_within_current_R5_rings_streaming_scope
+- runtime_code_allowed_only_within_current_R6_operation_receipt_scope
 - cpu_only
 - integer_only_public_semantics
 - fractional_rounding_behavior_must_be_declared
@@ -108,6 +111,29 @@ CORE_RULES:
 - arena_reset_expires_all_prior_generation_scratch_lifetimes
 - arena_restore_and_reset_preserve_high_water_and_cumulative_accounting
 - meaningful_movement_requires_source_destination_extent_when_representable
+- operation_descriptor_identity_excludes_native_pointers
+- operation_region_slots_are_fixed_width_portable_descriptor_identity
+- operation_bindings_are_execution_context_not_descriptor_identity
+- operation_semantic_version_is_explicit
+- operation_descriptor_fields_are_hashed_individually_not_raw_struct_bytes
+- operation_FNV1a64_offset_basis_is_14695981039346656037
+- operation_FNV1a64_prime_is_1099511628211
+- operation_required_span_must_not_use_reserved_NONE_region_slot
+- R6_move_replay_proof_checks_source_and_destination_regions
+- operation_v1_is_demonstrated_by_move_and_fill
+- operation_v1_scratch_requirement_is_explicit_and_zero
+- operation_receipt_records_executed_or_rejected_evidence_class
+- operation_receipt_records_status_result_identity_and_compact_byte_accounting
+- operation_output_read_access_is_not_required_for_result_identity
+- operation_move_result_identity_uses_pre_move_readable_input_bytes
+- operation_fill_result_identity_uses_declared_fill_bytes_without_output_read
+- operation_receipt_must_not_overlap_resolved_input_or_output_spans
+- operation_receipt_overlap_returns_invalid_argument_and_leaves_receipt_untouched
+- unknown_operation_id_is_classified_before_known_v1_scratch_validation
+- rejected_operation_receipt_has_zero_result_and_zero_execution_accounting
+- operation_receipts_exclude_timing_and_native_addresses
+- R6_replay_proof_is_frozen_against_machine_readable_receipts
+- general_task_graph_is_forbidden_in_R6
 - explicit_resource_failure_includes_unsupported_capability
 - reference_before_optimization
 - optimization_order_requires_locality_then_measurement_before_acceleration
@@ -118,7 +144,7 @@ CORE_RULES:
 - optional_internal_optimization_unavailable_or_losing_requires_fallback_to_correct_simpler_path
 - requested_contract_capability_unsupported_requires_explicit_failure
 - optional_internal_optimization_absence_is_not_unsupported_capability_failure
-- runtime_performance_claims_forbidden_in_R5
+- runtime_performance_claims_forbidden_in_R6
 - causal_performance_claim_requires_support_beyond_timing
 - portable_identity_requires_explicit_versioned_representation
 - fixed_width_integer_identity_is_allowed_but_not_the_only_allowed_explicit_representation

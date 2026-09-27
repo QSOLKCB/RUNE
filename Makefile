@@ -8,14 +8,16 @@ INCLUDES = -Iinclude
 
 BUILD_DIR = build
 LIB = $(BUILD_DIR)/librune.a
-OBJS = $(BUILD_DIR)/status.o $(BUILD_DIR)/region.o $(BUILD_DIR)/arena.o $(BUILD_DIR)/numeric.o $(BUILD_DIR)/ring.o
+OBJS = $(BUILD_DIR)/status.o $(BUILD_DIR)/region.o $(BUILD_DIR)/arena.o $(BUILD_DIR)/numeric.o $(BUILD_DIR)/ring.o $(BUILD_DIR)/operation.o
 TEST_REGION = $(BUILD_DIR)/test_region
 TEST_ARENA = $(BUILD_DIR)/test_arena
 TEST_NUMERIC = $(BUILD_DIR)/test_numeric
 TEST_RING = $(BUILD_DIR)/test_ring
+TEST_OPERATION = $(BUILD_DIR)/test_operation
+R6_PROOF = $(BUILD_DIR)/rune_r6_proof
 CORPUS = $(BUILD_DIR)/rune_corpus
 
-.PHONY: all test corpus-smoke clean
+.PHONY: all test r6-proof corpus-smoke clean
 
 all: $(LIB)
 
@@ -37,6 +39,9 @@ $(BUILD_DIR)/numeric.o: src/numeric.c include/rune/numeric.h include/rune/status
 $(BUILD_DIR)/ring.o: src/ring.c include/rune/ring.h include/rune/region.h include/rune/status.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) -c $< -o $@
 
+$(BUILD_DIR)/operation.o: src/operation.c include/rune/operation.h include/rune/region.h include/rune/status.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) -c $< -o $@
+
 $(LIB): $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 
@@ -51,6 +56,16 @@ $(TEST_NUMERIC): tests/test_numeric.c $(LIB) include/rune/numeric.h include/rune
 
 $(TEST_RING): tests/test_ring.c $(LIB) include/rune/ring.h include/rune/region.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) tests/test_ring.c $(LIB) -o $@
+
+$(TEST_OPERATION): tests/test_operation.c $(LIB) include/rune/operation.h include/rune/region.h include/rune/status.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) tests/test_operation.c $(LIB) -o $@
+
+$(R6_PROOF): proof/r6_proof.c $(LIB) include/rune/operation.h include/rune/region.h include/rune/status.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) proof/r6_proof.c $(LIB) -o $@
+
+r6-proof: $(R6_PROOF)
+	./$(R6_PROOF) > $(BUILD_DIR)/r6-proof.tsv
+	cmp $(BUILD_DIR)/r6-proof.tsv proof/r6-proof-receipts.v1.tsv
 
 $(CORPUS): corpus/rune_corpus.c $(LIB) include/rune/arena.h include/rune/numeric.h include/rune/region.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) corpus/rune_corpus.c $(LIB) -o $@
@@ -72,11 +87,12 @@ corpus-smoke: $(CORPUS)
 		exit 1; \
 	fi
 
-test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC) $(TEST_RING)
+test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC) $(TEST_RING) $(TEST_OPERATION)
 	./$(TEST_REGION)
 	./$(TEST_ARENA)
 	./$(TEST_NUMERIC)
 	./$(TEST_RING)
+	./$(TEST_OPERATION)
 
 clean:
 	rm -rf $(BUILD_DIR)

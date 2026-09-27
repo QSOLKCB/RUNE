@@ -26,6 +26,8 @@ const char *rune_status_name(rune_status status)
         return "RUNE_ERR_STALE_CHECKPOINT";
     case RUNE_ERR_DIVIDE_BY_ZERO:
         return "RUNE_ERR_DIVIDE_BY_ZERO";
+    case RUNE_ERR_UNSUPPORTED_OPERATION:
+        return "RUNE_ERR_UNSUPPORTED_OPERATION";
     default:
         return "RUNE_STATUS_UNKNOWN";
     }
