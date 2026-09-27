@@ -36,7 +36,7 @@ static uint64_t rune_operation_hash_u64(
     return hash;
 }
 
-static uint64_t rune_operation_hash_bytes(
+static uint64_t rune_operation_hash_readable_span(
     const rune_span *span
 )
 {
@@ -52,6 +52,65 @@ static uint64_t rune_operation_hash_bytes(
     }
 
     return hash;
+}
+
+static uint64_t rune_operation_hash_repeated_byte(
+    uint8_t value,
+    uint64_t length
+)
+{
+    uint64_t hash;
+    uint64_t i;
+
+    hash = UINT64_C(14695981039346656037);
+    for (i = 0u; i < length; ++i) {
+        hash ^= (uint64_t)value;
+        hash *= UINT64_C(1099511628211);
+    }
+
+    return hash;
+}
+
+/*
+ * Portable alias preflight without relational comparison of unrelated
+ * pointers. For two non-empty contiguous ranges, overlap implies that at
+ * least one range start occurs within the other range.
+ */
+static int rune_operation_object_overlaps_span(
+    const void *object,
+    size_t object_size,
+    const rune_span *span
+)
+{
+    const uint8_t *object_start;
+    const uint8_t *span_start;
+    size_t span_length;
+    size_t i;
+
+    if (object == NULL || span == NULL ||
+        object_size == 0u || span->length == 0u) {
+        return 0;
+    }
+
+    object_start = (const uint8_t *)object;
+    span_start = span->region->data + (size_t)span->offset;
+    span_length = (size_t)span->length;
+
+    for (i = 0u; i < span_length; ++i) {
+        if ((const void *)object_start ==
+            (const void *)(span_start + i)) {
+            return 1;
+        }
+    }
+
+    for (i = 0u; i < object_size; ++i) {
+        if ((const void *)span_start ==
+            (const void *)(object_start + i)) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 static int rune_operation_span_ref_is_none(
@@ -109,6 +168,11 @@ static rune_status rune_operation_validate_descriptor(
 
     if (descriptor->semantic_version !=
         RUNE_OPERATION_SEMANTIC_VERSION_V1) {
+        return RUNE_ERR_UNSUPPORTED_OPERATION;
+    }
+
+    if (descriptor->operation_id != RUNE_OPERATION_BYTES_MOVE &&
+        descriptor->operation_id != RUNE_OPERATION_BYTES_FILL) {
         return RUNE_ERR_UNSUPPORTED_OPERATION;
     }
 
@@ -269,17 +333,26 @@ rune_status rune_operation_execute(
     rune_operation_receipt *receipt
 )
 {
+    rune_operation_descriptor operation;
+    rune_operation_receipt candidate;
     rune_span input;
     rune_span output;
     uint64_t descriptor_identity;
+    uint64_t result_identity;
     rune_status status;
 
     if (descriptor == NULL || receipt == NULL) {
         return RUNE_ERR_NULL_ARGUMENT;
     }
 
+    /*
+     * Work from a local semantic snapshot so writing the completed receipt
+     * cannot change fields still needed by execution.
+     */
+    operation = *descriptor;
+
     status = rune_operation_descriptor_identity(
-        descriptor,
+        &operation,
         &descriptor_identity
     );
     if (status != RUNE_OK) {
@@ -287,76 +360,122 @@ rune_status rune_operation_execute(
     }
 
     rune_operation_receipt_begin(
-        receipt,
-        descriptor,
+        &candidate,
+        &operation,
         descriptor_identity
     );
 
-    status = rune_operation_validate_descriptor(descriptor);
+    status = rune_operation_validate_descriptor(&operation);
     if (status != RUNE_OK) {
-        return rune_operation_reject(receipt, status);
+        rune_operation_reject(&candidate, status);
+        *receipt = candidate;
+        return status;
     }
 
     if (bindings == NULL) {
-        return rune_operation_reject(
-            receipt,
-            RUNE_ERR_NULL_ARGUMENT
-        );
+        status = RUNE_ERR_NULL_ARGUMENT;
+        rune_operation_reject(&candidate, status);
+        *receipt = candidate;
+        return status;
     }
 
-    if (descriptor->operation_id == RUNE_OPERATION_BYTES_MOVE) {
+    if (operation.operation_id == RUNE_OPERATION_BYTES_MOVE) {
         status = rune_operation_resolve_span(
             bindings,
-            descriptor->input,
+            operation.input,
             RUNE_ACCESS_READ,
             &input
         );
         if (status != RUNE_OK) {
-            return rune_operation_reject(receipt, status);
+            rune_operation_reject(&candidate, status);
+            *receipt = candidate;
+            return status;
+        }
+
+        if (rune_operation_object_overlaps_span(
+                receipt,
+                sizeof(*receipt),
+                &input)) {
+            return RUNE_ERR_INVALID_ARGUMENT;
         }
 
         status = rune_operation_resolve_span(
             bindings,
-            descriptor->output,
+            operation.output,
             RUNE_ACCESS_WRITE,
             &output
         );
         if (status != RUNE_OK) {
-            return rune_operation_reject(receipt, status);
+            rune_operation_reject(&candidate, status);
+            *receipt = candidate;
+            return status;
         }
+
+        if (rune_operation_object_overlaps_span(
+                receipt,
+                sizeof(*receipt),
+                &output)) {
+            return RUNE_ERR_INVALID_ARGUMENT;
+        }
+
+        /*
+         * memmove makes the final output bytes equal to the pre-move input
+         * bytes even when source and destination overlap. Hash the readable
+         * source before mutation so write-only output storage is never read.
+         */
+        result_identity = rune_operation_hash_readable_span(&input);
 
         status = rune_span_move(&output, &input);
         if (status != RUNE_OK) {
-            return rune_operation_reject(receipt, status);
+            rune_operation_reject(&candidate, status);
+            *receipt = candidate;
+            return status;
         }
 
-        receipt->bytes_read = input.length;
-        receipt->bytes_written = output.length;
+        candidate.bytes_read = input.length;
+        candidate.bytes_written = output.length;
     } else {
         status = rune_operation_resolve_span(
             bindings,
-            descriptor->output,
+            operation.output,
             RUNE_ACCESS_WRITE,
             &output
         );
         if (status != RUNE_OK) {
-            return rune_operation_reject(receipt, status);
+            rune_operation_reject(&candidate, status);
+            *receipt = candidate;
+            return status;
         }
+
+        if (rune_operation_object_overlaps_span(
+                receipt,
+                sizeof(*receipt),
+                &output)) {
+            return RUNE_ERR_INVALID_ARGUMENT;
+        }
+
+        result_identity = rune_operation_hash_repeated_byte(
+            (uint8_t)operation.parameter_u64,
+            output.length
+        );
 
         status = rune_span_fill(
             &output,
-            (uint8_t)descriptor->parameter_u64
+            (uint8_t)operation.parameter_u64
         );
         if (status != RUNE_OK) {
-            return rune_operation_reject(receipt, status);
+            rune_operation_reject(&candidate, status);
+            *receipt = candidate;
+            return status;
         }
 
-        receipt->bytes_read = 0u;
-        receipt->bytes_written = output.length;
+        candidate.bytes_read = 0u;
+        candidate.bytes_written = output.length;
     }
 
-    receipt->result_identity = rune_operation_hash_bytes(&output);
-    receipt->status = (uint32_t)RUNE_OK;
-    receipt->execution_class = RUNE_OPERATION_EXECUTED;
+    candidate.result_identity = result_identity;
+    candidate.status = (uint32_t)RUNE_OK;
+    candidate.execution_class = RUNE_OPERATION_EXECUTED;
+    *receipt = candidate;
     return RUNE_OK;
 }

@@ -87,6 +87,15 @@ rune_status rune_operation_descriptor_identity(
     uint64_t *out
 );
 
+/*
+ * Output regions need WRITE access only; result identity is derived from the
+ * operation semantics without reading the output backing storage.
+ *
+ * receipt must not overlap any successfully resolved input or output span.
+ * Such overlap returns RUNE_ERR_INVALID_ARGUMENT and leaves receipt untouched,
+ * because publishing the evidence object into operation bytes would change the
+ * very state being certified.
+ */
 rune_status rune_operation_execute(
     const rune_operation_descriptor *descriptor,
     const rune_operation_bindings *bindings,

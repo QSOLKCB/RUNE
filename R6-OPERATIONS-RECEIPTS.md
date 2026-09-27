@@ -96,6 +96,8 @@ scratch_required  = 0
 
 Execution resolves a readable input span and writable output span, then delegates to the existing R1 overlap-safe move semantics.
 
+The output does **not** require READ access. Before mutation, R6 hashes the readable input bytes; under memmove semantics those exact pre-move input bytes are the final output bytes, including overlapping moves.
+
 Receipt accounting:
 
 ~~~text
@@ -116,6 +118,8 @@ scratch_required  = 0
 ~~~
 
 Execution resolves a writable output span and delegates to the existing R1 fill semantics.
+
+The output does **not** require READ access. Result identity is computed from the declared fill byte repeated exactly output.length times, so genuinely write-only backing storage is never read merely to produce evidence.
 
 Receipt accounting:
 
@@ -167,7 +171,7 @@ Execution classes are:
 1 = executed
 ~~~
 
-A rejected descriptor or binding produces:
+A rejected descriptor or binding normally produces:
 
 ~~~text
 execution_class = rejected
@@ -176,6 +180,8 @@ bytes_read      = 0
 bytes_written   = 0
 scratch_used    = 0
 ~~~
+
+The caller-supplied receipt object is control/evidence storage and **must not overlap any successfully resolved input or output span**. R6 checks this before execution. If overlap is detected, execution returns RUNE_ERR_INVALID_ARGUMENT and leaves the receipt object untouched; writing a receipt into operation bytes would itself change the state being certified.
 
 A successful execution hashes the exact output span bytes into result_identity.
 
@@ -190,6 +196,8 @@ RUNE_ERR_UNSUPPORTED_OPERATION
 ~~~
 
 for an unknown operation identity or unsupported semantic version.
+
+Unknown operation IDs are classified before applying operation-specific v1 rules such as the zero-scratch requirement. An unsupported operation therefore cannot change its status identity by carrying otherwise uninterpretable parameter or scratch fields.
 
 Bounds/access failures retain the existing R1 status vocabulary.
 

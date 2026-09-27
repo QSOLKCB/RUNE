@@ -48,7 +48,10 @@
       "scratch_required": 0,
       "semantics": "R1-overlap-safe-move",
       "bytes_read": "input.length",
-      "bytes_written": "output.length"
+      "bytes_written": "output.length",
+      "output_access_required": "WRITE",
+      "output_read_required": false,
+      "result_identity_source": "pre-move-readable-input-bytes"
     },
     "bytes_fill": {
       "operation_id": 2,
@@ -59,12 +62,16 @@
       "scratch_required": 0,
       "semantics": "R1-fill",
       "bytes_read": 0,
-      "bytes_written": "output.length"
+      "bytes_written": "output.length",
+      "output_access_required": "WRITE",
+      "output_read_required": false,
+      "result_identity_source": "declared-fill-byte-repeated-output-length"
     }
   },
   "unsupported": {
     "unknown_operation_status": "RUNE_ERR_UNSUPPORTED_OPERATION",
-    "unsupported_semantic_version_status": "RUNE_ERR_UNSUPPORTED_OPERATION"
+    "unsupported_semantic_version_status": "RUNE_ERR_UNSUPPORTED_OPERATION",
+    "unknown_operation_id_classified_before_operation_specific_v1_field_validation": true
   },
   "receipt": {
     "fields": [
@@ -91,7 +98,12 @@
     "timing_fields": false,
     "native_address_fields": false,
     "fnv1a_offset_basis_u64_decimal": "14695981039346656037",
-    "fnv1a_prime_u64_decimal": "1099511628211"
+    "fnv1a_prime_u64_decimal": "1099511628211",
+    "must_not_overlap_resolved_input_or_output_span": true,
+    "overlap_status": "RUNE_ERR_INVALID_ARGUMENT",
+    "overlap_leaves_receipt_untouched": true,
+    "overlap_is_execution_context_contract_violation": true,
+    "result_identity_requires_output_read_access": false
   },
   "replay_vectors": [
     {

@@ -57,6 +57,23 @@ static rune_operation_span_ref span_ref(
     return ref;
 }
 
+static uint64_t test_fnv1a64(
+    const uint8_t *bytes,
+    size_t length
+)
+{
+    uint64_t hash;
+    size_t i;
+
+    hash = UINT64_C(14695981039346656037);
+    for (i = 0u; i < length; ++i) {
+        hash ^= (uint64_t)bytes[i];
+        hash *= UINT64_C(1099511628211);
+    }
+
+    return hash;
+}
+
 static void attach_region(
     rune_region *region,
     uint8_t *bytes,
@@ -322,6 +339,218 @@ static void test_rejection_receipt_and_nonmutation(void)
     CHECK(receipt.bytes_written == 0u);
 }
 
+
+static void test_write_only_output_result_identity(void)
+{
+    uint8_t input_bytes[4] = { 1u, 2u, 3u, 4u };
+    uint8_t move_output[4] = { 0u };
+    uint8_t fill_output[3] = { 0u };
+    const uint8_t fill_expected[3] = { 0x5au, 0x5au, 0x5au };
+    rune_region move_regions[2];
+    rune_region fill_region;
+    rune_operation_bindings move_bindings;
+    rune_operation_bindings fill_bindings;
+    rune_operation_descriptor descriptor;
+    rune_operation_receipt receipt;
+
+    CHECK_STATUS(
+        rune_region_attach(
+            &move_regions[0],
+            input_bytes,
+            4u,
+            RUNE_ACCESS_READ
+        ),
+        RUNE_OK
+    );
+    CHECK_STATUS(
+        rune_region_attach(
+            &move_regions[1],
+            move_output,
+            4u,
+            RUNE_ACCESS_WRITE
+        ),
+        RUNE_OK
+    );
+    move_bindings.regions = move_regions;
+    move_bindings.region_count = 2u;
+
+    CHECK_STATUS(
+        rune_operation_make_move(
+            &descriptor,
+            span_ref(0u, 0u, 4u),
+            span_ref(1u, 0u, 4u)
+        ),
+        RUNE_OK
+    );
+    CHECK_STATUS(
+        rune_operation_execute(
+            &descriptor,
+            &move_bindings,
+            &receipt
+        ),
+        RUNE_OK
+    );
+    CHECK(memcmp(move_output, input_bytes, 4u) == 0);
+    CHECK(receipt.result_identity == test_fnv1a64(input_bytes, 4u));
+
+    CHECK_STATUS(
+        rune_region_attach(
+            &fill_region,
+            fill_output,
+            3u,
+            RUNE_ACCESS_WRITE
+        ),
+        RUNE_OK
+    );
+    fill_bindings.regions = &fill_region;
+    fill_bindings.region_count = 1u;
+
+    CHECK_STATUS(
+        rune_operation_make_fill(
+            &descriptor,
+            span_ref(0u, 0u, 3u),
+            (uint8_t)0x5au
+        ),
+        RUNE_OK
+    );
+    CHECK_STATUS(
+        rune_operation_execute(
+            &descriptor,
+            &fill_bindings,
+            &receipt
+        ),
+        RUNE_OK
+    );
+    CHECK(memcmp(fill_output, fill_expected, 3u) == 0);
+    CHECK(
+        receipt.result_identity ==
+        test_fnv1a64(fill_expected, sizeof(fill_expected))
+    );
+}
+
+static void test_receipt_overlap_is_rejected_without_mutation(void)
+{
+    union {
+        rune_operation_receipt receipt;
+        uint8_t bytes[sizeof(rune_operation_receipt)];
+    } storage;
+    rune_operation_receipt before;
+    uint8_t input_bytes[4] = { 1u, 2u, 3u, 4u };
+    rune_region fill_region;
+    rune_region move_regions[2];
+    rune_operation_bindings bindings;
+    rune_operation_descriptor descriptor;
+
+    memset(&storage, 0x5a, sizeof(storage));
+    before = storage.receipt;
+
+    CHECK_STATUS(
+        rune_region_attach(
+            &fill_region,
+            storage.bytes,
+            (uint64_t)sizeof(storage.bytes),
+            RUNE_ACCESS_WRITE
+        ),
+        RUNE_OK
+    );
+    bindings.regions = &fill_region;
+    bindings.region_count = 1u;
+
+    CHECK_STATUS(
+        rune_operation_make_fill(
+            &descriptor,
+            span_ref(0u, 0u, 4u),
+            (uint8_t)0x11u
+        ),
+        RUNE_OK
+    );
+    CHECK_STATUS(
+        rune_operation_execute(
+            &descriptor,
+            &bindings,
+            &storage.receipt
+        ),
+        RUNE_ERR_INVALID_ARGUMENT
+    );
+    check_receipt_equal(&storage.receipt, &before);
+
+    memset(&storage, 0x6b, sizeof(storage));
+    before = storage.receipt;
+
+    CHECK_STATUS(
+        rune_region_attach(
+            &move_regions[0],
+            storage.bytes,
+            (uint64_t)sizeof(storage.bytes),
+            RUNE_ACCESS_READ
+        ),
+        RUNE_OK
+    );
+    CHECK_STATUS(
+        rune_region_attach(
+            &move_regions[1],
+            input_bytes,
+            4u,
+            RUNE_ACCESS_WRITE
+        ),
+        RUNE_OK
+    );
+    bindings.regions = move_regions;
+    bindings.region_count = 2u;
+
+    CHECK_STATUS(
+        rune_operation_make_move(
+            &descriptor,
+            span_ref(0u, 0u, 4u),
+            span_ref(1u, 0u, 4u)
+        ),
+        RUNE_OK
+    );
+    CHECK_STATUS(
+        rune_operation_execute(
+            &descriptor,
+            &bindings,
+            &storage.receipt
+        ),
+        RUNE_ERR_INVALID_ARGUMENT
+    );
+    check_receipt_equal(&storage.receipt, &before);
+}
+
+static void test_unknown_operation_precedes_known_v1_scratch_rules(void)
+{
+    uint8_t bytes[4] = { 0u };
+    rune_region region;
+    rune_operation_bindings bindings;
+    rune_operation_descriptor descriptor;
+    rune_operation_receipt receipt;
+
+    attach_region(&region, bytes, 4u);
+    bindings.regions = &region;
+    bindings.region_count = 1u;
+
+    descriptor.operation_id = UINT32_C(99);
+    descriptor.semantic_version = RUNE_OPERATION_SEMANTIC_VERSION_V1;
+    descriptor.input = rune_operation_span_none();
+    descriptor.output = span_ref(0u, 0u, 1u);
+    descriptor.parameter_u64 = UINT64_C(123);
+    descriptor.scratch_required = UINT64_C(77);
+
+    CHECK_STATUS(
+        rune_operation_execute(
+            &descriptor,
+            &bindings,
+            &receipt
+        ),
+        RUNE_ERR_UNSUPPORTED_OPERATION
+    );
+    CHECK(
+        receipt.status ==
+        (uint32_t)RUNE_ERR_UNSUPPORTED_OPERATION
+    );
+    CHECK(receipt.execution_class == RUNE_OPERATION_REJECTED);
+}
+
 static void test_unsupported_and_invalid_descriptors(void)
 {
     uint8_t bytes[4] = { 0u };
@@ -466,6 +695,9 @@ int main(void)
     test_fill_replay();
     test_overlapping_move_uses_r1_semantics();
     test_rejection_receipt_and_nonmutation();
+    test_write_only_output_result_identity();
+    test_receipt_overlap_is_rejected_without_mutation();
+    test_unknown_operation_precedes_known_v1_scratch_rules();
     test_unsupported_and_invalid_descriptors();
     test_reserved_none_slot_rejected_for_required_spans();
     test_binding_failures();
