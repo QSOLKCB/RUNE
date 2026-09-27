@@ -97,6 +97,41 @@ git_version=$("$git_path" --version 2>&1) ||
 [ -n "$git_version" ] ||
     fail "Git provenance identity output is empty"
 
+uname_path=$(resolve_provenance_tool uname) ||
+    fail "uname not found in fixed provenance path"
+case "$uname_path" in
+    /*) ;;
+    *) fail "uname provenance path is not absolute: $uname_path" ;;
+esac
+[ -x "$uname_path" ] ||
+    fail "uname provenance path is not executable: $uname_path"
+
+hash_mode=
+hash_path=$(resolve_provenance_tool sha256sum 2>/dev/null || :)
+if [ -n "$hash_path" ]; then
+    hash_mode=sha256sum
+else
+    hash_path=$(resolve_provenance_tool shasum 2>/dev/null || :)
+    [ -n "$hash_path" ] || fail "no trusted SHA-256 utility available"
+    hash_mode=shasum
+fi
+case "$hash_path" in
+    /*) ;;
+    *) fail "SHA-256 utility path is not absolute: $hash_path" ;;
+esac
+[ -x "$hash_path" ] ||
+    fail "SHA-256 utility path is not executable: $hash_path"
+
+if hash_version=$("$hash_path" --version 2>&1); then
+    :
+elif hash_version=$("$hash_path" -v 2>&1); then
+    :
+else
+    fail "SHA-256 utility identity command failed: $hash_path"
+fi
+[ -n "$hash_version" ] ||
+    fail "SHA-256 utility identity output is empty"
+
 if [ "${1:-}" = "--self-test-build-tools" ]; then
     for tool in make mkdir rm; do
         tool_path=$(resolve_build_tool "$tool") ||
@@ -384,8 +419,8 @@ fi
 [ -n "$memory_profile" ] ||
     fail "could not capture required memory profile"
 
-platform_identity=$(uname -a 2>&1) ||
-    fail "platform identity command failed: uname -a"
+platform_identity=$("$uname_path" -a 2>&1) ||
+    fail "platform identity command failed: $uname_path -a"
 [ -n "$platform_identity" ] ||
     fail "platform identity output is empty"
 
@@ -439,6 +474,9 @@ observations_path="$out_abs/observations.tsv"
     printf 'repeats=%s\n' "$repeats"
     printf 'git_provenance_path=%s\n' "$provenance_path"
     printf 'git_resolved=%s\n' "$git_path"
+    printf 'uname_resolved=%s\n' "$uname_path"
+    printf 'sha256_mode=%s\n' "$hash_mode"
+    printf 'sha256_resolved=%s\n' "$hash_path"
     printf 'cc_requested=%s\n' "$cc_name"
     printf 'cc_resolved=%s\n' "$cc_path"
     printf 'ar_requested=%s\n' "$ar_name"
@@ -474,6 +512,9 @@ observations_path="$out_abs/observations.tsv"
 {
     printf 'git_path=%s\n' "$git_path"
     printf '%s\n' "$git_version"
+    printf 'uname_path=%s\n' "$uname_path"
+    printf 'sha256_path=%s\n' "$hash_path"
+    printf '%s\n' "$hash_version"
     echo "compiler_path=$cc_path"
     printf '%s\n' "$compiler_version"
     echo "archiver_path=$ar_path"
@@ -522,18 +563,32 @@ build_study
 
 cleanup_build
 
-if command -v sha256sum >/dev/null 2>&1; then
-    (
-        cd "$out_dir"
-        sha256sum             environment.txt             compiler.txt             command.txt             observations.tsv             > SHA256SUMS
-    )
-elif command -v shasum >/dev/null 2>&1; then
-    (
-        cd "$out_dir"
-        shasum -a 256             environment.txt             compiler.txt             command.txt             observations.tsv             > SHA256SUMS
-    )
-else
-    fail "no SHA-256 utility available"
-fi
+case "$hash_mode" in
+    sha256sum)
+        (
+            cd "$out_dir"
+            "$hash_path" \
+                environment.txt \
+                compiler.txt \
+                command.txt \
+                observations.tsv \
+                > SHA256SUMS
+        )
+        ;;
+    shasum)
+        (
+            cd "$out_dir"
+            "$hash_path" -a 256 \
+                environment.txt \
+                compiler.txt \
+                command.txt \
+                observations.tsv \
+                > SHA256SUMS
+        )
+        ;;
+    *)
+        fail "unsupported SHA-256 utility mode: $hash_mode"
+        ;;
+esac
 
 echo "R7 evidence bundle: $out_dir"
