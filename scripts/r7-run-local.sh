@@ -262,12 +262,26 @@ fi
 cppflags=${CPPFLAGS:-}
 cflags=${CFLAGS:-}
 
-case "$cppflags" in
-    *'$'*) fail "CPPFLAGS must not contain dollar signs or Make variable references; resolve them before capture" ;;
-esac
-case "$cflags" in
-    *'$'*) fail "CFLAGS must not contain dollar signs or Make variable references; resolve them before capture" ;;
-esac
+validate_literal_build_flags()
+{
+    flag_name=$1
+    flag_value=$2
+
+    case "$flag_value" in
+        *'$'*|*'`'*|*';'*|*'&'*|*'|'*|*'<'*|*'>'*|*'#'*|*'~'*|*'*'*|*'?'*|*'['*|*']'*)
+            fail "$flag_name must not contain shell substitution, control, redirection, comment, tilde, or glob metacharacters; use literal replayable compiler arguments"
+            ;;
+    esac
+    case "$flag_value" in
+        *'
+'*|*''*)
+            fail "$flag_name must not contain newline or carriage-return shell control characters"
+            ;;
+    esac
+}
+
+validate_literal_build_flags CPPFLAGS "$cppflags"
+validate_literal_build_flags CFLAGS "$cflags"
 
 repeats=${RUNE_R7_REPEATS:-5}
 case "$repeats" in

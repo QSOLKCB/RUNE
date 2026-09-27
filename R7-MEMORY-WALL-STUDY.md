@@ -316,11 +316,14 @@ The script records:
   provenance path, with their parent paths physically canonicalized before
   trusted-prefix checks; arbitrary external compiler/archiver wrappers and
   `/usr/bin/../../...` traversal aliases are not accepted;
-- both CPPFLAGS and CFLAGS, recorded with `printf` so backslashes and other
-  shell-text content are preserved exactly. Dollar signs are rejected: flags
-  must be literal build arguments and may not contain Make-variable references
-  such as `$(R7_HEADER)`, because Make would recursively expand them against
-  unrecorded environment state;
+- both CPPFLAGS and CFLAGS, recorded with `printf` so accepted backslashes
+  and literal flag text are preserved exactly. Evidence flags are deliberately
+  conservative: Make-variable syntax and shell-evaluated substitution/control
+  syntax are rejected before Make runs. This includes dollar signs, backticks,
+  command separators, redirections, shell comments, tilde expansion, and
+  pathname-globbing metacharacters. Flags must therefore be literal,
+  replayable compiler arguments rather than expressions whose effective argv
+  depends on unrecorded shell or filesystem state;
 - explicit sanitation of ambient compiler search/override variables
   (`CPATH`, `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`,
   `OBJC_INCLUDE_PATH`, `COMPILER_PATH`, `LIBRARY_PATH`,

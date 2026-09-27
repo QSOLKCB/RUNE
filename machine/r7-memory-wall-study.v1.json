@@ -407,7 +407,11 @@
     "replay_recreates_observations_file": true,
     "replay_command_is_working_directory_independent": true,
     "final_publish_uses_destination_specific_atomic_mkdir_lock": true,
-    "competing_same_destination_captures_must_not_nest_publish_stages": true
+    "competing_same_destination_captures_must_not_nest_publish_stages": true,
+    "CPPFLAGS_and_CFLAGS_shell_substitution_allowed": false,
+    "CPPFLAGS_and_CFLAGS_shell_control_or_redirection_allowed": false,
+    "CPPFLAGS_and_CFLAGS_shell_comment_tilde_or_glob_expansion_allowed": false,
+    "CPPFLAGS_and_CFLAGS_shell_metacharacters_rejected_before_make": true
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,
@@ -446,7 +450,10 @@
       "ambient dirname repository-root redirection",
       "default cc regression entrypoint",
       "shared-memory publication fixture cleanup",
-      "competing captures targeting the same absent destination"
+      "competing captures targeting the same absent destination",
+      "backtick command substitution in CFLAGS",
+      "shell command separator injection in CFLAGS",
+      "pathname glob expansion in CPPFLAGS"
     ],
     "clock_regressions_run_under_UBSan": true,
     "floating_clock_t_regression_source": "tests/test_r7_clock_float.c",

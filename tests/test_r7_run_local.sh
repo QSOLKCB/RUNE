@@ -36,6 +36,8 @@ cleanup()
     rm -f "/tmp/r7-reg-cc-$test_id" "/tmp/r7-reg-ar-$test_id" "/tmp/r7-reg-make-$test_id"
     rm -f "/tmp/r7-tar-hook-$test_id" "/tmp/r7-tar-hook-ran-$test_id"
     rm -f "/tmp/r7-ccc-header-$test_id.h"
+    rm -f "/tmp/r7-backtick-header-$test_id.h" "/tmp/r7-backtick-hook-$test_id" "/tmp/r7-backtick-ran-$test_id"
+    rm -f "/tmp/r7-separator-hook-$test_id" "/tmp/r7-separator-ran-$test_id"
     rm -f "/tmp/r7-concurrent-a-$test_id.log" "/tmp/r7-concurrent-b-$test_id.log"
     rm -f "/tmp/r7-compete-a-$test_id.log" "/tmp/r7-compete-b-$test_id.log"
     rm -rf "$repo_root"/build/r7-source-* "$repo_root"/build/r7-evidence-* "$repo_root"/build/r7-bundle-stage-*
@@ -78,6 +80,45 @@ expect_capture_failure make-reference-cflags \
     env R7_OPT='-O2' 'CFLAGS=$(R7_OPT)' \
     RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" scripts/r7-run-local.sh
 rm -f "$hidden_header"
+
+# Shell substitutions/control syntax in flags must be rejected before Make runs.
+backtick_header="/tmp/r7-backtick-header-$test_id.h"
+backtick_hook="/tmp/r7-backtick-hook-$test_id"
+backtick_ran="/tmp/r7-backtick-ran-$test_id"
+cat > "$backtick_header" <<'EOF'
+#include <time.h>
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 424242
+EOF
+cat > "$backtick_hook" <<EOF
+#!/bin/sh
+printf 'ran\n' > "$backtick_ran"
+printf '%s\n' '-include $backtick_header'
+EOF
+chmod +x "$backtick_hook"
+backtick_flags=$(printf '`%s`' "$backtick_hook")
+expect_capture_failure shell-backtick-cflags \
+    env "CFLAGS=$backtick_flags" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+[ ! -e "$backtick_ran" ] || fail "backtick CFLAGS hook executed before rejection"
+
+separator_hook="/tmp/r7-separator-hook-$test_id"
+separator_ran="/tmp/r7-separator-ran-$test_id"
+cat > "$separator_hook" <<EOF
+#!/bin/sh
+printf 'ran\n' > "$separator_ran"
+EOF
+chmod +x "$separator_hook"
+expect_capture_failure shell-separator-cflags \
+    env "CFLAGS=-O2; $separator_hook" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+[ ! -e "$separator_ran" ] || fail "separator CFLAGS hook executed before rejection"
+
+expect_capture_failure shell-glob-cppflags \
+    env 'CPPFLAGS=-I/tmp/r7-*' RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+
+rm -f "$backtick_header" "$backtick_hook" "$backtick_ran" "$separator_hook" "$separator_ran"
 
 # Environment serialization must preserve backslashes and field boundaries.
 scripts/r7-run-local.sh --self-test-environment-serialization
