@@ -59,7 +59,10 @@ The receipt records raw process-CPU-time ticks and CLOCKS_PER_SEC.
 R7 does not call these values wall-clock nanoseconds.
 
 If clock() is unavailable or a tick interval cannot be represented, the study
-fails explicitly.
+fails explicitly. Delta representability is established before arithmetic, so a
+signed negative-to-nonnegative interval cannot overflow `clock_t` during
+subtraction. The extreme signed case is exercised under UBSan in
+`tests/test_r7_clock.c`.
 
 ## Lifecycle accounting
 
@@ -259,9 +262,10 @@ under the compiler-input trees `src/`, `include/`, and `study/`, and
 compares the raw bytes of every tracked Makefile/source/include/study input
 against the recorded revision using `git hash-object --no-filters`. It then
 materializes **Makefile, src/, include/, and study/** directly from
-`git archive source_revision` into a per-capture source snapshot. The extracted
-bytes are checked against the recorded revision and made read-only before Make
-runs. Make executes inside that snapshot, so the mutable checkout is not a
+`git archive source_revision` into a per-capture source snapshot.
+`TAR_OPTIONS` is cleared before extraction and in replay; after extraction,
+unexpected files and symlinks are rejected before the known source bytes are
+checked against the recorded revision and made read-only before Make runs. Make executes inside that snapshot, so the mutable checkout is not a
 compiler input. Worktree and snapshot identity are checked again after the build
 and after measurement. The publish destination is not created during the build or measurement. An
 EXIT/signal cleanup trap removes the source snapshot and staged bundle on
@@ -287,8 +291,9 @@ The script records:
 - a verified clean working tree, including absence of untracked files and
   ignored untracked files under `src/`, `include/`, and `study/`;
 - compiler, archiver, and build-driver executables resolved from the fixed
-  provenance path, with successful identity/version output; arbitrary external
-  compiler/archiver wrappers are not accepted for evidence capture;
+  provenance path, with their parent paths physically canonicalized before
+  trusted-prefix checks; arbitrary external compiler/archiver wrappers and
+  `/usr/bin/../../...` traversal aliases are not accepted;
 - both CPPFLAGS and CFLAGS, recorded with `printf` so backslashes and other
   shell-text content are preserved exactly, binding those values plus CC and AR
   into the build command;
@@ -330,9 +335,11 @@ are rejected before bundle creation, including symlink routes whose lexical
 parent would be removed or replaced by build activity. Parent-directory
 traversal in the requested destination is also rejected. `RUNE_R7_REPEATS`
 is validated as 1..100 before the destination is reserved. The staging directory is created with a `mkdir` executable resolved from the
-fixed provenance path and verified empty before metadata is written. After the
-staged bundle is checksummed and the final worktree validation passes, trusted
-`mv` publishes it to the requested destination. This permits the documented
+fixed provenance path and verified empty before metadata is written. After the repository-stage bundle is checksummed and the final worktree
+validation passes, it is copied into a hidden sibling staging directory on the
+destination filesystem. That copied bundle must pass `SHA256SUMS` verification
+before a same-parent rename publishes the requested destination. A failed copy,
+including ENOSPC, is cleaned without reserving the immutable final path. This permits the documented
 default `evidence/r7/local-...` destination without the capture treating its
 own output as an untracked source mutation.
 
@@ -347,7 +354,9 @@ compiler, archiver, and utility paths. The entire source/build snapshot is
 removed after measurement.
 
 The sanitized invocation is recorded in `command.txt` using POSIX single-quote
-escaping. The quote serializer uses `sed` resolved from the fixed provenance
+escaping. Replay begins with `set -eu`, so the first failed snapshot, build, or
+study command terminates the replay rather than allowing a later cleanup command
+to return success. The quote serializer uses `sed` resolved from the fixed provenance
 path rather than ambient `PATH`, so repository paths containing apostrophes
 remain replayable even in a hostile shell environment.
 
@@ -385,6 +394,21 @@ provenance.
 These fields satisfy the evidence-dimension requirement only when the bundle is
 actually captured on the host. A template or planned command is not execution
 evidence.
+
+## Deterministic regression gates
+
+Two named regression files now own the failure classes most likely to recur:
+
+- `tests/test_r7_run_local.sh` — canonical-path traversal for CC/AR/Make,
+  fail-fast replay, hostile `TAR_OPTIONS`, and destination-filesystem
+  publication failure/cleanup.
+- `tests/test_r7_clock.c` — direct `r7_ticks_between()` boundary tests,
+  including the signed extreme interval under UBSan.
+
+They run through `make r7-evidence-regression` and
+`make r7-clock-regression` on both GCC and Clang in CI. New defects in either
+source file should gain a deterministic reproducer in its corresponding
+regression file before the fix is considered complete.
 
 ## CI smoke
 
