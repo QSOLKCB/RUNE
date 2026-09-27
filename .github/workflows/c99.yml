@@ -184,6 +184,57 @@ jobs:
             "$space_repo/scripts/r7-run-local.sh" --self-test-fresh-build
           git worktree remove --force "$space_repo"
 
+          fakegit=$(mktemp -d)
+          cat > "$fakegit/git" <<'EOF'
+          #!/bin/bash
+          last=
+          for arg in "$@"; do
+            last=$arg
+          done
+          case " $* " in
+            *" status --porcelain "*)
+              exit 0
+              ;;
+            *" hash-object --no-filters -- "*)
+              exec /usr/bin/git -C "$GITHUB_WORKSPACE" rev-parse "HEAD:$last"
+              ;;
+          esac
+          exec /usr/bin/git "$@"
+          EOF
+          chmod +x "$fakegit/git"
+          printf '/* fake-git provenance probe */\n' >> study/r7_memory_wall.c
+          if RUNE_R7_BUILD_PATH="$fakegit:/usr/bin:/bin:/usr/sbin:/sbin" \
+              CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh /tmp/r7-fakegit-${{ matrix.cc }}-$GITHUB_RUN_ID 2>/dev/null; then
+            echo "R7 evidence script allowed build-path Git shim to certify dirty source" >&2
+            exit 1
+          fi
+          test ! -e /tmp/r7-fakegit-${{ matrix.cc }}-$GITHUB_RUN_ID
+          git checkout -- study/r7_memory_wall.c
+          rm -rf "$fakegit"
+
+          replay_bundle="/tmp/r7-replay-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$replay_bundle"
+          CPPFLAGS='-DUNUSED=a\c' CFLAGS=-O2 RUNE_R7_REPEATS=1 \
+            CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$replay_bundle"
+          grep -Fxq 'cppflags=-DUNUSED=a\c' "$replay_bundle/environment.txt"
+          grep -Fxq 'cflags=-O2' "$replay_bundle/environment.txt"
+          grep -Fq " > '$replay_bundle/observations.tsv'" "$replay_bundle/command.txt"
+          mv "$replay_bundle/observations.tsv" "$replay_bundle/observations.original.tsv"
+          (
+            cd /tmp
+            sh "$replay_bundle/command.txt" > "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt"
+          )
+          test -s "$replay_bundle/observations.tsv"
+          awk -F '\t' 'NF != 17 { exit 1 } END { if (NR == 0) exit 1 }' "$replay_bundle/observations.tsv"
+          if awk -F '\t' 'NF == 17 { found=1 } END { exit found ? 0 : 1 }' "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt"; then
+            echo "R7 replay leaked observation rows to stdout instead of observations.tsv" >&2
+            exit 1
+          fi
+          rm -rf "$replay_bundle" "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt"
+          rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
+
           grep -Fq '"$make_path" -C "$repo_root" -f Makefile "$study_target"' scripts/r7-run-local.sh
           grep -Fq 'BUILD_DIR="$build_dir_rel"' scripts/r7-run-local.sh
           if grep -Fq ' clean build/rune_r7_study' scripts/r7-run-local.sh; then
