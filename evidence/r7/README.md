@@ -69,13 +69,16 @@ lexical aliases such as `/usr/bin/../../tmp/wrapper` are rejected while normal
 system symlinks remain usable. Arbitrary external compiler/archiver wrappers and
 compound commands are rejected. Ambient compiler search variables (CPATH,
 C_INCLUDE_PATH, CPLUS_INCLUDE_PATH, OBJC_INCLUDE_PATH, COMPILER_PATH,
-LIBRARY_PATH, GCC_EXEC_PREFIX) are cleared; intentional include paths belong in
-the recorded CPPFLAGS. Dynamic-loader injection/search variables
+LIBRARY_PATH, GCC_EXEC_PREFIX, and Clang's CCC_OVERRIDE_OPTIONS) are cleared;
+intentional include paths belong in the recorded CPPFLAGS. Replay explicitly
+clears the same override state before invoking the recorded compiler. Dynamic-loader injection/search variables
 (`LD_PRELOAD`, loader library paths/auditing, relevant `DYLD_*` variables,
 `LIBPATH`, and `SHLIB_PATH`) are cleared before toolchain identity and study
 execution. CI exercises hostile compiler-search, Git-routing, ignored-header,
 and loader-injection cases. Missing compiler identity, a failed/empty `uname -a` platform identity, or
-missing memory profile causes the capture to fail. The required `uname` platform probe, the `awk` memory parser, and optional
+missing memory profile causes the capture to fail. Platform and CPU-model
+metadata are emitted with `printf` so shell `echo` escape handling cannot
+merge or truncate required fields. The required `uname` platform probe, the `awk` memory parser, and optional
 `getconf`/`sysctl` probes are resolved from the fixed provenance path rather
 than ambient `PATH`. The getconf fallback requires both a nonzero numeric
 physical page count and page size.
@@ -85,10 +88,12 @@ the evidence build. Ambient `PATH` is replaced by the fixed recorded
 `/usr/bin:/bin:/usr/sbin:/sbin` path; Make, compiler, archiver and build
 utilities are resolved there. CPPFLAGS/CFLAGS metadata is emitted with `printf`, preserving
 backslashes exactly. Each
-capture builds into a fresh unique `BUILD_DIR` keyed by UTC timestamp plus
-the shell PID and never relies on `make clean`, so concurrent captures do not
-share objects/executables and a fake ambient `rm` cannot preserve and certify
-a stale study executable.
+capture uses one UTC-timestamp-plus-PID identity for its source snapshot,
+`BUILD_DIR`, repository bundle stage, and sibling publish stage. The shared
+repository `build/` parent is created idempotently, so concurrent captures are
+isolated whether the parent already exists or is created by racing captures.
+The build never relies on `make clean`, so a fake ambient `rm` cannot
+preserve and certify a stale study executable.
 
 The evidence build uses the Makefile extracted from the recorded Git revision
 and invokes the resolved absolute Make path with
