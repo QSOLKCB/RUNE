@@ -308,7 +308,9 @@ parent would be removed or replaced by build activity. Parent-directory
 traversal in the requested destination is also rejected.
 
 The evidence build does **not** depend on `make clean`. Each capture receives
-a fresh unique `BUILD_DIR`; a pre-existing directory is a hard failure. The
+a fresh unique `BUILD_DIR` identified by UTC timestamp plus the shell PID, so
+captures started in the same second remain isolated. A pre-existing directory
+is a hard failure. The
 build clears inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`,
 `MAKEFILES`, and `MAKEOVERRIDES`, uses a recorded sanitized build `PATH`
 (default `/usr/bin:/bin:/usr/sbin:/sbin`, explicitly overridable with
@@ -323,8 +325,12 @@ escaping, including embedded apostrophes, so paths and multiword
 CPPFLAGS/CFLAGS replay as the same shell arguments rather than being split into
 different make arguments.
 
-The build recipe is pinned explicitly with the resolved absolute make path,
-`-C "$repo_root" -f Makefile`, and the fresh absolute `BUILD_DIR`.
+The build recipe is pinned explicitly with the resolved absolute make path and
+`-C "$repo_root" -f Makefile`. Make-facing values remain repository-relative:
+the study target is `build/.../rune_r7_study` and `BUILD_DIR` is
+`build/...`. The shell-facing executable path remains absolute. This avoids
+Make parsing repository-path whitespace while preserving replayability from any
+working directory.
 The script verifies that `Makefile` is tracked and records the Git blob ID of
 `source_revision:Makefile`. Ignored or globally excluded `GNUmakefile` or
 lowercase `makefile` files therefore cannot override the evidence build.
@@ -335,6 +341,8 @@ pinned build/run form from outside the repository. CI also reproduces
 symlink-routed output paths, active Git replacement refs, clean-filter-hidden
 raw source edits, and a hostile ambient `PATH` containing a fake `rm`; the
 fresh-build self-test must still compile and execute a 32 KiB smoke study.
+CI also launches two fresh-build self-tests concurrently and executes the same
+self-test from a linked worktree whose repository path contains spaces.
 
 The `getconf` memory fallback is valid only when both `_PHYS_PAGES` and
 `PAGE_SIZE` are present, numeric, and nonzero; a one-sided memory profile is
