@@ -311,7 +311,7 @@ The evidence build does **not** depend on `make clean`. Each capture receives
 a fresh unique `BUILD_DIR`; a pre-existing directory is a hard failure. The
 build clears inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`,
 `MAKEFILES`, and `MAKEOVERRIDES`, uses a recorded sanitized build `PATH`
-(default `/usr/bin:/bin`, explicitly overridable with
+(default `/usr/bin:/bin:/usr/sbin:/sbin`, explicitly overridable with
 `RUNE_R7_BUILD_PATH`), resolves the build driver plus `mkdir` and `rm`
 from that path, and invokes the resolved absolute build-driver path. This
 prevents an ambient `PATH` shim from turning a successful clean into reuse of
