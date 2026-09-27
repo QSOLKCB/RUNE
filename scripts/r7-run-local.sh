@@ -7,10 +7,25 @@ fail()
     exit 1
 }
 
+shell_quote()
+{
+    printf "'"
+    printf '%s' "$1" | sed "s/'/'\\\\''/g"
+    printf "'"
+}
+
+if [ "${1:-}" = "--self-test-shell-quote" ]; then
+    quoted=$(shell_quote "alpha beta'gamma")
+    [ "$quoted" = "'alpha beta'\\''gamma'" ] ||
+        fail "shell_quote self-test failed"
+    exit 0
+fi
+
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$repo_root"
 
 cc_name=${CC:-cc}
+ar_name=${AR:-ar}
 cppflags=${CPPFLAGS:-}
 cflags=${CFLAGS:-}
 repeats=${RUNE_R7_REPEATS:-5}
@@ -21,6 +36,12 @@ out_parent=$(dirname "$out_dir")
 case "$cc_name" in
     *[[:space:]]*)
         fail "CC must name one compiler executable; put flags in CPPFLAGS/CFLAGS"
+        ;;
+esac
+
+case "$ar_name" in
+    *[[:space:]]*)
+        fail "AR must name one archiver executable"
         ;;
 esac
 
@@ -63,6 +84,21 @@ compiler_version=$("$cc_path" --version 2>&1) ||
     fail "compiler identity command failed: $cc_path --version"
 [ -n "$compiler_version" ] ||
     fail "compiler identity output is empty"
+
+ar_path=$(command -v "$ar_name") ||
+    fail "archiver not found: $ar_name"
+[ -n "$ar_path" ] && [ -x "$ar_path" ] ||
+    fail "archiver path is not executable: $ar_path"
+
+if archiver_version=$("$ar_path" --version 2>&1); then
+    :
+elif archiver_version=$("$ar_path" -V 2>&1); then
+    :
+else
+    fail "archiver identity command failed: $ar_path"
+fi
+[ -n "$archiver_version" ] ||
+    fail "archiver identity output is empty"
 
 memory_profile=
 if [ -r /proc/meminfo ]; then
@@ -136,6 +172,8 @@ mkdir "$out_dir" ||
     echo "repeats=$repeats"
     echo "cc_requested=$cc_name"
     echo "cc_resolved=$cc_path"
+    echo "ar_requested=$ar_name"
+    echo "ar_resolved=$ar_path"
     echo "cppflags=$cppflags"
     echo "cflags=$cflags"
     echo "make_control_environment=MAKEFLAGS,GNUMAKEFLAGS,MFLAGS,MAKEFILES,MAKEOVERRIDES cleared"
@@ -153,16 +191,30 @@ mkdir "$out_dir" ||
 {
     echo "compiler_path=$cc_path"
     printf '%s\n' "$compiler_version"
+    echo "archiver_path=$ar_path"
+    printf '%s\n' "$archiver_version"
 } > "$out_dir/compiler.txt"
 
 {
-    echo "MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= make clean build/rune_r7_study CC=$cc_path CPPFLAGS=$cppflags CFLAGS=$cflags"
-    echo "./build/rune_r7_study --profile local --repeats $repeats"
+    printf "MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' make clean build/rune_r7_study CC="
+    shell_quote "$cc_path"
+    printf " AR="
+    shell_quote "$ar_path"
+    printf " CPPFLAGS="
+    shell_quote "$cppflags"
+    printf " CFLAGS="
+    shell_quote "$cflags"
+    printf '\n'
+
+    printf "./build/rune_r7_study --profile local --repeats "
+    shell_quote "$repeats"
+    printf '\n'
 } > "$out_dir/command.txt"
 
 MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
 make clean build/rune_r7_study \
     CC="$cc_path" \
+    AR="$ar_path" \
     CPPFLAGS="$cppflags" \
     CFLAGS="$cflags"
 

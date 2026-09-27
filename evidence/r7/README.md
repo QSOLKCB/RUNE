@@ -24,12 +24,14 @@ A bundle contains:
 - `environment.txt` — evidence class, source revision, dirty state including
   untracked files, timer method, exact CPPFLAGS/CFLAGS, CPU/platform context,
   and a required memory profile;
-- `compiler.txt` — resolved compiler path and successful version output;
-- `command.txt` — exact build/run commands;
+- `compiler.txt` — resolved compiler and archiver paths plus successful
+  identity/version output;
+- `command.txt` — exact replayable build/run commands using POSIX shell-safe
+  quoting, including multiword values and embedded apostrophes;
 - `observations.tsv` — raw numeric R7 observations;
 - `SHA256SUMS` — integrity hashes for the bundle.
 
-For evidence capture, CC must identify one compiler executable; compound
+For evidence capture, CC and AR must each identify one executable; compound
 commands are rejected. Missing compiler identity or memory profile causes the
 capture to fail. The getconf fallback requires both a nonzero numeric physical
 page count and page size.

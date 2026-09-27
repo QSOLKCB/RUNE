@@ -142,7 +142,8 @@
         16777216,
         67108864
       ],
-      "default_repeats": 5
+      "default_repeats": 5,
+      "direct_profile_invocation_uses_default_repeats_when_not_explicit": true
     },
     "explicit": {
       "min_bytes": 4096,
@@ -202,7 +203,20 @@
     "build_target_must_be_rebuilt_from_recorded_source_configuration": true,
     "destination_under_build_directory_allowed": false,
     "destination_path_checked_against_physical_parent": true,
-    "getconf_memory_profile_requires_both_nonzero_numeric_phys_pages_and_page_size": true
+    "getconf_memory_profile_requires_both_nonzero_numeric_phys_pages_and_page_size": true,
+    "AR_recorded_and_bound": true,
+    "archiver_command_must_be_single_executable": true,
+    "archiver_path_resolution_required": true,
+    "archiver_version_capture_required": true,
+    "archiver_identity_failure_is_capture_failure": true,
+    "command_recording": "POSIX-shell-replayable-single-quoted",
+    "multiword_CPPFLAGS_and_CFLAGS_are_unambiguously_serialized": true,
+    "command_recording_self_test": "scripts/r7-run-local.sh --self-test-shell-quote",
+    "shell_safe_quoting_handles_spaces_and_single_quotes": true,
+    "toolchain_identity_includes": [
+      "compiler",
+      "archiver"
+    ]
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,

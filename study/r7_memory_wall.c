@@ -1464,6 +1464,7 @@ int main(int argc, char **argv)
     uint64_t explicit_bytes;
     uint64_t repeats;
     int has_explicit_bytes;
+    int repeats_explicit;
     int i;
     uint64_t repeat;
 
@@ -1471,6 +1472,7 @@ int main(int argc, char **argv)
     explicit_bytes = 0u;
     repeats = UINT64_C(1);
     has_explicit_bytes = 0;
+    repeats_explicit = 0;
 
     for (i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--profile") == 0) {
@@ -1499,10 +1501,17 @@ int main(int argc, char **argv)
                 r7_usage(argv[0]);
                 return 2;
             }
+            repeats_explicit = 1;
         } else {
             r7_usage(argv[0]);
             return 2;
         }
+    }
+
+    if (!has_explicit_bytes &&
+        strcmp(profile, "local") == 0 &&
+        !repeats_explicit) {
+        repeats = UINT64_C(5);
     }
 
     if (has_explicit_bytes) {

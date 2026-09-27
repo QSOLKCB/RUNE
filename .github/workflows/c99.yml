@@ -30,6 +30,7 @@ jobs:
       - name: Validate R7 local evidence script
         run: |
           sh -n scripts/r7-run-local.sh
+          scripts/r7-run-local.sh --self-test-shell-quote
           mkdir -p build
           if scripts/r7-run-local.sh build/r7-evidence 2>/dev/null; then
             echo "R7 evidence script accepted build/ destination" >&2

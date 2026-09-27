@@ -205,7 +205,14 @@ The local ladder is:
 64 MiB
 ~~~
 
-The default local evidence run uses five repeats.
+The local profile itself defaults to five repeats. Therefore both:
+
+~~~sh
+./build/rune_r7_study --profile local
+~~~
+
+and the evidence wrapper use five repeats unless `--repeats` (or the wrapper's
+RUNE_R7_REPEATS input) explicitly overrides that value.
 
 The harness normalizes small cases toward roughly 64 MiB of logical work per
 sample so very small working sets are not represented by a single tiny loop.
@@ -244,8 +251,10 @@ The script records:
 
 - exact Git source revision;
 - dirty/clean working-tree state including untracked files;
-- resolved single-executable compiler path and successful version output;
-- both CPPFLAGS and CFLAGS, and binds those exact values into the build command;
+- resolved single-executable compiler **and archiver** paths with successful
+  identity/version output;
+- both CPPFLAGS and CFLAGS, binding those exact values plus CC and AR into the
+  build command;
 - uname platform context;
 - visible processor count when available;
 - CPU model when available;
@@ -263,8 +272,10 @@ bundle fails closed.
 Evidence destinations resolving to `build/` or a descendant are rejected,
 because the recorded build begins with `make clean`. The build itself clears
 inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`, `MAKEFILES`, and `MAKEOVERRIDES` so dry-run or other
-make-control flags cannot silently reuse a stale executable. The sanitized make
-invocation is recorded in `command.txt`.
+make-control flags cannot silently reuse a stale executable. The sanitized make invocation is recorded in `command.txt` using POSIX
+single-quote escaping, including embedded apostrophes, so paths and multiword
+CPPFLAGS/CFLAGS replay as the same shell arguments rather than being split into
+different make arguments. CI runs the quote serializer's built-in self-test.
 
 The `getconf` memory fallback is valid only when both `_PHYS_PAGES` and
 `PAGE_SIZE` are present, numeric, and nonzero; a one-sided memory profile is
