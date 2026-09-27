@@ -4,7 +4,7 @@ MODE=MACHINE_ONLY
 PROJECT=RUNE
 REFERENCE_LANGUAGE=ISO_C99
 LICENSE=MPL-2.0
-CURRENT_PHASE=R4
+CURRENT_PHASE=R5
 RUNTIME_IMPLEMENTATION_ALLOWED=true
 RUNTIME_PERFORMANCE_CLAIMS_ALLOWED=false
 
@@ -16,6 +16,7 @@ READ_ORDER:
 5=machine/r2-arena-scratch.v1.json
 6=machine/r3-integer-numeric.v1.json
 7=machine/r4-corpus-v1.json
+8=machine/r5-rings-streaming.v1.json
 
 HUMAN_PROSE:
 README.md
@@ -26,6 +27,7 @@ R1-REGION-CORE.md
 R2-ARENA-SCRATCH.md
 R3-INTEGER-NUMERIC.md
 R4-CORPUS-v1.md
+R5-RINGS-STREAMING.md
 
 MACHINE_AUTHORITY:
 machine/project-v1.json
@@ -35,6 +37,7 @@ machine/r1-region-core.v1.json
 machine/r2-arena-scratch.v1.json
 machine/r3-integer-numeric.v1.json
 machine/r4-corpus-v1.json
+machine/r5-rings-streaming.v1.json
 
 CONFLICT_POLICY=FAIL_CLOSED
 ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
@@ -42,7 +45,7 @@ DO_NOT_INVENT_RECONCILIATION=true
 
 CORE_RULES:
 - preserve_all_invariants
-- runtime_code_allowed_only_within_current_R4_corpus_scope
+- runtime_code_allowed_only_within_current_R5_rings_streaming_scope
 - cpu_only
 - integer_only_public_semantics
 - fractional_rounding_behavior_must_be_declared
@@ -56,6 +59,18 @@ CORE_RULES:
 - platform_specific_facilities_require_explicit_boundary
 - os_specific_api_may_not_be_core_requirement
 - bounded_external_growth
+- ring_storage_is_caller_owned_and_borrowed
+- ring_cursor_state_is_separate_from_storage_ownership
+- ring_capacity_is_fixed_after_init
+- ring_full_capacity_is_usable_without_reserved_slot
+- ring_read_write_views_are_at_most_two_spans
+- ring_view_first_span_precedes_second_logically
+- ring_FIFO_order_is_deterministic
+- ring_produce_consume_commit_exact_lengths
+- ring_commit_failures_are_non_mutating
+- ring_views_logically_expire_after_successful_state_mutation
+- ring_baseline_is_single_threaded_without_atomics
+- logical_stream_may_exceed_resident_ring_capacity
 - corpus_inputs_are_deterministic_and_procedural
 - corpus_receipts_must_not_include_timing_in_R4
 - corpus_result_identity_excludes_timing
@@ -103,7 +118,7 @@ CORE_RULES:
 - optional_internal_optimization_unavailable_or_losing_requires_fallback_to_correct_simpler_path
 - requested_contract_capability_unsupported_requires_explicit_failure
 - optional_internal_optimization_absence_is_not_unsupported_capability_failure
-- runtime_performance_claims_forbidden_in_R4
+- runtime_performance_claims_forbidden_in_R5
 - causal_performance_claim_requires_support_beyond_timing
 - portable_identity_requires_explicit_versioned_representation
 - fixed_width_integer_identity_is_allowed_but_not_the_only_allowed_explicit_representation

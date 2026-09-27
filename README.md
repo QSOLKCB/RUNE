@@ -46,13 +46,13 @@ MORE COMPUTE != BETTER EXECUTION
 
 ## Status
 
-**R4 — RUNE-CORPUS-v1.**
+**R5 — Queues, rings and bounded streaming.**
 
-R0 through R3 are merged. RUNE now includes a deterministic procedural local-memory corpus covering C01–C15: locality, materialization/fusion, AoS/SoA, microtiles, corpus-local rings, arena reuse, exact fixed-point reconstruction, retain/regenerate, chunked byte streams, and huge logical domains under bounded resident state.
+R0 through R4 are merged. RUNE now includes a byte-oriented fixed-capacity FIFO over caller-owned storage, with cursor state separated from ownership, explicit wrapped two-span read/write views, and exact produce/consume commits.
 
-R4 adds **workload definitions and correctness receipts, not performance claims**. Timing is deliberately absent from the R4 receipt identity and remains deferred to the later CPU memory-wall study.
+R5 remains **single-threaded and correctness-only**. It adds no atomics, blocking semantics, scheduler, typed queue hierarchy, or runtime performance claim.
 
-See [R4-CORPUS-v1.md](R4-CORPUS-v1.md) and [ROADMAP.md](ROADMAP.md).
+See [R5-RINGS-STREAMING.md](R5-RINGS-STREAMING.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Build and test
 
@@ -71,7 +71,7 @@ The tests exercise deterministic correctness only. They are not performance benc
 Project: RUNE
 Name: Runtime for Unified Numeric Execution
 Reference language: ISO C99
-Current phase: R4 — RUNE-CORPUS-v1
+Current phase: R5 — Queues, rings and bounded streaming
 Architecture: CPU-only
 Numeric boundary: integer-only
 Memory model: explicit and bounded
@@ -279,6 +279,7 @@ Human-facing files:
 - [R2-ARENA-SCRATCH.md](R2-ARENA-SCRATCH.md)
 - [R3-INTEGER-NUMERIC.md](R3-INTEGER-NUMERIC.md)
 - [R4-CORPUS-v1.md](R4-CORPUS-v1.md)
+- [R5-RINGS-STREAMING.md](R5-RINGS-STREAMING.md)
 
 Machine-facing files:
 
@@ -290,6 +291,7 @@ Machine-facing files:
 - [machine/r2-arena-scratch.v1.json](machine/r2-arena-scratch.v1.json)
 - [machine/r3-integer-numeric.v1.json](machine/r3-integer-numeric.v1.json)
 - [machine/r4-corpus-v1.json](machine/r4-corpus-v1.json)
+- [machine/r5-rings-streaming.v1.json](machine/r5-rings-streaming.v1.json)
 
 A contradiction between the two surfaces is a defect. Automated agents must fail closed rather than invent a reconciliation.
 
