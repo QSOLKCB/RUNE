@@ -248,17 +248,20 @@ rejected. The script clears Git repository-routing overrides, resolves Git only 
 fixed provenance path `/usr/bin:/bin:/usr/sbin:/sbin`, records that absolute
 Git executable and version, sets `GIT_NO_REPLACE_OBJECTS=1`, rejects active
 `refs/replace`, and anchors all provenance reads to `repo_root` with
-`git -C`. The overridable `RUNE_R7_BUILD_PATH` is used only for build
-utilities and cannot replace the Git executable used for provenance. Before creating the
+`git -C`. Evidence builds use that same fixed system tool path; the build-tool
+search path is not caller-overridable. Before creating the
 destination it rejects Git index flags that can hide tracked changes
 (`assume-unchanged` and `skip-worktree`), rejects ignored untracked files
 under the compiler-input trees `src/`, `include/`, and `study/`, and
 compares the raw bytes of every tracked Makefile/source/include/study input
 against the recorded revision using `git hash-object --no-filters`. It then
-samples tracked, staged, and untracked Git state. The same source-identity check
-is repeated immediately after the evidence build and again after the measured
-execution. The bundle directory is not created until the post-build check
-passes. **Any dirty or raw-byte divergent worktree is rejected.** R7 local
+materializes **Makefile, src/, include/, and study/** directly from
+`git archive source_revision` into a per-capture source snapshot. The extracted
+bytes are checked against the recorded revision and made read-only before Make
+runs. Make executes inside that snapshot, so the mutable checkout is not a
+compiler input. Worktree and snapshot identity are checked again after the build
+and after measurement. The bundle directory is not created until the post-build
+checks pass. **Any dirty or divergent checkout/snapshot is rejected.** R7 local
 evidence
 therefore binds directly to the recorded `source_revision`; a bundle may not
 claim a commit while actually building uncommitted source content. Files marked
@@ -279,8 +282,9 @@ The script records:
   without clean filters;
 - a verified clean working tree, including absence of untracked files and
   ignored untracked files under `src/`, `include/`, and `study/`;
-- resolved single-executable compiler, archiver, and build-driver paths with
-  successful identity/version output;
+- compiler, archiver, and build-driver executables resolved from the fixed
+  provenance path, with successful identity/version output; arbitrary external
+  compiler/archiver wrappers are not accepted for evidence capture;
 - both CPPFLAGS and CFLAGS, recorded with `printf` so backslashes and other
   shell-text content are preserved exactly, binding those values plus CC and AR
   into the build command;
@@ -326,25 +330,24 @@ a `mkdir` executable resolved from the fixed provenance path, and the newly
 created directory is verified empty before any evidence file is written.
 
 The evidence build does **not** depend on `make clean`. Each capture receives
-a fresh unique `BUILD_DIR` identified by UTC timestamp plus the shell PID, so
-captures started in the same second remain isolated. A pre-existing directory
-is a hard failure. The
-build clears inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`,
-`MAKEFILES`, and `MAKEOVERRIDES`, uses a recorded sanitized build `PATH`
-(default `/usr/bin:/bin:/usr/sbin:/sbin`, explicitly overridable with
-`RUNE_R7_BUILD_PATH`), resolves the build driver plus `mkdir` and `rm`
-from that path, and invokes the resolved absolute build-driver path. This
-prevents an ambient `PATH` shim from turning a successful clean into reuse of
-a stale executable. The fresh build directory is removed through the resolved
-`rm` path after the measured executable completes.
+a unique source-snapshot directory and a fresh `BUILD_DIR`, both identified by
+UTC timestamp plus shell PID, so concurrent captures remain isolated. Source
+material is extracted from the recorded Git tree, verified, and made read-only.
+The build clears inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`,
+`MAKEFILES`, and `MAKEOVERRIDES`, uses the fixed
+`/usr/bin:/bin:/usr/sbin:/sbin` tool path, and invokes absolute trusted Make,
+compiler, archiver, and utility paths. The entire source/build snapshot is
+removed after measurement.
 
 The sanitized invocation is recorded in `command.txt` using POSIX single-quote
 escaping. The quote serializer uses `sed` resolved from the fixed provenance
 path rather than ambient `PATH`, so repository paths containing apostrophes
 remain replayable even in a hostile shell environment.
 
-The build recipe is pinned explicitly with the resolved absolute make path and
-`-C "$repo_root" -f Makefile`. Make-facing values remain repository-relative:
+The build recipe is pinned explicitly with the resolved absolute Make path and
+`-C "$source_snapshot" -f Makefile`. The replay commands first recreate the
+same Git-tree snapshot from `source_revision`. Make-facing values remain
+snapshot-relative:
 the study target is `build/.../rune_r7_study` and `BUILD_DIR` is
 `build/...`. The shell-facing executable path remains absolute. This avoids
 Make parsing repository-path whitespace while preserving replayability from any
