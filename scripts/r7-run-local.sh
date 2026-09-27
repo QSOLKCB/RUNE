@@ -51,6 +51,12 @@ build_path=${RUNE_R7_BUILD_PATH:-/usr/bin:/bin}
 
 validate_build_path()
 {
+    case "$build_path" in
+        ''|:*|*:|*::*)
+            fail "RUNE_R7_BUILD_PATH must contain nonempty absolute directory entries"
+            ;;
+    esac
+
     old_ifs=$IFS
     IFS=:
     for path_entry in $build_path; do
@@ -71,6 +77,8 @@ resolve_build_tool()
 }
 
 validate_build_path
+PATH=$build_path
+export PATH
 
 if [ "${1:-}" = "--self-test-build-tools" ]; then
     for tool in make mkdir rm; do
@@ -221,7 +229,6 @@ tracked_inputs=$(git -C "$repo_root" ls-files -- Makefile src include study) ||
 [ -n "$tracked_inputs" ] ||
     fail "tracked compiler-input set is empty"
 
-printf '%s\n' "$tracked_inputs" |
 while IFS= read -r tracked_path; do
     [ -n "$tracked_path" ] || continue
     [ -f "$repo_root/$tracked_path" ] ||
@@ -232,7 +239,9 @@ while IFS= read -r tracked_path; do
         fail "could not resolve revision blob: $tracked_path"
     [ "$worktree_blob" = "$revision_blob" ] ||
         fail "raw worktree bytes differ from source revision: $tracked_path"
-done
+done <<R7_TRACKED_INPUTS
+$tracked_inputs
+R7_TRACKED_INPUTS
 
 dirty=false
 
