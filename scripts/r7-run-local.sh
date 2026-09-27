@@ -92,21 +92,6 @@ canonicalize_existing_path()
         *) return 1 ;;
     esac
 
-    canonical_hops=0
-    while [ -L "$canonical_path" ]; do
-        canonical_hops=$((canonical_hops + 1))
-        [ "$canonical_hops" -le 40 ] || return 1
-        canonical_link=$("$readlink_path" "$canonical_path") || return 1
-        case "$canonical_link" in
-            /*) canonical_path=$canonical_link ;;
-            *) canonical_path=${canonical_path%/*}/$canonical_link ;;
-        esac
-        canonical_parent=${canonical_path%/*}
-        canonical_base=${canonical_path##*/}
-        canonical_parent=$(CDPATH= cd -- "$canonical_parent" && pwd -P) || return 1
-        canonical_path=$canonical_parent/$canonical_base
-    done
-
     canonical_parent=${canonical_path%/*}
     canonical_base=${canonical_path##*/}
     canonical_parent=$(CDPATH= cd -- "$canonical_parent" && pwd -P) || return 1
