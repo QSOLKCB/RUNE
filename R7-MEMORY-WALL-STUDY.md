@@ -241,8 +241,11 @@ or:
 RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 ~~~
 
-The script creates an **immutable new destination** and refuses to overwrite an
-existing bundle. Destinations may not resolve inside, or lexically route
+The script publishes an **immutable new destination** and refuses to overwrite an
+existing bundle. During capture, bundle files are written only to a unique
+staging directory under the ignored repository `build/` tree. The requested
+destination is not created until measurement, final source/snapshot validation,
+snapshot cleanup, and SHA-256 finalization have all succeeded. Destinations may not resolve inside, or lexically route
 through, the repository `build/` tree, and parent-directory traversal is
 rejected. The script clears Git repository-routing overrides, resolves Git only from the
 fixed provenance path `/usr/bin:/bin:/usr/sbin:/sbin`, records that absolute
@@ -260,8 +263,9 @@ materializes **Makefile, src/, include/, and study/** directly from
 bytes are checked against the recorded revision and made read-only before Make
 runs. Make executes inside that snapshot, so the mutable checkout is not a
 compiler input. Worktree and snapshot identity are checked again after the build
-and after measurement. The bundle directory is not created until the post-build
-checks pass. **Any dirty or divergent checkout/snapshot is rejected.** R7 local
+and after measurement. The publish destination is not created during the build or measurement. An
+EXIT/signal cleanup trap removes the source snapshot and staged bundle on
+failure, including measurement failures such as resource exhaustion. **Any dirty or divergent checkout/snapshot is rejected.** R7 local
 evidence
 therefore binds directly to the recorded `source_revision`; a bundle may not
 claim a commit while actually building uncommitted source content. Files marked
@@ -325,9 +329,12 @@ Evidence destinations resolving inside or lexically routing through `build/`
 are rejected before bundle creation, including symlink routes whose lexical
 parent would be removed or replaced by build activity. Parent-directory
 traversal in the requested destination is also rejected. `RUNE_R7_REPEATS`
-is validated as 1..100 before the destination is reserved. Bundle creation uses
-a `mkdir` executable resolved from the fixed provenance path, and the newly
-created directory is verified empty before any evidence file is written.
+is validated as 1..100 before the destination is reserved. The staging directory is created with a `mkdir` executable resolved from the
+fixed provenance path and verified empty before metadata is written. After the
+staged bundle is checksummed and the final worktree validation passes, trusted
+`mv` publishes it to the requested destination. This permits the documented
+default `evidence/r7/local-...` destination without the capture treating its
+own output as an untracked source mutation.
 
 The evidence build does **not** depend on `make clean`. Each capture receives
 a unique source-snapshot directory and a fresh `BUILD_DIR`, both identified by
