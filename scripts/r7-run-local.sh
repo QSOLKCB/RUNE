@@ -377,6 +377,17 @@ R7_SNAPSHOT_INPUTS
 
 materialize_source_snapshot()
 {
+    if [ -L "$repo_root/build" ]; then
+        fail "repository build path must not be a symlink"
+    fi
+    if [ -e "$repo_root/build" ] && [ ! -d "$repo_root/build" ]; then
+        fail "repository build path is not a directory"
+    fi
+    if [ ! -d "$repo_root/build" ]; then
+        "$bundle_mkdir_path" "$repo_root/build" ||
+            fail "could not create repository build directory"
+    fi
+
     [ ! -e "$source_snapshot" ] && [ ! -L "$source_snapshot" ] ||
         fail "source snapshot destination already exists: $source_snapshot"
 
@@ -605,6 +616,8 @@ observations_path="$out_abs/observations.tsv"
     printf 'basename_resolved=%s\n' "$basename_path"
     printf 'source_snapshot=%s\n' "$source_snapshot"
     printf 'source_snapshot_revision=%s\n' "$revision"
+    printf '%s\n' "build_source_origin=git_archive_recorded_revision"
+    printf '%s\n' "build_source_worktree_used=false"
     printf 'uname_resolved=%s\n' "$uname_path"
     printf 'sha256_mode=%s\n' "$hash_mode"
     printf 'sha256_resolved=%s\n' "$hash_path"
@@ -670,6 +683,10 @@ observations_path="$out_abs/observations.tsv"
     printf "export GIT_NO_REPLACE_OBJECTS=1\n"
     printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX\n"
     printf "unset LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH DYLD_FRAMEWORK_PATH DYLD_FALLBACK_LIBRARY_PATH DYLD_FALLBACK_FRAMEWORK_PATH LIBPATH SHLIB_PATH\n"
+    shell_quote "$bundle_mkdir_path"
+    printf " -p "
+    shell_quote "$repo_root/build"
+    printf '\n'
     shell_quote "$bundle_mkdir_path"
     printf " "
     shell_quote "$source_snapshot"
