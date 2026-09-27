@@ -7,7 +7,7 @@ fail()
     exit 1
 }
 
-repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$repo_root"
 
 cc_name=${CC:-cc}
@@ -26,6 +26,17 @@ esac
 
 [ -d "$out_parent" ] ||
     fail "bundle parent directory does not exist: $out_parent"
+
+out_parent_abs=$(CDPATH= cd -- "$out_parent" && pwd -P) ||
+    fail "could not resolve bundle parent: $out_parent"
+out_leaf=$(basename -- "$out_dir")
+out_abs="$out_parent_abs/$out_leaf"
+
+case "$out_abs" in
+    "$repo_root/build"|"$repo_root/build/"*)
+        fail "evidence destination must not be inside build/: $out_dir"
+        ;;
+esac
 
 if [ -e "$out_dir" ] || [ -L "$out_dir" ]; then
     fail "evidence destination already exists; refusing overwrite: $out_dir"
@@ -78,13 +89,18 @@ fi
 if [ -z "$memory_profile" ] && command -v getconf >/dev/null 2>&1; then
     phys_pages=$(getconf _PHYS_PAGES 2>/dev/null || :)
     page_size=$(getconf PAGE_SIZE 2>/dev/null || :)
-    case "$phys_pages:$page_size" in
-        *[!0-9:]*|:|*:0|0:*) ;;
-        *)
-            memory_profile="mem_phys_pages=$phys_pages
-mem_page_size_bytes=$page_size"
-            ;;
+
+    case "$phys_pages" in
+        ''|*[!0-9]*|0) phys_pages= ;;
     esac
+    case "$page_size" in
+        ''|*[!0-9]*|0) page_size= ;;
+    esac
+
+    if [ -n "$phys_pages" ] && [ -n "$page_size" ]; then
+        memory_profile="mem_phys_pages=$phys_pages
+mem_page_size_bytes=$page_size"
+    fi
 fi
 
 [ -n "$memory_profile" ] ||
@@ -122,6 +138,7 @@ mkdir "$out_dir" ||
     echo "cc_resolved=$cc_path"
     echo "cppflags=$cppflags"
     echo "cflags=$cflags"
+    echo "make_control_environment=MAKEFLAGS,GNUMAKEFLAGS,MFLAGS,MAKEFILES,MAKEOVERRIDES cleared"
     echo "uname=$(uname -a)"
     if command -v getconf >/dev/null 2>&1; then
         echo "processors_online=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo unknown)"
@@ -139,11 +156,15 @@ mkdir "$out_dir" ||
 } > "$out_dir/compiler.txt"
 
 {
-    echo "make clean build/rune_r7_study CC=$cc_path CPPFLAGS=$cppflags CFLAGS=$cflags"
+    echo "MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= make clean build/rune_r7_study CC=$cc_path CPPFLAGS=$cppflags CFLAGS=$cflags"
     echo "./build/rune_r7_study --profile local --repeats $repeats"
 } > "$out_dir/command.txt"
 
-make clean build/rune_r7_study     CC="$cc_path"     CPPFLAGS="$cppflags"     CFLAGS="$cflags"
+MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
+make clean build/rune_r7_study \
+    CC="$cc_path" \
+    CPPFLAGS="$cppflags" \
+    CFLAGS="$cflags"
 
 ./build/rune_r7_study --profile local --repeats "$repeats"     > "$out_dir/observations.tsv"
 

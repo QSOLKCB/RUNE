@@ -190,7 +190,19 @@
       "sysctl hw.memsize/hw.physmem64/hw.physmem",
       "getconf _PHYS_PAGES + PAGE_SIZE"
     ],
-    "missing_memory_profile_is_capture_failure": true
+    "missing_memory_profile_is_capture_failure": true,
+    "inherited_make_control_variables_sanitized": [
+      "MAKEFLAGS",
+      "GNUMAKEFLAGS",
+      "MFLAGS",
+      "MAKEFILES",
+      "MAKEOVERRIDES"
+    ],
+    "inherited_make_dry_run_must_not_affect_build": true,
+    "build_target_must_be_rebuilt_from_recorded_source_configuration": true,
+    "destination_under_build_directory_allowed": false,
+    "destination_path_checked_against_physical_parent": true,
+    "getconf_memory_profile_requires_both_nonzero_numeric_phys_pages_and_page_size": true
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,

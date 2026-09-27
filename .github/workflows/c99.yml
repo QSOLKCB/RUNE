@@ -28,7 +28,13 @@ jobs:
         run: make clean test r6-proof corpus-smoke r7-study-smoke CC="${{ matrix.cc }}"
 
       - name: Validate R7 local evidence script
-        run: sh -n scripts/r7-run-local.sh
+        run: |
+          sh -n scripts/r7-run-local.sh
+          mkdir -p build
+          if scripts/r7-run-local.sh build/r7-evidence 2>/dev/null; then
+            echo "R7 evidence script accepted build/ destination" >&2
+            exit 1
+          fi
 
       - name: Reject truncated corpus output
         run: |

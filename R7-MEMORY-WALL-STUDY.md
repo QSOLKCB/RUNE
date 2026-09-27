@@ -260,6 +260,16 @@ or flags must be represented explicitly rather than hidden inside CC. If the
 compiler cannot be resolved/identified or memory context cannot be captured, the
 bundle fails closed.
 
+Evidence destinations resolving to `build/` or a descendant are rejected,
+because the recorded build begins with `make clean`. The build itself clears
+inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`, `MAKEFILES`, and `MAKEOVERRIDES` so dry-run or other
+make-control flags cannot silently reuse a stale executable. The sanitized make
+invocation is recorded in `command.txt`.
+
+The `getconf` memory fallback is valid only when both `_PHYS_PAGES` and
+`PAGE_SIZE` are present, numeric, and nonzero; a one-sided memory profile is
+not accepted as complete evidence.
+
 These fields satisfy the evidence-dimension requirement only when the bundle is
 actually captured on the host. A template or planned command is not execution
 evidence.
