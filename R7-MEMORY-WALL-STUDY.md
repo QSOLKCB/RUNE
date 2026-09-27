@@ -238,13 +238,18 @@ RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 ~~~
 
 The script creates an **immutable new destination** and refuses to overwrite an
-existing bundle. It first clears Git repository-routing overrides and anchors
-all provenance reads to `repo_root` with `git -C`. Before creating the
+existing bundle. Destinations may not resolve inside, or lexically route
+through, the repository `build/` tree, and parent-directory traversal is
+rejected. The script clears Git repository-routing overrides, sets
+`GIT_NO_REPLACE_OBJECTS=1`, rejects active `refs/replace`, and anchors all
+provenance reads to `repo_root` with `git -C`. Before creating the
 destination it rejects Git index flags that can hide tracked changes
 (`assume-unchanged` and `skip-worktree`), rejects ignored untracked files
-under the compiler-input trees `src/`, `include/`, and `study/`, then
-samples tracked, staged, and untracked Git state. **Any dirty worktree is
-rejected.** R7 local evidence
+under the compiler-input trees `src/`, `include/`, and `study/`, and
+compares the raw bytes of every tracked Makefile/source/include/study input
+against the recorded revision using `git hash-object --no-filters`. It then
+samples tracked, staged, and untracked Git state. **Any dirty or raw-byte
+divergent worktree is rejected.** R7 local evidence
 therefore binds directly to the recorded `source_revision`; a bundle may not
 claim a commit while actually building uncommitted source content. Files marked
 `assume-unchanged` or `skip-worktree` are rejected because those index flags
@@ -258,12 +263,14 @@ evidence_class=raw-local-execution-observation
 
 The script records:
 
-- exact Git source revision, with Git routing overrides cleared and provenance
-  commands explicitly rooted at the repository;
+- exact Git source revision, with Git routing overrides cleared, replacement
+  objects disabled/rejected, provenance commands explicitly rooted at the
+  repository, and raw compiler-input bytes verified against revision blobs
+  without clean filters;
 - a verified clean working tree, including absence of untracked files and
   ignored untracked files under `src/`, `include/`, and `study/`;
-- resolved single-executable compiler **and archiver** paths with successful
-  identity/version output;
+- resolved single-executable compiler, archiver, and build-driver paths with
+  successful identity/version output;
 - both CPPFLAGS and CFLAGS, binding those exact values plus CC and AR into the
   build command;
 - explicit sanitation of ambient compiler search-path variables
@@ -295,22 +302,39 @@ dynamic-loader injection. If the
 compiler cannot be resolved/identified or memory context cannot be captured, the
 bundle fails closed.
 
-Evidence destinations resolving to `build/` or a descendant are rejected,
-because the recorded build begins with `make clean`. The build itself clears
-inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`, `MAKEFILES`, and `MAKEOVERRIDES` so dry-run or other
-make-control flags cannot silently reuse a stale executable. The sanitized make invocation is recorded in `command.txt` using POSIX
-single-quote escaping, including embedded apostrophes, so paths and multiword
+Evidence destinations resolving inside or lexically routing through `build/`
+are rejected before bundle creation, including symlink routes whose lexical
+parent would be removed or replaced by build activity. Parent-directory
+traversal in the requested destination is also rejected.
+
+The evidence build does **not** depend on `make clean`. Each capture receives
+a fresh unique `BUILD_DIR`; a pre-existing directory is a hard failure. The
+build clears inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`,
+`MAKEFILES`, and `MAKEOVERRIDES`, uses a recorded sanitized build `PATH`
+(default `/usr/bin:/bin`, explicitly overridable with
+`RUNE_R7_BUILD_PATH`), resolves the build driver plus `mkdir` and `rm`
+from that path, and invokes the resolved absolute build-driver path. This
+prevents an ambient `PATH` shim from turning a successful clean into reuse of
+a stale executable. The fresh build directory is removed through the resolved
+`rm` path after the measured executable completes.
+
+The sanitized invocation is recorded in `command.txt` using POSIX single-quote
+escaping, including embedded apostrophes, so paths and multiword
 CPPFLAGS/CFLAGS replay as the same shell arguments rather than being split into
 different make arguments.
 
-The build recipe is pinned explicitly with `make -C "$repo_root" -f Makefile`.
+The build recipe is pinned explicitly with the resolved absolute make path,
+`-C "$repo_root" -f Makefile`, and the fresh absolute `BUILD_DIR`.
 The script verifies that `Makefile` is tracked and records the Git blob ID of
 `source_revision:Makefile`. Ignored or globally excluded `GNUmakefile` or
 lowercase `makefile` files therefore cannot override the evidence build.
 `command.txt` records that explicit working directory and uses an absolute
 path for the study executable, so replay does not depend on the caller's current
 directory. CI runs the quote serializer's built-in self-test and executes the
-pinned build/run form from outside the repository.
+pinned build/run form from outside the repository. CI also reproduces
+symlink-routed output paths, active Git replacement refs, clean-filter-hidden
+raw source edits, and a hostile ambient `PATH` containing a fake `rm`; the
+fresh-build self-test must still compile and execute a 32 KiB smoke study.
 
 The `getconf` memory fallback is valid only when both `_PHYS_PAGES` and
 `PAGE_SIZE` are present, numeric, and nonzero; a one-sided memory profile is
