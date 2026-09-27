@@ -14,9 +14,9 @@ cc_name=${CC:-cc}
 ar_name=${AR:-ar}
 
 case "$cc_name" in
-    gcc|clang) system_cc="/usr/bin/$cc_name" ;;
-    /usr/bin/gcc|/usr/bin/clang) system_cc=$cc_name ;;
-    *) fail "CI regression expects gcc or clang from /usr/bin: $cc_name" ;;
+    cc|gcc|clang) system_cc="/usr/bin/$cc_name" ;;
+    /usr/bin/cc|/usr/bin/gcc|/usr/bin/clang) system_cc=$cc_name ;;
+    *) fail "R7 regression expects cc, gcc, or clang from /usr/bin: $cc_name" ;;
 esac
 
 case "$ar_name" in
@@ -25,16 +25,18 @@ case "$ar_name" in
     *) fail "CI regression expects /usr/bin/ar: $ar_name" ;;
 esac
 
-tmp_root="/tmp/rune-r7-evidence-regression-$$"
+test_id=$
+tmp_root="/tmp/rune-r7-evidence-regression-$test_id"
+publish_parent="/dev/shm/r7-publish-regression-$test_id"
 mkdir -p "$tmp_root"
 
 cleanup()
 {
-    rm -rf "$tmp_root"
-    rm -f /tmp/r7-reg-cc-$$ /tmp/r7-reg-ar-$$ /tmp/r7-reg-make-$$
-    rm -f /tmp/r7-tar-hook-$ /tmp/r7-tar-hook-ran-$
-    rm -f /tmp/r7-ccc-header-$.h
-    rm -f /tmp/r7-concurrent-a-$.log /tmp/r7-concurrent-b-$.log
+    rm -rf "$tmp_root" "$publish_parent"
+    rm -f "/tmp/r7-reg-cc-$test_id" "/tmp/r7-reg-ar-$test_id" "/tmp/r7-reg-make-$test_id"
+    rm -f "/tmp/r7-tar-hook-$test_id" "/tmp/r7-tar-hook-ran-$test_id"
+    rm -f "/tmp/r7-ccc-header-$test_id.h"
+    rm -f "/tmp/r7-concurrent-a-$test_id.log" "/tmp/r7-concurrent-b-$test_id.log"
     rm -rf "$repo_root"/build/r7-source-* "$repo_root"/build/r7-evidence-* "$repo_root"/build/r7-bundle-stage-*
 }
 trap cleanup 0 1 2 3 15
@@ -51,6 +53,31 @@ expect_capture_failure()
     [ ! -e "$dest" ] || fail "$label left a requested destination"
 }
 
+# Repository-root discovery must not consult ambient dirname.
+fake_dirname_bin="$tmp_root/fake-dirname-bin"
+mkdir -p "$fake_dirname_bin"
+cat > "$fake_dirname_bin/dirname" <<'EOF'
+#!/bin/sh
+exit 97
+EOF
+chmod +x "$fake_dirname_bin/dirname"
+PATH="$fake_dirname_bin:$PATH" scripts/r7-run-local.sh --self-test-git-root
+
+# Caller flags must be literal build configuration, never recursive Make references.
+hidden_header="/tmp/r7-hidden-header-$test_id.h"
+cat > "$hidden_header" <<'EOF'
+#include <time.h>
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 424242
+EOF
+expect_capture_failure make-reference-cppflags \
+    env R7_HEADER="$hidden_header" 'CPPFLAGS=-include $(R7_HEADER)' \
+    RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" scripts/r7-run-local.sh
+expect_capture_failure make-reference-cflags \
+    env R7_OPT='-O2' 'CFLAGS=$(R7_OPT)' \
+    RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" scripts/r7-run-local.sh
+rm -f "$hidden_header"
+
 # Environment serialization must preserve backslashes and field boundaries.
 scripts/r7-run-local.sh --self-test-environment-serialization
 
@@ -60,12 +87,12 @@ CCC_OVERRIDE_OPTIONS='#+-include +/tmp/should-not-exist.h' \
 
 case "$system_cc" in
     *clang)
-        cat > /tmp/r7-ccc-header-$.h <<'EOF'
+        cat > /tmp/r7-ccc-header-$test_id.h <<'EOF'
 #undef CLOCKS_PER_SEC
 #define CLOCKS_PER_SEC 424242
 EOF
         ccc_bundle="$tmp_root/ccc-override"
-        CCC_OVERRIDE_OPTIONS="#+-include +/tmp/r7-ccc-header-$.h" \
+        CCC_OVERRIDE_OPTIONS="#+-include +/tmp/r7-ccc-header-$test_id.h" \
             RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
             scripts/r7-run-local.sh "$ccc_bundle" >/dev/null
         if /usr/bin/awk -F '\t' '$16 == 424242 { bad=1 } END { exit bad ? 0 : 1 }' "$ccc_bundle/observations.tsv"; then
@@ -73,7 +100,7 @@ EOF
         fi
         /usr/bin/grep -Fq 'CCC_OVERRIDE_OPTIONS' "$ccc_bundle/command.txt" ||
             fail "replay does not explicitly clear CCC_OVERRIDE_OPTIONS"
-        CCC_OVERRIDE_OPTIONS="#+-include +/tmp/r7-ccc-header-$.h" \
+        CCC_OVERRIDE_OPTIONS="#+-include +/tmp/r7-ccc-header-$test_id.h" \
             /bin/sh "$ccc_bundle/command.txt" >/dev/null
         if /usr/bin/awk -F '\t' '$16 == 424242 { bad=1 } END { exit bad ? 0 : 1 }' "$ccc_bundle/observations.tsv"; then
             fail "CCC_OVERRIDE_OPTIONS changed replayed clock scale"
@@ -89,21 +116,21 @@ run_concurrent_pair()
     rm -rf "$dest_a" "$dest_b"
 
     RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
-        scripts/r7-run-local.sh "$dest_a" > /tmp/r7-concurrent-a-$.log 2>&1 &
+        scripts/r7-run-local.sh "$dest_a" > /tmp/r7-concurrent-a-$test_id.log 2>&1 &
     pid_a=$!
     RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
-        scripts/r7-run-local.sh "$dest_b" > /tmp/r7-concurrent-b-$.log 2>&1 &
+        scripts/r7-run-local.sh "$dest_b" > /tmp/r7-concurrent-b-$test_id.log 2>&1 &
     pid_b=$!
 
     if wait "$pid_a"; then status_a=0; else status_a=$?; fi
     if wait "$pid_b"; then status_b=0; else status_b=$?; fi
 
     [ "$status_a" -eq 0 ] || {
-        cat /tmp/r7-concurrent-a-$.log >&2
+        cat /tmp/r7-concurrent-a-$test_id.log >&2
         fail "$label capture A failed with status $status_a"
     }
     [ "$status_b" -eq 0 ] || {
-        cat /tmp/r7-concurrent-b-$.log >&2
+        cat /tmp/r7-concurrent-b-$test_id.log >&2
         fail "$label capture B failed with status $status_b"
     }
 
@@ -130,23 +157,23 @@ rm -rf build
 run_concurrent_pair concurrent-missing-build
 
 # Canonical-path regression: lexical /usr/bin prefixes must not authorize /tmp.
-cat > /tmp/r7-reg-cc-$$ <<EOF
+cat > /tmp/r7-reg-cc-$test_id <<EOF
 #!/bin/sh
 exec "$system_cc" "\$@"
 EOF
-cat > /tmp/r7-reg-ar-$$ <<EOF
+cat > /tmp/r7-reg-ar-$test_id <<EOF
 #!/bin/sh
 exec "$system_ar" "\$@"
 EOF
-cat > /tmp/r7-reg-make-$$ <<'EOF'
+cat > /tmp/r7-reg-make-$test_id <<'EOF'
 #!/bin/sh
 exec /usr/bin/make "$@"
 EOF
-chmod +x /tmp/r7-reg-cc-$$ /tmp/r7-reg-ar-$$ /tmp/r7-reg-make-$$
+chmod +x /tmp/r7-reg-cc-$test_id /tmp/r7-reg-ar-$test_id /tmp/r7-reg-make-$test_id
 
-expect_capture_failure canonical-cc     env RUNE_R7_REPEATS=1 CC="/usr/bin/../../tmp/r7-reg-cc-$$" AR="$system_ar"     scripts/r7-run-local.sh
-expect_capture_failure canonical-ar     env RUNE_R7_REPEATS=1 CC="$system_cc" AR="/usr/bin/../../tmp/r7-reg-ar-$$"     scripts/r7-run-local.sh
-expect_capture_failure canonical-make     env RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" MAKE="/usr/bin/../../tmp/r7-reg-make-$$"     scripts/r7-run-local.sh
+expect_capture_failure canonical-cc     env RUNE_R7_REPEATS=1 CC="/usr/bin/../../tmp/r7-reg-cc-$test_id" AR="$system_ar"     scripts/r7-run-local.sh
+expect_capture_failure canonical-ar     env RUNE_R7_REPEATS=1 CC="$system_cc" AR="/usr/bin/../../tmp/r7-reg-ar-$test_id"     scripts/r7-run-local.sh
+expect_capture_failure canonical-make     env RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" MAKE="/usr/bin/../../tmp/r7-reg-make-$test_id"     scripts/r7-run-local.sh
 
 # Replay must fail immediately and preserve observations when snapshot creation fails.
 replay_bundle="$tmp_root/replay"
@@ -164,17 +191,17 @@ after_hash=$(/usr/bin/sha256sum "$replay_bundle/observations.tsv" | /usr/bin/awk
 rm -f "$snapshot_path"
 
 # TAR_OPTIONS must be cleared for capture and replay; hook execution is forbidden.
-cat > /tmp/r7-tar-hook-$$ <<EOF
+cat > /tmp/r7-tar-hook-$test_id <<EOF
 #!/bin/sh
-printf 'ran\n' > /tmp/r7-tar-hook-ran-$$
+printf 'ran\n' > /tmp/r7-tar-hook-ran-$test_id
 EOF
-chmod +x /tmp/r7-tar-hook-$$
+chmod +x /tmp/r7-tar-hook-$test_id
 tar_bundle="$tmp_root/tar"
-TAR_OPTIONS="--checkpoint=1 --checkpoint-action=exec=/tmp/r7-tar-hook-$$"     RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar"     scripts/r7-run-local.sh "$tar_bundle" >/dev/null
-[ ! -e /tmp/r7-tar-hook-ran-$$ ] ||
+TAR_OPTIONS="--checkpoint=1 --checkpoint-action=exec=/tmp/r7-tar-hook-$test_id"     RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar"     scripts/r7-run-local.sh "$tar_bundle" >/dev/null
+[ ! -e /tmp/r7-tar-hook-ran-$test_id ] ||
     fail "TAR_OPTIONS hook executed during capture"
-TAR_OPTIONS="--checkpoint=1 --checkpoint-action=exec=/tmp/r7-tar-hook-$$"     /bin/sh "$tar_bundle/command.txt" >/dev/null
-[ ! -e /tmp/r7-tar-hook-ran-$$ ] ||
+TAR_OPTIONS="--checkpoint=1 --checkpoint-action=exec=/tmp/r7-tar-hook-$test_id"     /bin/sh "$tar_bundle/command.txt" >/dev/null
+[ ! -e /tmp/r7-tar-hook-ran-$test_id ] ||
     fail "TAR_OPTIONS hook executed during replay"
 if /usr/bin/awk -F '\t' '$16 == 616161 { bad=1 } END { exit bad ? 0 : 1 }' "$tar_bundle/observations.tsv"; then
     fail "tar injection changed the study clock scale"
@@ -183,7 +210,6 @@ fi
 # Failed destination-filesystem copy must never create the immutable final path.
 [ -d /dev/shm ] && [ -w /dev/shm ] ||
     fail "/dev/shm is required for deterministic publication regression"
-publish_parent="/dev/shm/r7-publish-regression-$$"
 publish_dest="$publish_parent/evidence"
 fill_file="$publish_parent/fill"
 mkdir -p "$publish_parent"
