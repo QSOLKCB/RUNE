@@ -409,6 +409,10 @@ materialize_source_snapshot()
 
 cleanup_snapshot()
 {
+    if [ -d "$source_snapshot" ]; then
+        "$chmod_path" -R u+w "$source_snapshot" ||
+            fail "could not restore snapshot write permission for cleanup"
+    fi
     "$provenance_rm_path" -rf "$source_snapshot" ||
         fail "could not remove source snapshot: $source_snapshot"
     [ ! -e "$source_snapshot" ] && [ ! -L "$source_snapshot" ] ||
@@ -744,6 +748,10 @@ observations_path="$out_abs/observations.tsv"
     shell_quote "$repeats"
     printf " > "
     shell_quote "$observations_path"
+    printf '\n'
+    shell_quote "$chmod_path"
+    printf " -R u+w "
+    shell_quote "$source_snapshot"
     printf '\n'
     shell_quote "$provenance_rm_path"
     printf " -rf "
