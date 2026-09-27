@@ -129,7 +129,7 @@ jobs:
           printf 'study/r7_memory_wall.c filter=r7-clean-probe\n' >> .git/info/attributes
           git config filter.r7-clean-probe.clean "sed '/R7_CLEAN_FILTER_PROBE/d'"
           git config filter.r7-clean-probe.smudge cat
-          printf '\n/* R7_CLEAN_FILTER_PROBE */\n' >> study/r7_memory_wall.c
+          printf '/* R7_CLEAN_FILTER_PROBE */\n' >> study/r7_memory_wall.c
           git add study/r7_memory_wall.c
           test -z "$(git status --porcelain --untracked-files=all)"
           if scripts/r7-run-local.sh evidence/r7/ci-clean-filter-probe 2>/dev/null; then
