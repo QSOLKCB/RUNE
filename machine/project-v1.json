@@ -3,8 +3,8 @@
   "project": "RUNE",
   "expanded_name": "Runtime for Unified Numeric Execution",
   "phase": {
-    "id": "R3",
-    "name": "Integer numeric core",
+    "id": "R4",
+    "name": "RUNE-CORPUS-v1",
     "runtime_implementation_allowed": true,
     "runtime_performance_claims_allowed": false,
     "performance_measurement_planning_allowed": true,
@@ -34,7 +34,8 @@
       "DONORS-v1.md",
       "R1-REGION-CORE.md",
       "R2-ARENA-SCRATCH.md",
-      "R3-INTEGER-NUMERIC.md"
+      "R3-INTEGER-NUMERIC.md",
+      "R4-CORPUS-v1.md"
     ],
     "machine_readable": [
       "machine/project-v1.json",
@@ -42,7 +43,8 @@
       "machine/donors-v1.json",
       "machine/r1-region-core.v1.json",
       "machine/r2-arena-scratch.v1.json",
-      "machine/r3-integer-numeric.v1.json"
+      "machine/r3-integer-numeric.v1.json",
+      "machine/r4-corpus-v1.json"
     ],
     "agent_entrypoint": "AGENTS.md",
     "contradiction_policy": "fail-closed-and-report",
@@ -199,7 +201,7 @@
       ]
     },
     "runtime_performance_claim_policy": {
-      "current_phase": "R3",
+      "current_phase": "R4",
       "runtime_performance_claims_allowed": false,
       "fully_documented_benchmark_receipt_does_not_override_phase_prohibition": true,
       "first_permitted_phase_requires_future_versioned_authority": true
@@ -210,6 +212,15 @@
     "donors": "machine/donors-v1.json",
     "r1_region_core": "machine/r1-region-core.v1.json",
     "r2_arena_scratch": "machine/r2-arena-scratch.v1.json",
-    "r3_integer_numeric": "machine/r3-integer-numeric.v1.json"
+    "r3_integer_numeric": "machine/r3-integer-numeric.v1.json",
+    "r4_corpus_v1": "machine/r4-corpus-v1.json"
+  },
+  "corpus_policy": {
+    "contract": "rune.corpus.receipt.v1",
+    "timing_fields_allowed": false,
+    "result_identity_includes_timing": false,
+    "model_byte_traffic_is_hardware_counter_evidence": false,
+    "bounded_harness_heap_does_not_create_runtime_heap_requirement": true,
+    "corpus_local_ring_is_runtime_ring_api": false
   }
 }
