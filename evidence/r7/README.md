@@ -18,7 +18,10 @@ RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 The destination must not already exist; evidence bundles are immutable capture
 records and are never overwritten. Destinations that resolve inside or
 lexically route through the repository `build/` tree are rejected, and
-parent-directory traversal is not accepted.
+parent-directory traversal is not accepted. `RUNE_R7_REPEATS` must be an
+integer from 1 through 100 and is rejected before destination creation. The
+bundle directory itself is created with fixed-provenance `mkdir` and must be
+empty before metadata is written.
 
 A bundle contains:
 
@@ -45,7 +48,9 @@ Git itself is resolved from a fixed provenance path
 the overridable build path cannot substitute the Git executable. Git
 replacement objects are disabled, active replacement refs are rejected, and
 tracked Makefile/source/include/study files are raw-hashed with filters disabled
-and must match their blobs at `source_revision`. Ignored untracked files under
+and must match their blobs at `source_revision`. That identity is checked
+before the build, immediately after the build, and again after measurement; the
+bundle directory is not created until the post-build check succeeds. Ignored untracked files under
 `src/`, `include/`, or `study/` are also forbidden because they can
 satisfy compiler includes without appearing in ordinary status output.
 
@@ -58,10 +63,10 @@ the recorded CPPFLAGS. Dynamic-loader injection/search variables
 `LIBPATH`, and `SHLIB_PATH`) are cleared before toolchain identity and study
 execution. CI exercises hostile compiler-search, Git-routing, ignored-header,
 and loader-injection cases. Missing compiler identity, a failed/empty `uname -a` platform identity, or
-missing memory profile causes the capture to fail. The required `uname`
-platform probe is resolved from the fixed provenance path rather than ambient
-`PATH`. The getconf fallback requires both a nonzero numeric physical page
-count and page size.
+missing memory profile causes the capture to fail. The required `uname` platform probe, the `awk` memory parser, and optional
+`getconf`/`sysctl` probes are resolved from the fixed provenance path rather
+than ambient `PATH`. The getconf fallback requires both a nonzero numeric
+physical page count and page size.
 
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
 the evidence build. Ambient `PATH` is replaced by a recorded sanitized build
@@ -81,9 +86,10 @@ absolute. The bundle records the build-driver identity and Makefile Git blob
 identity. Ignored
 `GNUmakefile` or lowercase `makefile` files cannot replace the build recipe.
 The recorded run command uses an absolute study executable path and includes
-the absolute redirection to `observations.tsv`, making `command.txt`
-replayable from outside the repository while recreating the captured output
-artifact.
+the absolute redirection to `observations.tsv`. Shell quoting is serialized
+with a fixed-provenance `sed`, so paths containing apostrophes remain valid.
+`command.txt` is replayable from outside the repository while recreating the
+captured output artifact.
 
 Raw observations are execution evidence, not universal performance claims.
 Interpretation belongs in a separately reviewed evidence commit.
