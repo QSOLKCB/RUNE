@@ -40,7 +40,20 @@ sanitize_capture_environment()
     unset GIT_ALTERNATE_OBJECT_DIRECTORIES
     unset GIT_COMMON_DIR
     unset GIT_NAMESPACE
+    unset GIT_CONFIG
+    unset GIT_CONFIG_PARAMETERS
+    unset GIT_CONFIG_SYSTEM
+    unset GIT_CONFIG_GLOBAL
+    unset GIT_CONFIG_NOSYSTEM
+    unset GIT_CONFIG_COUNT
     export GIT_NO_REPLACE_OBJECTS=1
+    export GIT_CONFIG_NOSYSTEM=1
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_COUNT=2
+    export GIT_CONFIG_KEY_0=core.fsmonitor
+    export GIT_CONFIG_VALUE_0=false
+    export GIT_CONFIG_KEY_1=core.hooksPath
+    export GIT_CONFIG_VALUE_1=/dev/null
 
     unset CPATH
     unset C_INCLUDE_PATH
@@ -305,22 +318,24 @@ validate_literal_build_flags()
     IFS=' 	
 '
     for flag_token in $flag_value; do
-        case "$flag_token" in
+        effective_flag_token=$(printf '%s' "$flag_token" |
+            "$sed_path" -e "s/'//g" -e 's/"//g' -e 's/\\//g')
+        case "$effective_flag_token" in
             --config|--config=*|--config-system-dir|--config-system-dir=*|--config-user-dir|--config-user-dir=*)
                 IFS=$old_ifs
-                fail "$flag_name must not contain Clang configuration-file controls; external compiler config files are not bound evidence inputs"
+                fail "$flag_name must not contain Clang configuration-file controls, including shell-quoted or escaped forms; external compiler config files are not bound evidence inputs"
                 ;;
             -specs|--specs|-specs=*|--specs=*)
                 IFS=$old_ifs
-                fail "$flag_name must not contain GCC specs-file controls; external compiler specs files are not bound evidence inputs"
+                fail "$flag_name must not contain GCC specs-file controls, including shell-quoted or escaped forms; external compiler specs files are not bound evidence inputs"
                 ;;
             -B*)
                 IFS=$old_ifs
-                fail "$flag_name must not contain GCC -B compiler subprogram search overrides; external compiler executables are not bound evidence inputs"
+                fail "$flag_name must not contain GCC -B compiler subprogram search overrides, including shell-quoted or escaped forms; external compiler executables are not bound evidence inputs"
                 ;;
             -wrapper|--wrapper|-wrapper=*|--wrapper=*)
                 IFS=$old_ifs
-                fail "$flag_name must not contain GCC subprocess wrapper controls; external compiler wrappers are not bound evidence inputs"
+                fail "$flag_name must not contain GCC subprocess wrapper controls, including shell-quoted or escaped forms; external compiler wrappers are not bound evidence inputs"
                 ;;
         esac
     done
@@ -852,6 +867,7 @@ observations_path="$bundle_stage/observations.tsv"
     printf 'cppflags=%s\n' "$cppflags"
     printf 'cflags=%s\n' "$cflags"
     echo "git_routing_environment=GIT_DIR,GIT_WORK_TREE,GIT_INDEX_FILE,GIT_OBJECT_DIRECTORY,GIT_ALTERNATE_OBJECT_DIRECTORIES,GIT_COMMON_DIR,GIT_NAMESPACE cleared"
+    echo "git_configuration_environment=system/global config disabled; core.fsmonitor=false; core.hooksPath=/dev/null"
     echo "git_replace_objects=disabled and replacement refs forbidden"
     echo "raw_worktree_identity=tracked Makefile/src/include/study hashed with git hash-object --no-filters"
     echo "compiler_search_environment=CPATH,C_INCLUDE_PATH,CPLUS_INCLUDE_PATH,OBJC_INCLUDE_PATH,COMPILER_PATH,LIBRARY_PATH,GCC_EXEC_PREFIX,CCC_OVERRIDE_OPTIONS cleared"
@@ -902,6 +918,10 @@ observations_path="$bundle_stage/observations.tsv"
     printf "set -eu\n"
     printf "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE\n"
     printf "export GIT_NO_REPLACE_OBJECTS=1\n"
+    printf "unset GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_SYSTEM GIT_CONFIG_GLOBAL GIT_CONFIG_NOSYSTEM GIT_CONFIG_COUNT\n"
+    printf "export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_COUNT=2\n"
+    printf "export GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false\n"
+    printf "export GIT_CONFIG_KEY_1=core.hooksPath GIT_CONFIG_VALUE_1=/dev/null\n"
     printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX CCC_OVERRIDE_OPTIONS\n"
     printf "unset LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH DYLD_FRAMEWORK_PATH DYLD_FALLBACK_LIBRARY_PATH DYLD_FALLBACK_FRAMEWORK_PATH LIBPATH SHLIB_PATH\n"
     printf "unset TAR_OPTIONS\n"
@@ -909,22 +929,30 @@ observations_path="$bundle_stage/observations.tsv"
     printf "replay_observations_tmp="
     shell_quote "$out_abs/.r7-replay-observations-"
     printf "\$\$\n"
+    printf "replay_source_snapshot="
+    shell_quote "$repo_root/build/r7-replay-source-$capture_id-"
+    printf "\$\$\n"
+    printf "replay_build_dir_rel="
+    shell_quote "build/r7-replay-evidence-$capture_id-"
+    printf "\$\$\n"
+    printf 'replay_study_target="$replay_build_dir_rel/rune_r7_study"\n'
+    printf 'replay_study_executable="$replay_source_snapshot/$replay_study_target"\n'
     printf "replay_cleanup() {\n"
     printf "  replay_status=\$?\n"
     printf "  if [ -n \"\${replay_observations_tmp:-}\" ]; then "
     shell_quote "$provenance_rm_path"
     printf " -f \"\$replay_observations_tmp\" >/dev/null 2>&1 || :; fi\n"
     printf "  if [ -d "
-    shell_quote "$source_snapshot"
+    printf '"$replay_source_snapshot"'
     printf " ]; then "
     shell_quote "$chmod_path"
     printf " -R u+w "
-    shell_quote "$source_snapshot"
+    printf '"$replay_source_snapshot"'
     printf " >/dev/null 2>&1 || :; fi\n"
     printf "  "
     shell_quote "$provenance_rm_path"
     printf " -rf "
-    shell_quote "$source_snapshot"
+    printf '"$replay_source_snapshot"'
     printf " >/dev/null 2>&1 || :\n"
     printf "  return \"\$replay_status\"\n"
     printf "}\n"
@@ -940,7 +968,7 @@ observations_path="$bundle_stage/observations.tsv"
     printf '\n'
     shell_quote "$bundle_mkdir_path"
     printf " "
-    shell_quote "$source_snapshot"
+    printf '"$replay_source_snapshot"'
     printf '\n'
     shell_quote "$git_path"
     printf " -C "
@@ -948,38 +976,38 @@ observations_path="$bundle_stage/observations.tsv"
     printf " archive --format=tar "
     shell_quote "$revision"
     printf " -- Makefile src include study > "
-    shell_quote "$source_snapshot/.r7-source.tar"
+    printf '"$replay_source_snapshot/.r7-source.tar"'
     printf '\n'
     shell_quote "$tar_path"
     printf " -xf "
-    shell_quote "$source_snapshot/.r7-source.tar"
+    printf '"$replay_source_snapshot/.r7-source.tar"'
     printf " -C "
-    shell_quote "$source_snapshot"
+    printf '"$replay_source_snapshot"'
     printf '\n'
     shell_quote "$provenance_rm_path"
     printf " -f "
-    shell_quote "$source_snapshot/.r7-source.tar"
+    printf '"$replay_source_snapshot/.r7-source.tar"'
     printf '\n'
     shell_quote "$chmod_path"
     printf " -R a-w "
-    shell_quote "$source_snapshot/Makefile"
+    printf '"$replay_source_snapshot/Makefile"'
     printf " "
-    shell_quote "$source_snapshot/src"
+    printf '"$replay_source_snapshot/src"'
     printf " "
-    shell_quote "$source_snapshot/include"
+    printf '"$replay_source_snapshot/include"'
     printf " "
-    shell_quote "$source_snapshot/study"
+    printf '"$replay_source_snapshot/study"'
     printf '\n'
     printf "PATH="
     shell_quote "$build_path"
     printf " MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' "
     shell_quote "$make_path"
     printf " -C "
-    shell_quote "$source_snapshot"
+    printf '"$replay_source_snapshot"'
     printf " -f Makefile "
-    shell_quote "$study_target"
+    printf '"$replay_study_target"'
     printf " BUILD_DIR="
-    shell_quote "$build_dir_rel"
+    printf '"$replay_build_dir_rel"'
     printf " CC="
     shell_quote "$cc_path"
     printf " AR="
@@ -990,7 +1018,7 @@ observations_path="$bundle_stage/observations.tsv"
     shell_quote "$cflags"
     printf '\n'
 
-    shell_quote "$study_executable"
+    printf '"$replay_study_executable"'
     printf " --profile local --repeats "
     shell_quote "$repeats"
     printf " > \"\$replay_observations_tmp\"\n"
