@@ -47,7 +47,13 @@ sanitize_capture_environment()
 
 sanitize_capture_environment
 
+provenance_path=/usr/bin:/bin:/usr/sbin:/sbin
 build_path=${RUNE_R7_BUILD_PATH:-/usr/bin:/bin:/usr/sbin:/sbin}
+
+resolve_provenance_tool()
+{
+    PATH="$provenance_path" command -v "$1"
+}
 
 validate_build_path()
 {
@@ -77,8 +83,19 @@ resolve_build_tool()
 }
 
 validate_build_path
-PATH=$build_path
-export PATH
+
+git_path=$(resolve_provenance_tool git) ||
+    fail "Git not found in fixed provenance path"
+case "$git_path" in
+    /*) ;;
+    *) fail "Git provenance path is not absolute: $git_path" ;;
+esac
+[ -x "$git_path" ] ||
+    fail "Git provenance path is not executable: $git_path"
+git_version=$("$git_path" --version 2>&1) ||
+    fail "Git provenance identity command failed: $git_path --version"
+[ -n "$git_version" ] ||
+    fail "Git provenance identity output is empty"
 
 if [ "${1:-}" = "--self-test-build-tools" ]; then
     for tool in make mkdir rm; do
@@ -118,7 +135,11 @@ cd "$repo_root"
 if [ "${1:-}" = "--self-test-git-root" ]; then
     [ "${GIT_NO_REPLACE_OBJECTS:-}" = "1" ] ||
         fail "Git replacement objects are not disabled"
-    git_root=$(git -C "$repo_root" rev-parse --show-toplevel) ||
+    case "$git_path" in
+        "$provenance_path"/*) ;;
+        *) fail "Git provenance executable escaped fixed provenance path: $git_path" ;;
+    esac
+    git_root=$("$git_path" -C "$repo_root" rev-parse --show-toplevel) ||
         fail "Git root self-test could not resolve repository"
     [ "$git_root" = "$repo_root" ] ||
         fail "Git root self-test resolved foreign repository: $git_root"
@@ -192,42 +213,42 @@ if [ -e "$out_dir" ] || [ -L "$out_dir" ]; then
     fail "evidence destination already exists; refusing overwrite: $out_dir"
 fi
 
-replacement_refs=$(git -C "$repo_root" for-each-ref --format='%(refname)' refs/replace) ||
+replacement_refs=$("$git_path" -C "$repo_root" for-each-ref --format='%(refname)' refs/replace) ||
     fail "could not inspect Git replacement refs"
 
 [ -z "$replacement_refs" ] ||
     fail "Git replacement refs are forbidden during evidence capture: $replacement_refs"
 
-revision=$(git -C "$repo_root" rev-parse HEAD) ||
+revision=$("$git_path" -C "$repo_root" rev-parse HEAD) ||
     fail "could not resolve source revision"
 
-git -C "$repo_root" ls-files --error-unmatch Makefile >/dev/null 2>&1 ||
+"$git_path" -C "$repo_root" ls-files --error-unmatch Makefile >/dev/null 2>&1 ||
     fail "tracked Makefile is missing"
-makefile_blob=$(git -C "$repo_root" rev-parse "$revision:Makefile") ||
+makefile_blob=$("$git_path" -C "$repo_root" rev-parse "$revision:Makefile") ||
     fail "could not resolve tracked Makefile at source revision"
 [ -n "$makefile_blob" ] ||
     fail "tracked Makefile identity is empty"
 
-index_hidden=$(git -C "$repo_root" ls-files -v | awk '
+index_hidden=$("$git_path" -C "$repo_root" ls-files -v | awk '
     /^[a-z]/ || /^S / { print; exit }
 ') || fail "could not inspect Git index visibility flags"
 
 [ -z "$index_hidden" ] ||
     fail "tracked files use assume-unchanged or skip-worktree flags; clear them before evidence capture"
 
-ignored_inputs=$(git -C "$repo_root" ls-files --others --ignored --exclude-standard -- src include study) ||
+ignored_inputs=$("$git_path" -C "$repo_root" ls-files --others --ignored --exclude-standard -- src include study) ||
     fail "could not inspect ignored compiler-input trees"
 
 [ -z "$ignored_inputs" ] ||
     fail "ignored untracked files exist under compiler-input trees; remove them before evidence capture: $ignored_inputs"
 
-git_status=$(git -C "$repo_root" status --porcelain --untracked-files=all) ||
+git_status=$("$git_path" -C "$repo_root" status --porcelain --untracked-files=all) ||
     fail "could not inspect Git working-tree state"
 
 [ -z "$git_status" ] ||
     fail "working tree is dirty; commit/stash tracked and untracked changes before evidence capture"
 
-tracked_inputs=$(git -C "$repo_root" ls-files -- Makefile src include study) ||
+tracked_inputs=$("$git_path" -C "$repo_root" ls-files -- Makefile src include study) ||
     fail "could not enumerate tracked compiler inputs"
 
 [ -n "$tracked_inputs" ] ||
@@ -237,9 +258,9 @@ while IFS= read -r tracked_path; do
     [ -n "$tracked_path" ] || continue
     [ -f "$repo_root/$tracked_path" ] ||
         fail "tracked compiler input is missing from worktree: $tracked_path"
-    worktree_blob=$(git -C "$repo_root" hash-object --no-filters -- "$tracked_path") ||
+    worktree_blob=$("$git_path" -C "$repo_root" hash-object --no-filters -- "$tracked_path") ||
         fail "could not hash raw worktree bytes: $tracked_path"
-    revision_blob=$(git -C "$repo_root" rev-parse "$revision:$tracked_path") ||
+    revision_blob=$("$git_path" -C "$repo_root" rev-parse "$revision:$tracked_path") ||
         fail "could not resolve revision blob: $tracked_path"
     [ "$worktree_blob" = "$revision_blob" ] ||
         fail "raw worktree bytes differ from source revision: $tracked_path"
@@ -404,30 +425,34 @@ fi
 mkdir "$out_dir" ||
     fail "could not create immutable evidence destination: $out_dir"
 
+observations_path="$out_abs/observations.tsv"
+
 {
     echo "contract=rune.r7.environment.v1"
     echo "evidence_class=raw-local-execution-observation"
-    echo "source_revision=$revision"
-    echo "working_tree_dirty=$dirty"
-    echo "measurement_method=C99_clock_process_cpu_time"
-    echo "benchmark_contract=rune.r7.memory-wall-observation.v1"
-    echo "makefile_path=$repo_root/Makefile"
-    echo "makefile_blob=$makefile_blob"
-    echo "repeats=$repeats"
-    echo "cc_requested=$cc_name"
-    echo "cc_resolved=$cc_path"
-    echo "ar_requested=$ar_name"
-    echo "ar_resolved=$ar_path"
-    echo "make_requested=$make_name"
-    echo "make_resolved=$make_path"
-    echo "build_path=$build_path"
-    echo "mkdir_resolved=$mkdir_path"
-    echo "rm_resolved=$rm_path"
-    echo "fresh_build_dir_relative=$build_dir_rel"
-    echo "fresh_build_dir=$build_dir"
-    echo "fresh_study_target=$study_target"
-    echo "cppflags=$cppflags"
-    echo "cflags=$cflags"
+    printf 'source_revision=%s\n' "$revision"
+    printf 'working_tree_dirty=%s\n' "$dirty"
+    printf '%s\n' "measurement_method=C99_clock_process_cpu_time"
+    printf '%s\n' "benchmark_contract=rune.r7.memory-wall-observation.v1"
+    printf 'makefile_path=%s\n' "$repo_root/Makefile"
+    printf 'makefile_blob=%s\n' "$makefile_blob"
+    printf 'repeats=%s\n' "$repeats"
+    printf 'git_provenance_path=%s\n' "$provenance_path"
+    printf 'git_resolved=%s\n' "$git_path"
+    printf 'cc_requested=%s\n' "$cc_name"
+    printf 'cc_resolved=%s\n' "$cc_path"
+    printf 'ar_requested=%s\n' "$ar_name"
+    printf 'ar_resolved=%s\n' "$ar_path"
+    printf 'make_requested=%s\n' "$make_name"
+    printf 'make_resolved=%s\n' "$make_path"
+    printf 'build_path=%s\n' "$build_path"
+    printf 'mkdir_resolved=%s\n' "$mkdir_path"
+    printf 'rm_resolved=%s\n' "$rm_path"
+    printf 'fresh_build_dir_relative=%s\n' "$build_dir_rel"
+    printf 'fresh_build_dir=%s\n' "$build_dir"
+    printf 'fresh_study_target=%s\n' "$study_target"
+    printf 'cppflags=%s\n' "$cppflags"
+    printf 'cflags=%s\n' "$cflags"
     echo "git_routing_environment=GIT_DIR,GIT_WORK_TREE,GIT_INDEX_FILE,GIT_OBJECT_DIRECTORY,GIT_ALTERNATE_OBJECT_DIRECTORIES,GIT_COMMON_DIR,GIT_NAMESPACE cleared"
     echo "git_replace_objects=disabled and replacement refs forbidden"
     echo "raw_worktree_identity=tracked Makefile/src/include/study hashed with git hash-object --no-filters"
@@ -447,6 +472,8 @@ mkdir "$out_dir" ||
 } > "$out_dir/environment.txt"
 
 {
+    printf 'git_path=%s\n' "$git_path"
+    printf '%s\n' "$git_version"
     echo "compiler_path=$cc_path"
     printf '%s\n' "$compiler_version"
     echo "archiver_path=$ar_path"
@@ -483,13 +510,15 @@ mkdir "$out_dir" ||
     shell_quote "$study_executable"
     printf " --profile local --repeats "
     shell_quote "$repeats"
+    printf " > "
+    shell_quote "$observations_path"
     printf '\n'
 } > "$out_dir/command.txt"
 
 build_study
 
 "$study_executable" --profile local --repeats "$repeats" \
-    > "$out_dir/observations.tsv"
+    > "$observations_path"
 
 cleanup_build
 
