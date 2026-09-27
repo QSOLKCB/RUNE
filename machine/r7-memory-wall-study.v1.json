@@ -224,7 +224,7 @@
     "build_driver_identity_capture_required": true,
     "build_driver_identity_failure_is_capture_failure": true,
     "ambient_PATH_inherited_by_evidence_build": false,
-    "sanitized_build_PATH_default": "/usr/bin:/bin",
+    "sanitized_build_PATH_default": "/usr/bin:/bin:/usr/sbin:/sbin",
     "sanitized_build_PATH_override": "RUNE_R7_BUILD_PATH",
     "sanitized_build_PATH_entries_must_be_nonempty_absolute_directories": true,
     "make_mkdir_rm_resolved_from_sanitized_build_PATH": true,
