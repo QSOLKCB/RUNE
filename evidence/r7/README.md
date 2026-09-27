@@ -91,9 +91,10 @@ the evidence build. Ambient `PATH` is replaced by the fixed recorded
 utilities are resolved there. CPPFLAGS/CFLAGS metadata is emitted with
 `printf`, preserving accepted backslashes exactly. Before Make runs, evidence
 capture rejects Make-variable references, shell-evaluated substitution,
-control, redirection, comment, tilde and pathname-globbing metacharacters, and
-`@` compiler response-file syntax. The recorded flag text therefore cannot
-turn into unrecorded commands, response-file contents, or filesystem-dependent
+control, redirection, comment, tilde and pathname-globbing metacharacters,
+`@` compiler response-file syntax, and Clang `--config...` configuration
+file/search-directory controls. The recorded flag text therefore cannot turn
+into unrecorded commands, response/config-file contents, or filesystem-dependent
 argv during recipe/compiler evaluation. Each
 capture uses one UTC-timestamp-plus-PID identity for its source snapshot,
 `BUILD_DIR`, repository bundle stage, and sibling publish stage. The shared

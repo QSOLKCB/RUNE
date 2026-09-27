@@ -321,8 +321,9 @@ The script records:
   conservative: Make-variable syntax and shell-evaluated substitution/control
   syntax are rejected before Make runs. This includes dollar signs, backticks,
   command separators, redirections, shell comments, tilde expansion,
-  pathname-globbing metacharacters, and `@` compiler response-file syntax.
-  Flags must therefore be literal,
+  pathname-globbing metacharacters, `@` compiler response-file syntax, and
+  Clang `--config...` configuration-file/search-directory controls. Flags
+  must therefore be literal,
   replayable compiler arguments rather than expressions whose effective argv
   depends on unrecorded shell or filesystem state;
 - explicit sanitation of ambient compiler search/override variables

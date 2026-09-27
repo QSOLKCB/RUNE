@@ -39,6 +39,7 @@ cleanup()
     rm -f "/tmp/r7-backtick-header-$test_id.h" "/tmp/r7-backtick-hook-$test_id" "/tmp/r7-backtick-ran-$test_id"
     rm -f "/tmp/r7-separator-hook-$test_id" "/tmp/r7-separator-ran-$test_id"
     rm -f "/tmp/r7-response-header-$test_id.h" "/tmp/r7-response-flags-$test_id.rsp"
+    rm -f "/tmp/r7-clang-config-header-$test_id.h" "/tmp/r7-clang-config-$test_id.cfg"
     rm -f "/tmp/r7-concurrent-a-$test_id.log" "/tmp/r7-concurrent-b-$test_id.log"
     rm -f "/tmp/r7-compete-a-$test_id.log" "/tmp/r7-compete-b-$test_id.log"
     rm -rf "$repo_root"/build/r7-source-* "$repo_root"/build/r7-evidence-* "$repo_root"/build/r7-bundle-stage-*
@@ -135,8 +136,30 @@ expect_capture_failure compiler-response-cppflags \
     env "CPPFLAGS=@$response_flags" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
     scripts/r7-run-local.sh
 
+# Clang configuration files and config search directories must not hide options.
+clang_config_header="/tmp/r7-clang-config-header-$test_id.h"
+clang_config="/tmp/r7-clang-config-$test_id.cfg"
+cat > "$clang_config_header" <<'EOF'
+#include <time.h>
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 424242
+EOF
+printf '%s\n' "-include $clang_config_header" > "$clang_config"
+expect_capture_failure clang-config-equals-cflags \
+    env "CFLAGS=--config=$clang_config" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+expect_capture_failure clang-config-split-cppflags \
+    env "CPPFLAGS=--config $clang_config" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+expect_capture_failure clang-config-system-dir \
+    env 'CFLAGS=--config-system-dir=/tmp' RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+expect_capture_failure clang-config-user-dir \
+    env 'CFLAGS=--config-user-dir=/tmp' RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+
 rm -f "$backtick_header" "$backtick_hook" "$backtick_ran" "$separator_hook" "$separator_ran"
-rm -f "$response_header" "$response_flags"
+rm -f "$response_header" "$response_flags" "$clang_config_header" "$clang_config"
 
 # Environment serialization must preserve backslashes and field boundaries.
 scripts/r7-run-local.sh --self-test-environment-serialization

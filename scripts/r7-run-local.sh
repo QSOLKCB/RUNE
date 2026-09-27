@@ -278,6 +278,11 @@ validate_literal_build_flags()
             fail "$flag_name must not contain newline or carriage-return shell control characters"
             ;;
     esac
+    case "$flag_value" in
+        *'--config'*)
+            fail "$flag_name must not contain Clang configuration-file controls; external compiler config files are not bound evidence inputs"
+            ;;
+    esac
 }
 
 validate_literal_build_flags CPPFLAGS "$cppflags"
