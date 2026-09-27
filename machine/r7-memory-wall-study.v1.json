@@ -203,6 +203,8 @@
     "dirty_state_sampled_before_bundle_creation": true,
     "CPPFLAGS_recorded_and_bound": true,
     "CFLAGS_recorded_and_bound": true,
+    "CPPFLAGS_and_CFLAGS_make_variable_references_allowed": false,
+    "CPPFLAGS_and_CFLAGS_dollar_signs_allowed": false,
     "CPPFLAGS_and_CFLAGS_recording_uses_printf_not_echo": true,
     "CPPFLAGS_and_CFLAGS_backslashes_preserved_exactly": true,
     "compiler_command_must_be_single_executable": true,
@@ -336,6 +338,7 @@
       "GIT_NAMESPACE"
     ],
     "git_provenance_commands_anchored_with_git_C_repo_root": true,
+    "repository_root_dirname_resolved_from_fixed_provenance_PATH": true,
     "git_provenance_PATH_fixed": "/usr/bin:/bin:/usr/sbin:/sbin",
     "git_executable_resolved_from_fixed_provenance_PATH": true,
     "git_executable_identity_recorded": true,
@@ -422,6 +425,8 @@
     "CI_validates_4096_byte_profile_has_20_rows_and_all_eight_microtiles": true,
     "evidence_regression_script": "tests/test_r7_run_local.sh",
     "evidence_regression_command": "make r7-evidence-regression",
+    "evidence_regression_default_CC_cc_supported": true,
+    "evidence_regression_shared_memory_fixture_removed_by_exit_trap": true,
     "clock_regression_source": "tests/test_r7_clock.c",
     "clock_regression_command": "make r7-clock-regression",
     "evidence_regressions_cover": [
@@ -432,7 +437,11 @@
       "concurrent captures with existing build parent",
       "concurrent captures with absent build parent",
       "platform identity backslash serialization",
-      "Clang CCC_OVERRIDE_OPTIONS injection"
+      "Clang CCC_OVERRIDE_OPTIONS injection",
+      "Make-variable expansion in CPPFLAGS/CFLAGS",
+      "ambient dirname repository-root redirection",
+      "default cc regression entrypoint",
+      "shared-memory publication fixture cleanup"
     ],
     "clock_regressions_run_under_UBSan": true
   },
