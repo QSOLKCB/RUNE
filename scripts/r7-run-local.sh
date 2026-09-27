@@ -23,6 +23,7 @@ sanitize_capture_environment()
     unset GIT_ALTERNATE_OBJECT_DIRECTORIES
     unset GIT_COMMON_DIR
     unset GIT_NAMESPACE
+    export GIT_NO_REPLACE_OBJECTS=1
 
     unset CPATH
     unset C_INCLUDE_PATH
@@ -45,6 +46,44 @@ sanitize_capture_environment()
 }
 
 sanitize_capture_environment
+
+build_path=${RUNE_R7_BUILD_PATH:-/usr/bin:/bin}
+
+validate_build_path()
+{
+    old_ifs=$IFS
+    IFS=:
+    for path_entry in $build_path; do
+        case "$path_entry" in
+            /*) ;;
+            *)
+                IFS=$old_ifs
+                fail "RUNE_R7_BUILD_PATH entries must be nonempty absolute directories"
+                ;;
+        esac
+    done
+    IFS=$old_ifs
+}
+
+resolve_build_tool()
+{
+    PATH="$build_path" command -v "$1"
+}
+
+validate_build_path
+
+if [ "${1:-}" = "--self-test-build-tools" ]; then
+    for tool in make mkdir rm; do
+        tool_path=$(resolve_build_tool "$tool") ||
+            fail "required build tool not found in sanitized build path: $tool"
+        case "$tool_path" in
+            /*) ;;
+            *) fail "build tool did not resolve to an absolute path: $tool_path" ;;
+        esac
+        printf '%s=%s\n' "$tool" "$tool_path"
+    done
+    exit 0
+fi
 
 if [ "${1:-}" = "--self-test-shell-quote" ]; then
     quoted=$(shell_quote "alpha beta'gamma")
@@ -69,6 +108,8 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$repo_root"
 
 if [ "${1:-}" = "--self-test-git-root" ]; then
+    [ "${GIT_NO_REPLACE_OBJECTS:-}" = "1" ] ||
+        fail "Git replacement objects are not disabled"
     git_root=$(git -C "$repo_root" rev-parse --show-toplevel) ||
         fail "Git root self-test could not resolve repository"
     [ "$git_root" = "$repo_root" ] ||
@@ -78,6 +119,7 @@ fi
 
 cc_name=${CC:-cc}
 ar_name=${AR:-ar}
+make_name=${MAKE:-make}
 cppflags=${CPPFLAGS:-}
 cflags=${CFLAGS:-}
 repeats=${RUNE_R7_REPEATS:-5}
@@ -94,6 +136,29 @@ esac
 case "$ar_name" in
     *[[:space:]]*)
         fail "AR must name one archiver executable"
+        ;;
+esac
+
+case "$make_name" in
+    *[[:space:]]*)
+        fail "MAKE must name one build-driver executable"
+        ;;
+esac
+
+case "$out_dir" in
+    *"/../"*|"../"*|*/..|..)
+        fail "evidence destination must not contain parent-directory traversal: $out_dir"
+        ;;
+esac
+
+out_route=$out_dir
+while [ "${out_route#./}" != "$out_route" ]; do
+    out_route=${out_route#./}
+done
+
+case "$out_route" in
+    build|build/*|"$repo_root/build"|"$repo_root/build/"*)
+        fail "evidence destination must not route through build/: $out_dir"
         ;;
 esac
 
@@ -114,6 +179,12 @@ esac
 if [ -e "$out_dir" ] || [ -L "$out_dir" ]; then
     fail "evidence destination already exists; refusing overwrite: $out_dir"
 fi
+
+replacement_refs=$(git -C "$repo_root" for-each-ref --format='%(refname)' refs/replace) ||
+    fail "could not inspect Git replacement refs"
+
+[ -z "$replacement_refs" ] ||
+    fail "Git replacement refs are forbidden during evidence capture: $replacement_refs"
 
 revision=$(git -C "$repo_root" rev-parse HEAD) ||
     fail "could not resolve source revision"
@@ -144,6 +215,25 @@ git_status=$(git -C "$repo_root" status --porcelain --untracked-files=all) ||
 [ -z "$git_status" ] ||
     fail "working tree is dirty; commit/stash tracked and untracked changes before evidence capture"
 
+tracked_inputs=$(git -C "$repo_root" ls-files -- Makefile src include study) ||
+    fail "could not enumerate tracked compiler inputs"
+
+[ -n "$tracked_inputs" ] ||
+    fail "tracked compiler-input set is empty"
+
+printf '%s\n' "$tracked_inputs" |
+while IFS= read -r tracked_path; do
+    [ -n "$tracked_path" ] || continue
+    [ -f "$repo_root/$tracked_path" ] ||
+        fail "tracked compiler input is missing from worktree: $tracked_path"
+    worktree_blob=$(git -C "$repo_root" hash-object --no-filters -- "$tracked_path") ||
+        fail "could not hash raw worktree bytes: $tracked_path"
+    revision_blob=$(git -C "$repo_root" rev-parse "$revision:$tracked_path") ||
+        fail "could not resolve revision blob: $tracked_path"
+    [ "$worktree_blob" = "$revision_blob" ] ||
+        fail "raw worktree bytes differ from source revision: $tracked_path"
+done
+
 dirty=false
 
 cc_path=$(command -v "$cc_name") ||
@@ -170,6 +260,34 @@ else
 fi
 [ -n "$archiver_version" ] ||
     fail "archiver identity output is empty"
+
+make_path=$(resolve_build_tool "$make_name") ||
+    fail "build driver not found in sanitized build path: $make_name"
+case "$make_path" in
+    /*) ;;
+    *) fail "build-driver path is not absolute: $make_path" ;;
+esac
+[ -x "$make_path" ] ||
+    fail "build-driver path is not executable: $make_path"
+
+if make_version=$("$make_path" --version 2>&1); then
+    :
+elif make_version=$("$make_path" -V MAKE_VERSION 2>&1); then
+    :
+else
+    fail "build-driver identity command failed: $make_path"
+fi
+[ -n "$make_version" ] ||
+    fail "build-driver identity output is empty"
+
+mkdir_path=$(resolve_build_tool mkdir) ||
+    fail "mkdir not found in sanitized build path"
+rm_path=$(resolve_build_tool rm) ||
+    fail "rm not found in sanitized build path"
+case "$mkdir_path:$rm_path" in
+    /*:/*) ;;
+    *) fail "build utility paths must be absolute" ;;
+esac
 
 memory_profile=
 if [ -r /proc/meminfo ]; then
@@ -235,6 +353,13 @@ if [ -z "$cpu_model" ] && command -v sysctl >/dev/null 2>&1; then
     done
 fi
 
+build_dir="$repo_root/build/r7-evidence-$stamp-$"
+study_executable="$build_dir/rune_r7_study"
+
+if [ -e "$build_dir" ] || [ -L "$build_dir" ]; then
+    fail "fresh evidence build directory already exists: $build_dir"
+fi
+
 mkdir "$out_dir" ||
     fail "could not create immutable evidence destination: $out_dir"
 
@@ -252,9 +377,17 @@ mkdir "$out_dir" ||
     echo "cc_resolved=$cc_path"
     echo "ar_requested=$ar_name"
     echo "ar_resolved=$ar_path"
+    echo "make_requested=$make_name"
+    echo "make_resolved=$make_path"
+    echo "build_path=$build_path"
+    echo "mkdir_resolved=$mkdir_path"
+    echo "rm_resolved=$rm_path"
+    echo "fresh_build_dir=$build_dir"
     echo "cppflags=$cppflags"
     echo "cflags=$cflags"
     echo "git_routing_environment=GIT_DIR,GIT_WORK_TREE,GIT_INDEX_FILE,GIT_OBJECT_DIRECTORY,GIT_ALTERNATE_OBJECT_DIRECTORIES,GIT_COMMON_DIR,GIT_NAMESPACE cleared"
+    echo "git_replace_objects=disabled and replacement refs forbidden"
+    echo "raw_worktree_identity=tracked Makefile/src/include/study hashed with git hash-object --no-filters"
     echo "compiler_search_environment=CPATH,C_INCLUDE_PATH,CPLUS_INCLUDE_PATH,OBJC_INCLUDE_PATH,COMPILER_PATH,LIBRARY_PATH,GCC_EXEC_PREFIX cleared"
     echo "dynamic_loader_environment=LD_PRELOAD,LD_LIBRARY_PATH,LD_AUDIT,DYLD_INSERT_LIBRARIES,DYLD_LIBRARY_PATH,DYLD_FRAMEWORK_PATH,DYLD_FALLBACK_LIBRARY_PATH,DYLD_FALLBACK_FRAMEWORK_PATH,LIBPATH,SHLIB_PATH cleared"
     echo "ignored_compiler_inputs=forbidden under src,include,study"
@@ -275,15 +408,26 @@ mkdir "$out_dir" ||
     printf '%s\n' "$compiler_version"
     echo "archiver_path=$ar_path"
     printf '%s\n' "$archiver_version"
+    echo "build_driver_path=$make_path"
+    printf '%s\n' "$make_version"
 } > "$out_dir/compiler.txt"
 
 {
     printf "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE\n"
+    printf "export GIT_NO_REPLACE_OBJECTS=1\n"
     printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX\n"
     printf "unset LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH DYLD_FRAMEWORK_PATH DYLD_FALLBACK_LIBRARY_PATH DYLD_FALLBACK_FRAMEWORK_PATH LIBPATH SHLIB_PATH\n"
-    printf "MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' make -C "
+    printf "PATH="
+    shell_quote "$build_path"
+    printf " MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' "
+    shell_quote "$make_path"
+    printf " -C "
     shell_quote "$repo_root"
-    printf " -f Makefile clean build/rune_r7_study CC="
+    printf " -f Makefile "
+    shell_quote "$study_executable"
+    printf " BUILD_DIR="
+    shell_quote "$build_dir"
+    printf " CC="
     shell_quote "$cc_path"
     printf " AR="
     shell_quote "$ar_path"
@@ -293,21 +437,27 @@ mkdir "$out_dir" ||
     shell_quote "$cflags"
     printf '\n'
 
-    shell_quote "$repo_root/build/rune_r7_study"
+    shell_quote "$study_executable"
     printf " --profile local --repeats "
     shell_quote "$repeats"
     printf '\n'
 } > "$out_dir/command.txt"
 
-MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
-make -C "$repo_root" -f Makefile clean build/rune_r7_study \
+PATH="$build_path" MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
+"$make_path" -C "$repo_root" -f Makefile "$study_executable" \
+    BUILD_DIR="$build_dir" \
     CC="$cc_path" \
     AR="$ar_path" \
     CPPFLAGS="$cppflags" \
     CFLAGS="$cflags"
 
-"$repo_root/build/rune_r7_study" --profile local --repeats "$repeats" \
+"$study_executable" --profile local --repeats "$repeats" \
     > "$out_dir/observations.tsv"
+
+"$rm_path" -rf "$build_dir" ||
+    fail "could not remove fresh evidence build directory: $build_dir"
+[ ! -e "$build_dir" ] && [ ! -L "$build_dir" ] ||
+    fail "fresh evidence build directory remains after cleanup: $build_dir"
 
 if command -v sha256sum >/dev/null 2>&1; then
     (
