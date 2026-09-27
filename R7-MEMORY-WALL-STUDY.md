@@ -255,8 +255,11 @@ destination it rejects Git index flags that can hide tracked changes
 under the compiler-input trees `src/`, `include/`, and `study/`, and
 compares the raw bytes of every tracked Makefile/source/include/study input
 against the recorded revision using `git hash-object --no-filters`. It then
-samples tracked, staged, and untracked Git state. **Any dirty or raw-byte
-divergent worktree is rejected.** R7 local evidence
+samples tracked, staged, and untracked Git state. The same source-identity check
+is repeated immediately after the evidence build and again after the measured
+execution. The bundle directory is not created until the post-build check
+passes. **Any dirty or raw-byte divergent worktree is rejected.** R7 local
+evidence
 therefore binds directly to the recorded `source_revision`; a bundle may not
 claim a commit while actually building uncommitted source content. Files marked
 `assume-unchanged` or `skip-worktree` are rejected because those index flags
@@ -292,7 +295,9 @@ The script records:
   the fixed provenance path and recorded by absolute executable path;
 - visible processor count when available;
 - CPU model when available;
-- a **required memory profile**, using /proc/meminfo, sysctl, or getconf;
+- a **required memory profile**, with Linux parsing performed by `awk`
+  resolved from the fixed provenance path and optional `sysctl`/`getconf`
+  fallbacks resolved from that same path;
 - timer method;
 - exact commands;
 - raw observations;
@@ -315,7 +320,10 @@ bundle fails closed.
 Evidence destinations resolving inside or lexically routing through `build/`
 are rejected before bundle creation, including symlink routes whose lexical
 parent would be removed or replaced by build activity. Parent-directory
-traversal in the requested destination is also rejected.
+traversal in the requested destination is also rejected. `RUNE_R7_REPEATS`
+is validated as 1..100 before the destination is reserved. Bundle creation uses
+a `mkdir` executable resolved from the fixed provenance path, and the newly
+created directory is verified empty before any evidence file is written.
 
 The evidence build does **not** depend on `make clean`. Each capture receives
 a fresh unique `BUILD_DIR` identified by UTC timestamp plus the shell PID, so
@@ -331,9 +339,9 @@ a stale executable. The fresh build directory is removed through the resolved
 `rm` path after the measured executable completes.
 
 The sanitized invocation is recorded in `command.txt` using POSIX single-quote
-escaping, including embedded apostrophes, so paths and multiword
-CPPFLAGS/CFLAGS replay as the same shell arguments rather than being split into
-different make arguments.
+escaping. The quote serializer uses `sed` resolved from the fixed provenance
+path rather than ambient `PATH`, so repository paths containing apostrophes
+remain replayable even in a hostile shell environment.
 
 The build recipe is pinned explicitly with the resolved absolute make path and
 `-C "$repo_root" -f Makefile`. Make-facing values remain repository-relative:
