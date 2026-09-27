@@ -51,6 +51,49 @@ jobs:
           fi
           grep -Fq 'make -f "$repo_root/Makefile" clean build/rune_r7_study' scripts/r7-run-local.sh
           rm GNUmakefile
+
+          printf '#define CLOCKS_PER_SEC 424242\n' > include/time.h
+          printf 'include/time.h\n' >> .git/info/exclude
+          if git status --porcelain --untracked-files=all | grep -q 'include/time.h'; then
+            echo "ignored include/time.h unexpectedly visible in normal status" >&2
+            exit 1
+          fi
+          if scripts/r7-run-local.sh evidence/r7/ci-ignored-header-probe 2>/dev/null; then
+            echo "R7 evidence script accepted ignored compiler input" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-ignored-header-probe
+          rm include/time.h
+
+          foreign_repo=$(mktemp -d)
+          git -C "$foreign_repo" init -q
+          printf 'foreign repository\n' > "$foreign_repo/marker"
+          git -C "$foreign_repo" add marker
+          git -C "$foreign_repo" -c user.name=RUNE -c user.email=rune@example.invalid commit -qm foreign
+          GIT_DIR="$foreign_repo/.git" \
+            GIT_WORK_TREE="$foreign_repo" \
+            GIT_INDEX_FILE="$foreign_repo/.git/index" \
+            scripts/r7-run-local.sh --self-test-git-root
+          rm -rf "$foreign_repo"
+
+          cat > build/r7-preload-probe.c <<'EOF'
+          #include <time.h>
+          clock_t clock(void)
+          {
+              return (clock_t)1;
+          }
+          EOF
+          "${{ matrix.cc }}" -shared -fPIC build/r7-preload-probe.c -o build/r7-preload-probe.so
+          LD_PRELOAD="$PWD/build/r7-preload-probe.so" \
+            LD_LIBRARY_PATH=/tmp/r7-hostile-ld-library \
+            LD_AUDIT=/tmp/r7-hostile-ld-audit \
+            DYLD_INSERT_LIBRARIES=/tmp/r7-hostile-dyld-insert \
+            DYLD_LIBRARY_PATH=/tmp/r7-hostile-dyld-library \
+            DYLD_FRAMEWORK_PATH=/tmp/r7-hostile-dyld-framework \
+            LIBPATH=/tmp/r7-hostile-libpath \
+            SHLIB_PATH=/tmp/r7-hostile-shlib \
+            scripts/r7-run-local.sh --self-test-dynamic-loader-env
+
           git update-index --assume-unchanged study/r7_memory_wall.c
           printf '\n/* hidden mutation probe */\n' >> study/r7_memory_wall.c
           test -z "$(git status --porcelain --untracked-files=all)"
@@ -67,6 +110,16 @@ jobs:
             LIBRARY_PATH=/tmp/r7-hostile-library \
             GCC_EXEC_PREFIX=/tmp/r7-hostile-gcc-prefix \
             scripts/r7-run-local.sh --self-test-compiler-search-env
+
+          grep -Fq 'make -C "$repo_root" -f Makefile clean build/rune_r7_study' scripts/r7-run-local.sh
+          grep -Fq 'shell_quote "$repo_root/build/rune_r7_study"' scripts/r7-run-local.sh
+          (
+            cd /tmp
+            MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
+              make -C "$GITHUB_WORKSPACE" -f Makefile clean build/rune_r7_study CC="${{ matrix.cc }}"
+            "$GITHUB_WORKSPACE/build/rune_r7_study" --bytes 32768 --repeats 1 >/dev/null
+          )
+          make -C "$GITHUB_WORKSPACE" -f Makefile build/rune_corpus CC="${{ matrix.cc }}"
 
       - name: Reject truncated corpus output
         run: |
