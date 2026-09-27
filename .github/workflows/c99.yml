@@ -50,6 +50,14 @@ jobs:
             exit 1
           fi
 
+          invalid_repeats="/tmp/r7-invalid-repeats-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$invalid_repeats"
+          if RUNE_R7_REPEATS=0 scripts/r7-run-local.sh "$invalid_repeats" 2>/dev/null; then
+            echo "R7 evidence script accepted zero repeats" >&2
+            exit 1
+          fi
+          test ! -e "$invalid_repeats"
+
           symlink_target=$(mktemp -d)
           ln -s "$symlink_target" build/r7-out-link
           if scripts/r7-run-local.sh build/r7-out-link/run 2>/dev/null; then
@@ -208,7 +216,28 @@ jobs:
             printf '%064d  %s\n' 0 "$arg"
           done
           EOF
-          chmod +x "$fakeprobes/uname" "$fakeprobes/sha256sum"
+          cat > "$fakeprobes/sed" <<'EOF'
+          #!/bin/sh
+          cat
+          EOF
+          cat > "$fakeprobes/awk" <<'EOF'
+          #!/bin/sh
+          case "$*" in
+            *"/proc/meminfo"*) printf '1\n'; exit 0 ;;
+          esac
+          exec /usr/bin/awk "$@"
+          EOF
+          cat > "$fakeprobes/mkdir" <<'EOF'
+          #!/bin/sh
+          /bin/mkdir "$@"
+          last=
+          for arg in "$@"; do last=$arg; done
+          external="/tmp/r7-mkdir-shim-target-$"
+          printf 'mutable\n' > "$external"
+          ln -s "$external" "$last/environment.txt"
+          EOF
+          chmod +x "$fakeprobes/uname" "$fakeprobes/sha256sum" "$fakeprobes/sed" "$fakeprobes/awk" "$fakeprobes/mkdir"
+          PATH="$fakeprobes:$PATH" scripts/r7-run-local.sh --self-test-shell-quote
           probe_bundle="/tmp/r7-probe-${{ matrix.cc }}-$GITHUB_RUN_ID"
           rm -rf "$probe_bundle"
           PATH="$fakeprobes:$PATH" RUNE_R7_REPEATS=1 \
@@ -218,6 +247,15 @@ jobs:
             echo "R7 evidence script trusted ambient uname shim" >&2
             exit 1
           fi
+          actual_mem=$(/usr/bin/awk '/^MemTotal:/ { print $2; exit }' /proc/meminfo)
+          grep -Fxq "mem_total_kib=$actual_mem" "$probe_bundle/environment.txt"
+          test ! -L "$probe_bundle/environment.txt"
+          grep -Fq 'sed_resolved=/usr/bin/sed' "$probe_bundle/environment.txt" || \
+            grep -Fq 'sed_resolved=/bin/sed' "$probe_bundle/environment.txt"
+          grep -Fq 'awk_resolved=/usr/bin/awk' "$probe_bundle/environment.txt" || \
+            grep -Fq 'awk_resolved=/bin/awk' "$probe_bundle/environment.txt"
+          grep -Fq 'bundle_mkdir_resolved=/usr/bin/mkdir' "$probe_bundle/environment.txt" || \
+            grep -Fq 'bundle_mkdir_resolved=/bin/mkdir' "$probe_bundle/environment.txt"
           grep -Fq 'uname_resolved=/usr/bin/uname' "$probe_bundle/environment.txt" || \
             grep -Fq 'uname_resolved=/bin/uname' "$probe_bundle/environment.txt"
           grep -Fq 'sha256_resolved=/usr/bin/sha256sum' "$probe_bundle/environment.txt" || \
@@ -227,6 +265,7 @@ jobs:
             /usr/bin/sha256sum -c SHA256SUMS
           )
           rm -rf "$probe_bundle" "$fakeprobes"
+          rm -f /tmp/r7-mkdir-shim-target-*
           rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
 
           fakegit=$(mktemp -d)
@@ -257,6 +296,31 @@ jobs:
           test ! -e /tmp/r7-fakegit-${{ matrix.cc }}-$GITHUB_RUN_ID
           git checkout -- study/r7_memory_wall.c
           rm -rf "$fakegit"
+
+          cc_wrapper="/tmp/r7-mutating-cc-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          cat > "$cc_wrapper" <<EOF
+          #!/bin/sh
+          for arg in "\$@"; do
+            if [ "\$arg" = "study/r7_memory_wall.c" ]; then
+              printf '\n/* post-preflight compiler mutation */\n' >> "$GITHUB_WORKSPACE/study/r7_memory_wall.c"
+              break
+            fi
+          done
+          exec /usr/bin/${{ matrix.cc }} "\$@"
+          EOF
+          chmod +x "$cc_wrapper"
+          race_bundle="/tmp/r7-source-race-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$race_bundle"
+          if RUNE_R7_REPEATS=1 CC="$cc_wrapper" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh "$race_bundle" 2>/dev/null; then
+            echo "R7 evidence script certified source mutated during build" >&2
+            exit 1
+          fi
+          test ! -e "$race_bundle"
+          grep -Fq 'post-preflight compiler mutation' study/r7_memory_wall.c
+          git checkout -- study/r7_memory_wall.c
+          rm -f "$cc_wrapper"
+          rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
 
           replay_bundle="/tmp/r7-replay-${{ matrix.cc }}-$GITHUB_RUN_ID"
           rm -rf "$replay_bundle"
