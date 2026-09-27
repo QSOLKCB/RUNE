@@ -32,6 +32,8 @@ mkdir -p "$tmp_root"
 
 cleanup()
 {
+    git config --local --unset-all core.worktree >/dev/null 2>&1 || :
+    rm -f "$repo_root/r7-core-worktree-probe-$test_id"
     rm -rf "$tmp_root" "$publish_parent"
     rm -f "/tmp/r7-reg-cc-$test_id" "/tmp/r7-reg-ar-$test_id" "/tmp/r7-reg-make-$test_id"
     rm -f "/tmp/r7-tar-hook-$test_id" "/tmp/r7-tar-hook-ran-$test_id"
@@ -71,6 +73,26 @@ exit 97
 EOF
 chmod +x "$fake_dirname_bin/dirname"
 PATH="$fake_dirname_bin:$PATH" scripts/r7-run-local.sh --self-test-git-root
+
+# Repository-local core.worktree must not redirect provenance away from repo_root.
+foreign_worktree="$tmp_root/foreign-worktree"
+mkdir -p "$foreign_worktree"
+core_worktree_probe="$repo_root/r7-core-worktree-probe-$test_id"
+git config --local core.worktree "$foreign_worktree"
+printf 'dirty actual repository\n' > "$core_worktree_probe"
+core_worktree_dest="$tmp_root/core-worktree-redirect"
+if RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh "$core_worktree_dest" >/dev/null 2>&1; then
+    core_worktree_status=0
+else
+    core_worktree_status=$?
+fi
+git config --local --unset-all core.worktree
+rm -f "$core_worktree_probe"
+[ "$core_worktree_status" -ne 0 ] ||
+    fail "core.worktree redirect allowed evidence capture from the wrong worktree"
+[ ! -e "$core_worktree_dest" ] ||
+    fail "core.worktree redirect published an evidence destination"
 
 # Caller flags must be literal build configuration, never recursive Make references.
 hidden_header="/tmp/r7-hidden-header-$test_id.h"
@@ -123,6 +145,12 @@ expect_capture_failure shell-separator-cflags \
 expect_capture_failure shell-glob-cppflags \
     env 'CPPFLAGS=-I/tmp/r7-*' RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
     scripts/r7-run-local.sh
+expect_capture_failure shell-brace-cflags \
+    env 'CFLAGS=-{specs=/tmp/r7.specs,specs=/tmp/r7.specs}' \
+    RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" scripts/r7-run-local.sh
+expect_capture_failure shell-brace-cppflags \
+    env 'CPPFLAGS=-I{/tmp/r7-a,/tmp/r7-b}' \
+    RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" scripts/r7-run-local.sh
 
 # Compiler response files must not hide effective build arguments.
 response_header="/tmp/r7-response-header-$test_id.h"
@@ -255,6 +283,18 @@ CCC_OVERRIDE_OPTIONS='#+-include +/tmp/should-not-exist.h' \
 
 case "$system_cc" in
     *clang)
+        clang_default_bundle="$tmp_root/clang-default-config"
+        RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+            scripts/r7-run-local.sh "$clang_default_bundle" >/dev/null
+        /usr/bin/grep -Fxq 'compiler_default_config_control=--no-default-config' \
+            "$clang_default_bundle/environment.txt" ||
+            fail "Clang capture did not record --no-default-config isolation"
+        /usr/bin/grep -Fxq 'compiler_default_config_control=--no-default-config' \
+            "$clang_default_bundle/compiler.txt" ||
+            fail "Clang compiler metadata did not bind --no-default-config"
+        /usr/bin/grep -Fq "CPPFLAGS='--no-default-config" "$clang_default_bundle/command.txt" ||
+            fail "Clang replay did not carry --no-default-config"
+
         cat > /tmp/r7-ccc-header-$test_id.h <<'EOF'
 #undef CLOCKS_PER_SEC
 #define CLOCKS_PER_SEC 424242
