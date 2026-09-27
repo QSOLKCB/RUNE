@@ -21,6 +21,20 @@ if [ "${1:-}" = "--self-test-shell-quote" ]; then
     exit 0
 fi
 
+if [ "${1:-}" = "--self-test-compiler-search-env" ]; then
+    unset CPATH
+    unset C_INCLUDE_PATH
+    unset CPLUS_INCLUDE_PATH
+    unset OBJC_INCLUDE_PATH
+    unset COMPILER_PATH
+    unset LIBRARY_PATH
+    unset GCC_EXEC_PREFIX
+
+    [ -z "${CPATH+x}${C_INCLUDE_PATH+x}${CPLUS_INCLUDE_PATH+x}${OBJC_INCLUDE_PATH+x}${COMPILER_PATH+x}${LIBRARY_PATH+x}${GCC_EXEC_PREFIX+x}" ] ||
+        fail "compiler search environment self-test failed"
+    exit 0
+fi
+
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$repo_root"
 
@@ -95,12 +109,6 @@ unset OBJC_INCLUDE_PATH
 unset COMPILER_PATH
 unset LIBRARY_PATH
 unset GCC_EXEC_PREFIX
-
-if [ "${1:-}" = "--self-test-compiler-search-env" ]; then
-    [ -z "${CPATH+x}${C_INCLUDE_PATH+x}${CPLUS_INCLUDE_PATH+x}${OBJC_INCLUDE_PATH+x}${COMPILER_PATH+x}${LIBRARY_PATH+x}${GCC_EXEC_PREFIX+x}" ] ||
-        fail "compiler search environment self-test failed"
-    exit 0
-fi
 
 cc_path=$(command -v "$cc_name") ||
     fail "compiler not found: $cc_name"
