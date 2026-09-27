@@ -260,7 +260,12 @@
     "make_compiler_archiver_mkdir_rm_resolved_from_fixed_provenance_PATH": true,
     "fresh_unique_BUILD_DIR_required": true,
     "fresh_BUILD_DIR_identity": "UTC timestamp + shell PID",
+    "capture_identity": "UTC timestamp + shell PID",
+    "capture_identity_shared_by_source_build_bundle_stage_and_publish_stage": true,
     "concurrent_evidence_builds_must_use_distinct_BUILD_DIRs": true,
+    "shared_build_parent_creation_is_idempotent": true,
+    "concurrent_capture_test_with_existing_build_parent": true,
+    "concurrent_capture_test_with_absent_build_parent": true,
     "make_facing_BUILD_DIR_is_repository_relative": true,
     "make_facing_study_target_is_repository_relative": true,
     "shell_facing_study_executable_is_absolute": true,
@@ -299,6 +304,9 @@
     "ambient_PATH_may_control_platform_identity": false,
     "platform_identity_capture_must_succeed": true,
     "platform_identity_must_be_nonempty": true,
+    "platform_identity_serialization_uses_printf": true,
+    "CPU_model_serialization_uses_printf": true,
+    "environment_serialization_backslash_self_test": "scripts/r7-run-local.sh --self-test-environment-serialization",
     "shell_quote_serializer_tool": "sed",
     "shell_quote_serializer_resolved_from_fixed_provenance_PATH": true,
     "shell_quote_serializer_path_recorded": true,
@@ -360,7 +368,8 @@
       "OBJC_INCLUDE_PATH",
       "COMPILER_PATH",
       "LIBRARY_PATH",
-      "GCC_EXEC_PREFIX"
+      "GCC_EXEC_PREFIX",
+      "CCC_OVERRIDE_OPTIONS"
     ],
     "ambient_compiler_search_paths_allowed": false,
     "compiler_search_sanitation_recorded_in_environment": true,
@@ -419,7 +428,11 @@
       "canonical tool path traversal for CC/AR/Make",
       "fail-fast command.txt replay",
       "TAR_OPTIONS injection",
-      "destination-filesystem ENOSPC publication cleanup"
+      "destination-filesystem ENOSPC publication cleanup",
+      "concurrent captures with existing build parent",
+      "concurrent captures with absent build parent",
+      "platform identity backslash serialization",
+      "Clang CCC_OVERRIDE_OPTIONS injection"
     ],
     "clock_regressions_run_under_UBSan": true
   },
