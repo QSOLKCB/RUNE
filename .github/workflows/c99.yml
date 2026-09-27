@@ -164,10 +164,29 @@ jobs:
           git clean -fdx
           PATH="$fakebin:$PATH" CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
             scripts/r7-run-local.sh --self-test-fresh-build
-          rm -rf "$fakebin"
-          rm /tmp/r7-build-tools.txt
 
-          grep -Fq 'BUILD_DIR="$build_dir"' scripts/r7-run-local.sh
+          PATH="$fakebin:$PATH" CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh --self-test-fresh-build > /tmp/r7-fresh-a.log 2>&1 &
+          fresh_a=$!
+          PATH="$fakebin:$PATH" CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh --self-test-fresh-build > /tmp/r7-fresh-b.log 2>&1 &
+          fresh_b=$!
+          wait "$fresh_a"
+          wait "$fresh_b"
+          test -z "$(find build -maxdepth 1 -type d -name 'r7-evidence-*' -print -quit)"
+
+          rm -rf "$fakebin"
+          rm /tmp/r7-build-tools.txt /tmp/r7-fresh-a.log /tmp/r7-fresh-b.log
+
+          space_repo="/tmp/RUNE review ${{ matrix.cc }} $"
+          git worktree add --detach "$space_repo" HEAD
+          CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            "$space_repo/scripts/r7-run-local.sh" --self-test-fresh-build
+          git worktree remove --force "$space_repo"
+
+          grep -Fq 'build_dir_rel="build/r7-evidence-$stamp-$"' scripts/r7-run-local.sh
+          grep -Fq '"$make_path" -C "$repo_root" -f Makefile "$study_target"' scripts/r7-run-local.sh
+          grep -Fq 'BUILD_DIR="$build_dir_rel"' scripts/r7-run-local.sh
           if grep -Fq ' clean build/rune_r7_study' scripts/r7-run-local.sh; then
             echo "R7 evidence script still depends on clean removing stale study output" >&2
             exit 1
