@@ -15,14 +15,22 @@ or choose an explicit destination:
 RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 ~~~
 
+The destination must not already exist; evidence bundles are immutable capture
+records and are never overwritten.
+
 A bundle contains:
 
-- `environment.txt` — source revision, dirty state, timer method, CPU-count and
-  memory context where available;
-- `compiler.txt` — compiler path/version output;
+- `environment.txt` — evidence class, source revision, dirty state including
+  untracked files, timer method, exact CPPFLAGS/CFLAGS, CPU/platform context,
+  and a required memory profile;
+- `compiler.txt` — resolved compiler path and successful version output;
 - `command.txt` — exact build/run commands;
 - `observations.tsv` — raw numeric R7 observations;
 - `SHA256SUMS` — integrity hashes for the bundle.
+
+For evidence capture, CC must identify one compiler executable; compound
+commands are rejected. Missing compiler identity or memory profile causes the
+capture to fail.
 
 Raw observations are execution evidence, not universal performance claims.
 Interpretation belongs in a separately reviewed evidence commit.

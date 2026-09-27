@@ -718,7 +718,9 @@ static int r7_measure_microtile(
     r7_observation *observation
 )
 {
-    volatile uint32_t tile[4096];
+    uint32_t *tile_storage;
+    volatile uint32_t *tile;
+    uint64_t tile_bytes;
     uint64_t count;
     uint64_t rounds;
     uint64_t round;
@@ -738,6 +740,7 @@ static int r7_measure_microtile(
         return 0;
     }
     rounds = r7_rounds_for_bytes(working_set_bytes);
+    tile_bytes = tile_size * (uint64_t)sizeof(uint32_t);
 
     r7_observation_begin(
         observation,
@@ -747,8 +750,18 @@ static int r7_measure_microtile(
         repeat_index
     );
 
-    if (!r7_now(&total_start) ||
-        !r7_now(&setup_end)) {
+    if (!r7_now(&total_start)) {
+        return 0;
+    }
+
+    tile_storage = (uint32_t *)r7_malloc(tile_bytes);
+    if (tile_storage == NULL) {
+        return 0;
+    }
+    tile = tile_storage;
+
+    if (!r7_now(&setup_end)) {
+        free(tile_storage);
         return 0;
     }
 
@@ -780,15 +793,19 @@ static int r7_measure_microtile(
     }
 
     r7_sink ^= result;
-    if (!r7_now(&execute_end) ||
-        !r7_now(&teardown_end)) {
+    if (!r7_now(&execute_end)) {
+        free(tile_storage);
+        return 0;
+    }
+
+    free(tile_storage);
+    if (!r7_now(&teardown_end)) {
         return 0;
     }
 
     observation->logical_items = count * rounds;
-    observation->resident_bytes =
-        tile_size * (uint64_t)sizeof(uint32_t);
-    observation->peak_live_bytes = observation->resident_bytes;
+    observation->resident_bytes = tile_bytes;
+    observation->peak_live_bytes = tile_bytes;
     observation->model_bytes_read =
         working_set_bytes * rounds;
     observation->model_bytes_written =

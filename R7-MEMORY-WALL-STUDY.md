@@ -143,6 +143,12 @@ variant_id is the tile size in elements:
 
 Every executed tile size must produce one exact result identity.
 
+Each microtile variant allocates **only its selected tile extent** after the
+total timer begins and releases it before teardown ends. The allocation is part
+of setup timing, release is part of teardown timing, and resident/peak bytes
+therefore describe the actual selected tile rather than a hidden fixed 4096-item
+automatic buffer.
+
 ### 5 — Retain versus regenerate
 
 ~~~text
@@ -224,20 +230,35 @@ or:
 RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 ~~~
 
+The script creates an **immutable new destination** and refuses to overwrite an
+existing bundle. It samples Git status before creating that destination and
+counts tracked, staged, and untracked files when recording dirty state.
+
+Every bundle declares:
+
+~~~text
+evidence_class=raw-local-execution-observation
+~~~
+
 The script records:
 
 - exact Git source revision;
-- dirty/clean working-tree state;
-- compiler path/version;
-- build flags;
+- dirty/clean working-tree state including untracked files;
+- resolved single-executable compiler path and successful version output;
+- both CPPFLAGS and CFLAGS, and binds those exact values into the build command;
 - uname platform context;
 - visible processor count when available;
 - CPU model when available;
-- total memory when available;
+- a **required memory profile**, using /proc/meminfo, sysctl, or getconf;
 - timer method;
 - exact commands;
 - raw observations;
 - SHA-256 integrity file.
+
+A compound CC such as `ccache gcc` is rejected for evidence capture; wrappers
+or flags must be represented explicitly rather than hidden inside CC. If the
+compiler cannot be resolved/identified or memory context cannot be captured, the
+bundle fails closed.
 
 These fields satisfy the evidence-dimension requirement only when the bundle is
 actually captured on the host. A template or planned command is not execution
