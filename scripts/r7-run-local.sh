@@ -499,6 +499,9 @@ if [ "$fresh_build_self_test" = true ]; then
     exit 0
 fi
 
+build_study
+validate_source_identity
+
 "$bundle_mkdir_path" "$out_dir" ||
     fail "could not create immutable evidence destination: $out_dir"
 
@@ -611,9 +614,6 @@ observations_path="$out_abs/observations.tsv"
     shell_quote "$observations_path"
     printf '\n'
 } > "$out_dir/command.txt"
-
-build_study
-validate_source_identity
 
 "$study_executable" --profile local --repeats "$repeats" \
     > "$observations_path"
