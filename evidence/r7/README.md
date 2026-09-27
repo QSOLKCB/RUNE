@@ -21,9 +21,10 @@ also rejected because evidence capture performs a clean rebuild.
 
 A bundle contains:
 
-- `environment.txt` — evidence class, source revision, dirty state including
-  untracked files, timer method, exact CPPFLAGS/CFLAGS, CPU/platform context,
-  and a required memory profile;
+- `environment.txt` — evidence class, exact source revision, verified clean
+  worktree state (including no untracked files), timer method, exact
+  CPPFLAGS/CFLAGS, mandatory platform identity, CPU context, and required memory
+  profile;
 - `compiler.txt` — resolved compiler and archiver paths plus successful
   identity/version output;
 - `command.txt` — exact replayable build/run commands using POSIX shell-safe
@@ -31,9 +32,13 @@ A bundle contains:
 - `observations.tsv` — raw numeric R7 observations;
 - `SHA256SUMS` — integrity hashes for the bundle.
 
+Evidence capture requires a clean Git working tree. Tracked, staged, or
+untracked changes cause a fail-closed exit before the bundle directory is
+created, so source_revision identifies the exact contents built.
+
 For evidence capture, CC and AR must each identify one executable; compound
-commands are rejected. Missing compiler identity or memory profile causes the
-capture to fail. The getconf fallback requires both a nonzero numeric physical
+commands are rejected. Missing compiler identity, a failed/empty `uname -a` platform identity, or
+missing memory profile causes the capture to fail. The getconf fallback requires both a nonzero numeric physical
 page count and page size.
 
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for the evidence build so a

@@ -36,6 +36,13 @@ jobs:
             echo "R7 evidence script accepted build/ destination" >&2
             exit 1
           fi
+          touch r7-untracked-evidence-probe
+          if scripts/r7-run-local.sh evidence/r7/ci-dirty-probe 2>/dev/null; then
+            echo "R7 evidence script accepted dirty worktree" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-dirty-probe
+          rm r7-untracked-evidence-probe
 
       - name: Reject truncated corpus output
         run: |

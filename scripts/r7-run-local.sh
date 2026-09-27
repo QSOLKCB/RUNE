@@ -69,11 +69,10 @@ revision=$(git rev-parse HEAD) ||
 git_status=$(git status --porcelain --untracked-files=all) ||
     fail "could not inspect Git working-tree state"
 
-if [ -n "$git_status" ]; then
-    dirty=true
-else
-    dirty=false
-fi
+[ -z "$git_status" ] ||
+    fail "working tree is dirty; commit/stash tracked and untracked changes before evidence capture"
+
+dirty=false
 
 cc_path=$(command -v "$cc_name") ||
     fail "compiler not found: $cc_name"
@@ -142,6 +141,11 @@ fi
 [ -n "$memory_profile" ] ||
     fail "could not capture required memory profile"
 
+platform_identity=$(uname -a 2>&1) ||
+    fail "platform identity command failed: uname -a"
+[ -n "$platform_identity" ] ||
+    fail "platform identity output is empty"
+
 cpu_model=
 if [ -r /proc/cpuinfo ]; then
     cpu_model=$(awk -F ': ' '
@@ -177,7 +181,7 @@ mkdir "$out_dir" ||
     echo "cppflags=$cppflags"
     echo "cflags=$cflags"
     echo "make_control_environment=MAKEFLAGS,GNUMAKEFLAGS,MFLAGS,MAKEFILES,MAKEOVERRIDES cleared"
-    echo "uname=$(uname -a)"
+    echo "uname=$platform_identity"
     if command -v getconf >/dev/null 2>&1; then
         echo "processors_online=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo unknown)"
         echo "long_bit=$(getconf LONG_BIT 2>/dev/null || echo unknown)"

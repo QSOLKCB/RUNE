@@ -238,8 +238,10 @@ RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 ~~~
 
 The script creates an **immutable new destination** and refuses to overwrite an
-existing bundle. It samples Git status before creating that destination and
-counts tracked, staged, and untracked files when recording dirty state.
+existing bundle. Before creating that destination it samples tracked, staged,
+and untracked Git state. **Any dirty worktree is rejected.** R7 local evidence
+therefore binds directly to the recorded `source_revision`; a bundle may not
+claim a commit while actually building uncommitted source content.
 
 Every bundle declares:
 
@@ -250,12 +252,12 @@ evidence_class=raw-local-execution-observation
 The script records:
 
 - exact Git source revision;
-- dirty/clean working-tree state including untracked files;
+- a verified clean working tree, including absence of untracked files;
 - resolved single-executable compiler **and archiver** paths with successful
   identity/version output;
 - both CPPFLAGS and CFLAGS, binding those exact values plus CC and AR into the
   build command;
-- uname platform context;
+- mandatory successful, nonempty `uname -a` platform identity;
 - visible processor count when available;
 - CPU model when available;
 - a **required memory profile**, using /proc/meminfo, sysctl, or getconf;
@@ -280,6 +282,10 @@ different make arguments. CI runs the quote serializer's built-in self-test.
 The `getconf` memory fallback is valid only when both `_PHYS_PAGES` and
 `PAGE_SIZE` are present, numeric, and nonzero; a one-sided memory profile is
 not accepted as complete evidence.
+
+The script fails before bundle creation if `uname -a` fails or returns empty
+output, preventing an apparently complete bundle with missing platform
+provenance.
 
 These fields satisfy the evidence-dimension requirement only when the bundle is
 actually captured on the host. A template or planned command is not execution

@@ -216,7 +216,14 @@
     "toolchain_identity_includes": [
       "compiler",
       "archiver"
-    ]
+    ],
+    "clean_working_tree_required": true,
+    "dirty_working_tree_capture_allowed": false,
+    "source_revision_must_identify_exact_built_contents": true,
+    "platform_identity_required": true,
+    "platform_identity_command": "uname -a",
+    "platform_identity_capture_must_succeed": true,
+    "platform_identity_must_be_nonempty": true
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,
