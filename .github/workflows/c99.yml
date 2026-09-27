@@ -162,6 +162,9 @@ jobs:
           git config --unset-all filter.r7-clean-probe.clean
           git config --unset-all filter.r7-clean-probe.smudge
           sed -i '/r7-clean-probe/d' .git/info/attributes
+          git show HEAD:study/r7_memory_wall.c > study/r7_memory_wall.c
+          git update-index --refresh
+          test -z "$(git status --porcelain --untracked-files=all)"
 
           CPATH=/tmp/r7-hostile-cpath C_INCLUDE_PATH=/tmp/r7-hostile-c-include \
             CPLUS_INCLUDE_PATH=/tmp/r7-hostile-cplus \
