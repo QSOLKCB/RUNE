@@ -60,13 +60,17 @@ page count and page size.
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
 the evidence build. Ambient `PATH` is replaced by a recorded sanitized build
 path (default `/usr/bin:/bin:/usr/sbin:/sbin`), from which make/mkdir/rm are resolved. Each
-capture builds into a fresh unique `BUILD_DIR` and never relies on
-`make clean`, so a fake ambient `rm` cannot preserve and certify a stale
-study executable.
+capture builds into a fresh unique `BUILD_DIR` keyed by UTC timestamp plus
+the shell PID and never relies on `make clean`, so concurrent captures do not
+share objects/executables and a fake ambient `rm` cannot preserve and certify
+a stale study executable.
 
 The evidence build also uses the tracked repository Makefile explicitly via
-the resolved absolute make path with `-C <repo> -f Makefile`, records that
-build-driver identity, and records the Makefile Git blob identity. Ignored
+the resolved absolute make path with `-C <repo> -f Makefile`. The Make target
+and `BUILD_DIR` passed into Make are repository-relative so repository paths
+containing spaces remain parseable; the executable used by the shell remains
+absolute. The bundle records the build-driver identity and Makefile Git blob
+identity. Ignored
 `GNUmakefile` or lowercase `makefile` files cannot replace the build recipe.
 The recorded run command uses an absolute study executable path, making
 `command.txt` replayable from outside the repository.
