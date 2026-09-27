@@ -48,7 +48,7 @@ sanitize_capture_environment()
 sanitize_capture_environment
 
 provenance_path=/usr/bin:/bin:/usr/sbin:/sbin
-build_path=${RUNE_R7_BUILD_PATH:-/usr/bin:/bin:/usr/sbin:/sbin}
+build_path=$provenance_path
 
 resolve_provenance_tool()
 {
@@ -109,7 +109,13 @@ chmod_path=$(resolve_provenance_tool chmod) ||
     fail "chmod not found in fixed provenance path"
 provenance_rm_path=$(resolve_provenance_tool rm) ||
     fail "rm not found in fixed provenance path"
-for provenance_tool_path in "$sed_path" "$awk_path" "$bundle_mkdir_path" "$tar_path" "$chmod_path" "$provenance_rm_path"; do
+date_path=$(resolve_provenance_tool date) ||
+    fail "date not found in fixed provenance path"
+dirname_path=$(resolve_provenance_tool dirname) ||
+    fail "dirname not found in fixed provenance path"
+basename_path=$(resolve_provenance_tool basename) ||
+    fail "basename not found in fixed provenance path"
+for provenance_tool_path in "$sed_path" "$awk_path" "$bundle_mkdir_path" "$tar_path" "$chmod_path" "$provenance_rm_path" "$date_path" "$dirname_path" "$basename_path"; do
     case "$provenance_tool_path" in
         /*) ;;
         *) fail "provenance tool path is not absolute: $provenance_tool_path" ;;
@@ -230,9 +236,9 @@ case "$normalized_repeats" in
     [1-9]|[1-9][0-9]|100) ;;
     *) fail "RUNE_R7_REPEATS must be an integer from 1 through 100" ;;
 esac
-stamp=$(date -u +%Y%m%dT%H%M%SZ)
+stamp=$("$date_path" -u +%Y%m%dT%H%M%SZ)
 out_dir=${1:-"evidence/r7/local-$stamp"}
-out_parent=$(dirname -- "$out_dir")
+out_parent=$("$dirname_path" -- "$out_dir")
 
 case "$cc_name" in
     *[[:space:]]*)
@@ -274,7 +280,7 @@ esac
 
 out_parent_abs=$(CDPATH= cd -- "$out_parent" && pwd -P) ||
     fail "could not resolve bundle parent: $out_parent"
-out_leaf=$(basename -- "$out_dir")
+out_leaf=$("$basename_path" -- "$out_dir")
 out_abs="$out_parent_abs/$out_leaf"
 
 case "$out_abs" in
@@ -433,11 +439,11 @@ fi
 [ -n "$archiver_version" ] ||
     fail "archiver identity output is empty"
 
-make_path=$(resolve_build_tool "$make_name") ||
-    fail "build driver not found in sanitized build path: $make_name"
+make_path=$(resolve_provenance_tool "$make_name") ||
+    fail "build driver not found in fixed provenance path: $make_name"
 case "$make_path" in
-    /*) ;;
-    *) fail "build-driver path is not absolute: $make_path" ;;
+    /usr/bin/*|/bin/*|/usr/sbin/*|/sbin/*) ;;
+    *) fail "build-driver escaped fixed provenance path: $make_path" ;;
 esac
 [ -x "$make_path" ] ||
     fail "build-driver path is not executable: $make_path"
@@ -452,10 +458,10 @@ fi
 [ -n "$make_version" ] ||
     fail "build-driver identity output is empty"
 
-mkdir_path=$(resolve_build_tool mkdir) ||
-    fail "mkdir not found in sanitized build path"
-rm_path=$(resolve_build_tool rm) ||
-    fail "rm not found in sanitized build path"
+mkdir_path=$(resolve_provenance_tool mkdir) ||
+    fail "mkdir not found in fixed provenance path"
+rm_path=$(resolve_provenance_tool rm) ||
+    fail "rm not found in fixed provenance path"
 case "$mkdir_path:$rm_path" in
     /*:/*) ;;
     *) fail "build utility paths must be absolute" ;;
@@ -544,9 +550,9 @@ if [ -z "$cpu_model" ] && [ -n "$sysctl_path" ]; then
     done
 fi
 
-source_snapshot_rel="build/r7-source-$stamp-$"
+source_snapshot_rel="build/r7-source-$stamp-$$"
 source_snapshot="$repo_root/$source_snapshot_rel"
-build_dir_rel="build/r7-evidence-$stamp-$"
+build_dir_rel="build/r7-evidence-$stamp-$$"
 build_dir="$source_snapshot/$build_dir_rel"
 study_target="$build_dir_rel/rune_r7_study"
 study_executable="$source_snapshot/$study_target"
@@ -594,6 +600,9 @@ observations_path="$out_abs/observations.tsv"
     printf 'tar_resolved=%s\n' "$tar_path"
     printf 'chmod_resolved=%s\n' "$chmod_path"
     printf 'provenance_rm_resolved=%s\n' "$provenance_rm_path"
+    printf 'date_resolved=%s\n' "$date_path"
+    printf 'dirname_resolved=%s\n' "$dirname_path"
+    printf 'basename_resolved=%s\n' "$basename_path"
     printf 'source_snapshot=%s\n' "$source_snapshot"
     printf 'source_snapshot_revision=%s\n' "$revision"
     printf 'uname_resolved=%s\n' "$uname_path"
@@ -642,6 +651,9 @@ observations_path="$out_abs/observations.tsv"
     printf 'tar_path=%s\n' "$tar_path"
     printf 'chmod_path=%s\n' "$chmod_path"
     printf 'provenance_rm_path=%s\n' "$provenance_rm_path"
+    printf 'date_path=%s\n' "$date_path"
+    printf 'dirname_path=%s\n' "$dirname_path"
+    printf 'basename_path=%s\n' "$basename_path"
     printf 'uname_path=%s\n' "$uname_path"
     printf 'sha256_path=%s\n' "$hash_path"
     printf '%s\n' "$hash_version"
