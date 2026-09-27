@@ -148,8 +148,7 @@ static int r7_ticks_between(
     uint64_t *out
 )
 {
-    clock_t delta;
-    uint64_t converted;
+    uintmax_t converted;
 
     if (out == NULL) {
         return 0;
@@ -159,14 +158,79 @@ static int r7_ticks_between(
         return 0;
     }
 
-    delta = end - start;
+    if ((clock_t)-1 < (clock_t)0) {
+        intmax_t signed_start;
+        intmax_t signed_end;
 
-    converted = (uint64_t)delta;
-    if ((clock_t)converted != delta) {
+        signed_start = (intmax_t)start;
+        signed_end = (intmax_t)end;
+        if ((clock_t)signed_start != start ||
+            (clock_t)signed_end != end) {
+            return 0;
+        }
+
+        if (signed_start < 0) {
+            uintmax_t start_magnitude;
+
+            start_magnitude =
+                (uintmax_t)(-(signed_start + INTMAX_C(1))) +
+                UINTMAX_C(1);
+
+            if (signed_end < 0) {
+                uintmax_t end_magnitude;
+
+                end_magnitude =
+                    (uintmax_t)(-(signed_end + INTMAX_C(1))) +
+                    UINTMAX_C(1);
+                if (start_magnitude < end_magnitude) {
+                    return 0;
+                }
+                converted = start_magnitude - end_magnitude;
+            } else {
+                uintmax_t unsigned_end;
+
+                unsigned_end = (uintmax_t)signed_end;
+                if (UINTMAX_MAX - start_magnitude < unsigned_end) {
+                    return 0;
+                }
+                converted = start_magnitude + unsigned_end;
+            }
+        } else {
+            converted =
+                (uintmax_t)signed_end -
+                (uintmax_t)signed_start;
+        }
+    } else {
+        uintmax_t unsigned_start;
+        uintmax_t unsigned_end;
+
+        unsigned_start = (uintmax_t)start;
+        unsigned_end = (uintmax_t)end;
+        if ((clock_t)unsigned_start != start ||
+            (clock_t)unsigned_end != end ||
+            unsigned_end < unsigned_start) {
+            return 0;
+        }
+        converted = unsigned_end - unsigned_start;
+    }
+
+    if (converted > UINT64_MAX) {
         return 0;
     }
 
-    *out = converted;
+    if ((clock_t)-1 < (clock_t)0) {
+        clock_t roundtrip;
+
+        roundtrip = (clock_t)converted;
+        if (roundtrip < (clock_t)0 ||
+            (uintmax_t)roundtrip != converted) {
+            return 0;
+        }
+    } else if ((uintmax_t)(clock_t)converted != converted) {
+        return 0;
+    }
+
+    *out = (uint64_t)converted;
     return 1;
 }
 
