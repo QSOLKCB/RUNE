@@ -3,8 +3,13 @@ set -eu
 
 fail()
 {
-    echo "R7 evidence capture: $*" >&2
+    printf 'R7 evidence capture: %s\n' "$*" >&2
     exit 1
+}
+
+emit_key_value()
+{
+    printf '%s=%s\n' "$1" "$2"
 }
 
 shell_quote()
@@ -32,6 +37,7 @@ sanitize_capture_environment()
     unset COMPILER_PATH
     unset LIBRARY_PATH
     unset GCC_EXEC_PREFIX
+    unset CCC_OVERRIDE_OPTIONS
 
     unset LD_PRELOAD
     unset LD_LIBRARY_PATH
@@ -207,8 +213,16 @@ if [ "${1:-}" = "--self-test-shell-quote" ]; then
 fi
 
 if [ "${1:-}" = "--self-test-compiler-search-env" ]; then
-    [ -z "${CPATH+x}${C_INCLUDE_PATH+x}${CPLUS_INCLUDE_PATH+x}${OBJC_INCLUDE_PATH+x}${COMPILER_PATH+x}${LIBRARY_PATH+x}${GCC_EXEC_PREFIX+x}" ] ||
+    [ -z "${CPATH+x}${C_INCLUDE_PATH+x}${CPLUS_INCLUDE_PATH+x}${OBJC_INCLUDE_PATH+x}${COMPILER_PATH+x}${LIBRARY_PATH+x}${GCC_EXEC_PREFIX+x}${CCC_OVERRIDE_OPTIONS+x}" ] ||
         fail "compiler search environment self-test failed"
+    exit 0
+fi
+
+if [ "${1:-}" = "--self-test-environment-serialization" ]; then
+    serialized=$(emit_key_value uname 'Linux r7\cprobe'; emit_key_value mem_total_kib 123)
+    expected=$(printf '%s\n%s' 'uname=Linux r7\cprobe' 'mem_total_kib=123')
+    [ "$serialized" = "$expected" ] ||
+        fail "environment serialization self-test failed"
     exit 0
 fi
 
@@ -432,10 +446,10 @@ materialize_source_snapshot()
     if [ -e "$repo_root/build" ] && [ ! -d "$repo_root/build" ]; then
         fail "repository build path is not a directory"
     fi
-    if [ ! -d "$repo_root/build" ]; then
-        "$bundle_mkdir_path" "$repo_root/build" ||
-            fail "could not create repository build directory"
-    fi
+    "$bundle_mkdir_path" -p "$repo_root/build" ||
+        fail "could not create repository build directory"
+    [ -d "$repo_root/build" ] && [ ! -L "$repo_root/build" ] ||
+        fail "repository build path changed during creation"
 
     [ ! -e "$source_snapshot" ] && [ ! -L "$source_snapshot" ] ||
         fail "source snapshot destination already exists: $source_snapshot"
@@ -621,15 +635,16 @@ if [ -z "$cpu_model" ] && [ -n "$sysctl_path" ]; then
     done
 fi
 
-source_snapshot_rel="build/r7-source-$stamp-$$"
+capture_id="$stamp-$"
+source_snapshot_rel="build/r7-source-$capture_id"
 source_snapshot="$repo_root/$source_snapshot_rel"
-build_dir_rel="build/r7-evidence-$stamp-$$"
+build_dir_rel="build/r7-evidence-$capture_id"
 build_dir="$source_snapshot/$build_dir_rel"
 study_target="$build_dir_rel/rune_r7_study"
 study_executable="$source_snapshot/$study_target"
-bundle_stage_rel="build/r7-bundle-stage-$stamp-$"
+bundle_stage_rel="build/r7-bundle-stage-$capture_id"
 bundle_stage="$repo_root/$bundle_stage_rel"
-publish_stage="$out_parent_abs/.r7-publish-$stamp-$"
+publish_stage="$out_parent_abs/.r7-publish-$capture_id"
 cleanup_capture_state()
 {
     if [ -n "${source_snapshot:-}" ] && [ -e "$source_snapshot" ]; then
@@ -724,11 +739,11 @@ observations_path="$bundle_stage/observations.tsv"
     echo "git_routing_environment=GIT_DIR,GIT_WORK_TREE,GIT_INDEX_FILE,GIT_OBJECT_DIRECTORY,GIT_ALTERNATE_OBJECT_DIRECTORIES,GIT_COMMON_DIR,GIT_NAMESPACE cleared"
     echo "git_replace_objects=disabled and replacement refs forbidden"
     echo "raw_worktree_identity=tracked Makefile/src/include/study hashed with git hash-object --no-filters"
-    echo "compiler_search_environment=CPATH,C_INCLUDE_PATH,CPLUS_INCLUDE_PATH,OBJC_INCLUDE_PATH,COMPILER_PATH,LIBRARY_PATH,GCC_EXEC_PREFIX cleared"
+    echo "compiler_search_environment=CPATH,C_INCLUDE_PATH,CPLUS_INCLUDE_PATH,OBJC_INCLUDE_PATH,COMPILER_PATH,LIBRARY_PATH,GCC_EXEC_PREFIX,CCC_OVERRIDE_OPTIONS cleared"
     echo "dynamic_loader_environment=LD_PRELOAD,LD_LIBRARY_PATH,LD_AUDIT,DYLD_INSERT_LIBRARIES,DYLD_LIBRARY_PATH,DYLD_FRAMEWORK_PATH,DYLD_FALLBACK_LIBRARY_PATH,DYLD_FALLBACK_FRAMEWORK_PATH,LIBPATH,SHLIB_PATH cleared"
     echo "ignored_compiler_inputs=forbidden under src,include,study"
     echo "make_control_environment=MAKEFLAGS,GNUMAKEFLAGS,MFLAGS,MAKEFILES,MAKEOVERRIDES cleared"
-    echo "uname=$platform_identity"
+    emit_key_value uname "$platform_identity"
     if [ -n "$getconf_path" ]; then
         processors_online=$("$getconf_path" _NPROCESSORS_ONLN 2>/dev/null || printf '%s' unknown)
         long_bit=$("$getconf_path" LONG_BIT 2>/dev/null || printf '%s' unknown)
@@ -736,7 +751,7 @@ observations_path="$bundle_stage/observations.tsv"
         printf 'long_bit=%s\n' "$long_bit"
     fi
     if [ -n "$cpu_model" ]; then
-        echo "cpu_model=$cpu_model"
+        emit_key_value cpu_model "$cpu_model"
     fi
     printf '%s\n' "$memory_profile"
 } > "$bundle_stage/environment.txt"
@@ -772,7 +787,7 @@ observations_path="$bundle_stage/observations.tsv"
     printf "set -eu\n"
     printf "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE\n"
     printf "export GIT_NO_REPLACE_OBJECTS=1\n"
-    printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX\n"
+    printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX CCC_OVERRIDE_OPTIONS\n"
     printf "unset LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH DYLD_FRAMEWORK_PATH DYLD_FALLBACK_LIBRARY_PATH DYLD_FALLBACK_FRAMEWORK_PATH LIBPATH SHLIB_PATH\n"
     printf "unset TAR_OPTIONS\n"
     shell_quote "$bundle_mkdir_path"
