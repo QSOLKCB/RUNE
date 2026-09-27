@@ -194,7 +194,7 @@ jobs:
           fresh_b=$!
           wait "$fresh_a"
           wait "$fresh_b"
-          test -z "$(find build -maxdepth 1 -type d -name 'r7-evidence-*' -print -quit)"
+          test -z "$(find build -maxdepth 1 -type d \( -name 'r7-evidence-*' -o -name 'r7-source-*' \) -print -quit)"
 
           rm -rf "$fakebin"
           rm /tmp/r7-build-tools.txt /tmp/r7-fresh-a.log /tmp/r7-fresh-b.log
@@ -300,12 +300,6 @@ jobs:
           cc_wrapper="/tmp/r7-mutating-cc-${{ matrix.cc }}-$GITHUB_RUN_ID"
           cat > "$cc_wrapper" <<EOF
           #!/bin/sh
-          for arg in "\$@"; do
-            if [ "\$arg" = "study/r7_memory_wall.c" ]; then
-              printf '\n/* post-preflight compiler mutation */\n' >> "$GITHUB_WORKSPACE/study/r7_memory_wall.c"
-              break
-            fi
-          done
           exec /usr/bin/${{ matrix.cc }} "\$@"
           EOF
           chmod +x "$cc_wrapper"
@@ -313,14 +307,26 @@ jobs:
           rm -rf "$race_bundle"
           if RUNE_R7_REPEATS=1 CC="$cc_wrapper" AR=/usr/bin/ar \
               scripts/r7-run-local.sh "$race_bundle" 2>/dev/null; then
-            echo "R7 evidence script certified source mutated during build" >&2
+            echo "R7 evidence script accepted compiler outside fixed provenance path" >&2
             exit 1
           fi
           test ! -e "$race_bundle"
-          grep -Fq 'post-preflight compiler mutation' study/r7_memory_wall.c
-          git checkout -- study/r7_memory_wall.c
           rm -f "$cc_wrapper"
-          rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
+
+          snapshot_bundle="/tmp/r7-snapshot-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$snapshot_bundle"
+          RUNE_R7_REPEATS=1 CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$snapshot_bundle"
+          grep -Fxq 'build_source_origin=git_archive_recorded_revision' "$snapshot_bundle/environment.txt"
+          grep -Fxq 'build_source_worktree_used=false' "$snapshot_bundle/environment.txt"
+          snapshot_revision=$(git rev-parse HEAD)
+          grep -Fxq "source_snapshot_revision=$snapshot_revision" "$snapshot_bundle/environment.txt"
+          if awk -F '\t' '$16 == 515151 { bad=1 } END { exit bad ? 0 : 1 }' "$snapshot_bundle/observations.tsv"; then
+            echo "R7 snapshot capture unexpectedly used transient clock-scale mutation" >&2
+            exit 1
+          fi
+          rm -rf "$snapshot_bundle"
+          rm -rf "$GITHUB_WORKSPACE"/build/r7-source-* "$GITHUB_WORKSPACE"/build/r7-evidence-*
 
           replay_bundle="/tmp/r7-replay-${{ matrix.cc }}-$GITHUB_RUN_ID"
           rm -rf "$replay_bundle"
@@ -344,7 +350,7 @@ jobs:
           rm -rf "$replay_bundle" "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt"
           rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
 
-          grep -Fq '"$make_path" -C "$repo_root" -f Makefile "$study_target"' scripts/r7-run-local.sh
+          grep -Fq '"$make_path" -C "$source_snapshot" -f Makefile "$study_target"' scripts/r7-run-local.sh
           grep -Fq 'BUILD_DIR="$build_dir_rel"' scripts/r7-run-local.sh
           if grep -Fq ' clean build/rune_r7_study' scripts/r7-run-local.sh; then
             echo "R7 evidence script still depends on clean removing stale study output" >&2
