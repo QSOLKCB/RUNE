@@ -238,8 +238,11 @@ RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 ~~~
 
 The script creates an **immutable new destination** and refuses to overwrite an
-existing bundle. Before creating that destination it rejects Git index flags
-that can hide tracked changes (`assume-unchanged` and `skip-worktree`), then
+existing bundle. It first clears Git repository-routing overrides and anchors
+all provenance reads to `repo_root` with `git -C`. Before creating the
+destination it rejects Git index flags that can hide tracked changes
+(`assume-unchanged` and `skip-worktree`), rejects ignored untracked files
+under the compiler-input trees `src/`, `include/`, and `study/`, then
 samples tracked, staged, and untracked Git state. **Any dirty worktree is
 rejected.** R7 local evidence
 therefore binds directly to the recorded `source_revision`; a bundle may not
@@ -255,8 +258,10 @@ evidence_class=raw-local-execution-observation
 
 The script records:
 
-- exact Git source revision;
-- a verified clean working tree, including absence of untracked files;
+- exact Git source revision, with Git routing overrides cleared and provenance
+  commands explicitly rooted at the repository;
+- a verified clean working tree, including absence of untracked files and
+  ignored untracked files under `src/`, `include/`, and `study/`;
 - resolved single-executable compiler **and archiver** paths with successful
   identity/version output;
 - both CPPFLAGS and CFLAGS, binding those exact values plus CC and AR into the
@@ -265,6 +270,9 @@ The script records:
   (`CPATH`, `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`,
   `OBJC_INCLUDE_PATH`, `COMPILER_PATH`, `LIBRARY_PATH`,
   `GCC_EXEC_PREFIX`);
+- explicit sanitation of dynamic-loader injection/search variables including
+  `LD_PRELOAD`, `LD_LIBRARY_PATH`, `LD_AUDIT`, the relevant
+  `DYLD_*` variables, `LIBPATH`, and `SHLIB_PATH`;
 - mandatory successful, nonempty `uname -a` platform identity;
 - visible processor count when available;
 - CPU model when available;
@@ -278,8 +286,12 @@ A compound CC such as `ccache gcc` is rejected for evidence capture; wrappers
 or flags must be represented explicitly rather than hidden inside CC. Ambient
 compiler/header search-path variables are unset before compiler identity and the
 evidence build; intentional include paths must be expressed in recorded
-`CPPFLAGS`. CI executes a hostile-environment self-test to verify the search
-variables are actually unset. If the
+`CPPFLAGS`. Dynamic-loader injection/search variables are also cleared before
+toolchain identity and the measured executable are launched, so an ambient
+preload cannot replace `clock()` or other measured behavior without being
+part of the recorded source/build configuration. CI executes hostile-environment
+self-tests for Git routing, compiler search paths, ignored compiler inputs, and
+dynamic-loader injection. If the
 compiler cannot be resolved/identified or memory context cannot be captured, the
 bundle fails closed.
 
@@ -291,10 +303,14 @@ single-quote escaping, including embedded apostrophes, so paths and multiword
 CPPFLAGS/CFLAGS replay as the same shell arguments rather than being split into
 different make arguments.
 
-The build recipe is pinned explicitly with `make -f "$repo_root/Makefile"`.
+The build recipe is pinned explicitly with `make -C "$repo_root" -f Makefile`.
 The script verifies that `Makefile` is tracked and records the Git blob ID of
 `source_revision:Makefile`. Ignored or globally excluded `GNUmakefile` or
-lowercase `makefile` files therefore cannot override the evidence build. CI runs the quote serializer's built-in self-test.
+lowercase `makefile` files therefore cannot override the evidence build.
+`command.txt` records that explicit working directory and uses an absolute
+path for the study executable, so replay does not depend on the caller's current
+directory. CI runs the quote serializer's built-in self-test and executes the
+pinned build/run form from outside the repository.
 
 The `getconf` memory fallback is valid only when both `_PHYS_PAGES` and
 `PAGE_SIZE` are present, numeric, and nonzero; a one-sided memory profile is
