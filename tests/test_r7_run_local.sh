@@ -496,8 +496,14 @@ expect_capture_failure canonical-make     env RUNE_R7_REPEATS=1 CC="$system_cc" 
 replay_bundle="$tmp_root/replay"
 RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
     scripts/r7-run-local.sh "$replay_bundle" >/dev/null
-snapshot_prefix=$(/usr/bin/sed -n "s/^replay_source_snapshot='\(.*\)'\$\$/\1/p" "$replay_bundle/command.txt")
-[ -n "$snapshot_prefix" ] || fail "replay command did not record replay_source_snapshot prefix"
+snapshot_assignment=$(/usr/bin/grep -m1 '^replay_source_snapshot=' "$replay_bundle/command.txt")
+case "$snapshot_assignment" in
+    replay_source_snapshot=\'*\'\$\$) ;;
+    *) fail "replay command missing PID-qualified replay_source_snapshot assignment" ;;
+esac
+snapshot_prefix=${snapshot_assignment#replay_source_snapshot=\'}
+snapshot_prefix=${snapshot_prefix%\'\$\$}
+[ -n "$snapshot_prefix" ] || fail "replay command recorded empty replay_source_snapshot prefix"
 before_hash=$(/usr/bin/sha256sum "$replay_bundle/observations.tsv" | /usr/bin/awk '{print $1}')
 if (
     cd /tmp
@@ -522,8 +528,14 @@ fi
 runtime_replay_bundle="$tmp_root/replay-runtime-failure"
 RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
     scripts/r7-run-local.sh "$runtime_replay_bundle" >/dev/null
-runtime_snapshot_prefix=$(/usr/bin/sed -n "s/^replay_source_snapshot='\(.*\)'\$\$/\1/p" "$runtime_replay_bundle/command.txt")
-[ -n "$runtime_snapshot_prefix" ] || fail "runtime replay command did not record replay_source_snapshot prefix"
+runtime_snapshot_assignment=$(/usr/bin/grep -m1 '^replay_source_snapshot=' "$runtime_replay_bundle/command.txt")
+case "$runtime_snapshot_assignment" in
+    replay_source_snapshot=\'*\'\$\$) ;;
+    *) fail "runtime replay command missing PID-qualified replay_source_snapshot assignment" ;;
+esac
+runtime_snapshot_prefix=${runtime_snapshot_assignment#replay_source_snapshot=\'}
+runtime_snapshot_prefix=${runtime_snapshot_prefix%\'\$\$}
+[ -n "$runtime_snapshot_prefix" ] || fail "runtime replay command recorded empty replay_source_snapshot prefix"
 runtime_before_hash=$(/usr/bin/sha256sum "$runtime_replay_bundle/observations.tsv" | /usr/bin/awk '{print $1}')
 if (ulimit -v 120000; /bin/sh "$runtime_replay_bundle/command.txt" >/dev/null 2>&1); then
     fail "resource-constrained replay unexpectedly succeeded"
