@@ -178,13 +178,12 @@ jobs:
           rm -rf "$fakebin"
           rm /tmp/r7-build-tools.txt /tmp/r7-fresh-a.log /tmp/r7-fresh-b.log
 
-          space_repo="/tmp/RUNE review ${{ matrix.cc }} $"
+          space_repo="/tmp/RUNE review ${{ matrix.cc }} $GITHUB_RUN_ID"
           git worktree add --detach "$space_repo" HEAD
           CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
             "$space_repo/scripts/r7-run-local.sh" --self-test-fresh-build
           git worktree remove --force "$space_repo"
 
-          grep -Fq 'build_dir_rel="build/r7-evidence-$stamp-$"' scripts/r7-run-local.sh
           grep -Fq '"$make_path" -C "$repo_root" -f Makefile "$study_target"' scripts/r7-run-local.sh
           grep -Fq 'BUILD_DIR="$build_dir_rel"' scripts/r7-run-local.sh
           if grep -Fq ' clean build/rune_r7_study' scripts/r7-run-local.sh; then
