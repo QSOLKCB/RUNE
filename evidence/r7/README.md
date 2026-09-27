@@ -39,7 +39,10 @@ created, so source_revision identifies the exact contents built.
 `assume-unchanged` and `skip-worktree` index flags are forbidden because
 they can hide tracked modifications from ordinary status checks. Git routing
 overrides are cleared and all provenance reads are rooted at the repository.
-Git replacement objects are disabled, active replacement refs are rejected, and
+Git itself is resolved from a fixed provenance path
+(`/usr/bin:/bin:/usr/sbin:/sbin`) and its absolute path/version are recorded;
+the overridable build path cannot substitute the Git executable. Git
+replacement objects are disabled, active replacement refs are rejected, and
 tracked Makefile/source/include/study files are raw-hashed with filters disabled
 and must match their blobs at `source_revision`. Ignored untracked files under
 `src/`, `include/`, or `study/` are also forbidden because they can
@@ -59,7 +62,9 @@ page count and page size.
 
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
 the evidence build. Ambient `PATH` is replaced by a recorded sanitized build
-path (default `/usr/bin:/bin:/usr/sbin:/sbin`), from which make/mkdir/rm are resolved. Each
+path (default `/usr/bin:/bin:/usr/sbin:/sbin`), from which make/mkdir/rm are
+resolved. CPPFLAGS/CFLAGS metadata is emitted with `printf`, preserving
+backslashes exactly. Each
 capture builds into a fresh unique `BUILD_DIR` keyed by UTC timestamp plus
 the shell PID and never relies on `make clean`, so concurrent captures do not
 share objects/executables and a fake ambient `rm` cannot preserve and certify
@@ -72,8 +77,10 @@ containing spaces remain parseable; the executable used by the shell remains
 absolute. The bundle records the build-driver identity and Makefile Git blob
 identity. Ignored
 `GNUmakefile` or lowercase `makefile` files cannot replace the build recipe.
-The recorded run command uses an absolute study executable path, making
-`command.txt` replayable from outside the repository.
+The recorded run command uses an absolute study executable path and includes
+the absolute redirection to `observations.tsv`, making `command.txt`
+replayable from outside the repository while recreating the captured output
+artifact.
 
 Raw observations are execution evidence, not universal performance claims.
 Interpretation belongs in a separately reviewed evidence commit.
