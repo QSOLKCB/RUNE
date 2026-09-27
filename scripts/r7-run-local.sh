@@ -635,7 +635,7 @@ if [ -z "$cpu_model" ] && [ -n "$sysctl_path" ]; then
     done
 fi
 
-capture_id="$stamp-$"
+capture_id="$stamp-$$"
 source_snapshot_rel="build/r7-source-$capture_id"
 source_snapshot="$repo_root/$source_snapshot_rel"
 build_dir_rel="build/r7-evidence-$capture_id"
