@@ -16,9 +16,10 @@ TEST_RING = $(BUILD_DIR)/test_ring
 TEST_OPERATION = $(BUILD_DIR)/test_operation
 R6_PROOF = $(BUILD_DIR)/rune_r6_proof
 R7_STUDY = $(BUILD_DIR)/rune_r7_study
+R7_CLOCK_REGRESSION = $(BUILD_DIR)/test_r7_clock
 CORPUS = $(BUILD_DIR)/rune_corpus
 
-.PHONY: all test r6-proof r7-study-smoke r7-study corpus-smoke clean
+.PHONY: all test r6-proof r7-study-smoke r7-study r7-clock-regression r7-evidence-regression corpus-smoke clean
 
 all: $(LIB)
 
@@ -78,6 +79,15 @@ r7-study-smoke: $(R7_STUDY)
 
 r7-study: $(R7_STUDY)
 	./$(R7_STUDY) --profile local --repeats 5
+
+$(R7_CLOCK_REGRESSION): tests/test_r7_clock.c $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) -fsanitize=undefined -fno-sanitize-recover=undefined tests/test_r7_clock.c $(LIB) -o $@
+
+r7-clock-regression: $(R7_CLOCK_REGRESSION)
+	./$(R7_CLOCK_REGRESSION)
+
+r7-evidence-regression:
+	CC="$(CC)" AR="$(AR)" sh tests/test_r7_run_local.sh
 
 $(CORPUS): corpus/rune_corpus.c $(LIB) include/rune/arena.h include/rune/numeric.h include/rune/region.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) corpus/rune_corpus.c $(LIB) -o $@
