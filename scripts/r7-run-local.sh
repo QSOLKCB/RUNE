@@ -567,16 +567,14 @@ if [ -z "$cpu_model" ] && [ -n "$sysctl_path" ]; then
     done
 fi
 
-source_snapshot_rel="build/r7-source-$stamp-$"
+source_snapshot_rel="build/r7-source-$stamp-$$"
 source_snapshot="$repo_root/$source_snapshot_rel"
-build_dir_rel="build/r7-evidence-$stamp-$"
+build_dir_rel="build/r7-evidence-$stamp-$$"
 build_dir="$source_snapshot/$build_dir_rel"
 study_target="$build_dir_rel/rune_r7_study"
 study_executable="$source_snapshot/$study_target"
-bundle_stage_rel="build/r7-bundle-stage-$stamp-$"
+bundle_stage_rel="build/r7-bundle-stage-$stamp-$$"
 bundle_stage="$repo_root/$bundle_stage_rel"
-bundle_published=false
-
 cleanup_capture_state()
 {
     if [ -n "${source_snapshot:-}" ] && [ -e "$source_snapshot" ]; then
@@ -826,7 +824,6 @@ fi
 
 "$mv_path" "$bundle_stage" "$out_dir" ||
     fail "could not publish completed evidence bundle: $out_dir"
-bundle_published=true
 trap - 0 1 2 3 15
 
 echo "R7 evidence bundle: $out_dir"
