@@ -277,7 +277,12 @@ inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`, `MAKEFILES`, and `MAKEOVERRIDES
 make-control flags cannot silently reuse a stale executable. The sanitized make invocation is recorded in `command.txt` using POSIX
 single-quote escaping, including embedded apostrophes, so paths and multiword
 CPPFLAGS/CFLAGS replay as the same shell arguments rather than being split into
-different make arguments. CI runs the quote serializer's built-in self-test.
+different make arguments.
+
+The build recipe is pinned explicitly with `make -f "$repo_root/Makefile"`.
+The script verifies that `Makefile` is tracked and records the Git blob ID of
+`source_revision:Makefile`. Ignored or globally excluded `GNUmakefile` or
+lowercase `makefile` files therefore cannot override the evidence build. CI runs the quote serializer's built-in self-test.
 
 The `getconf` memory fallback is valid only when both `_PHYS_PAGES` and
 `PAGE_SIZE` are present, numeric, and nonzero; a one-sided memory profile is

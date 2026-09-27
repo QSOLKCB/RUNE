@@ -66,6 +66,13 @@ fi
 revision=$(git rev-parse HEAD) ||
     fail "could not resolve source revision"
 
+git ls-files --error-unmatch Makefile >/dev/null 2>&1 ||
+    fail "tracked Makefile is missing"
+makefile_blob=$(git rev-parse "$revision:Makefile") ||
+    fail "could not resolve tracked Makefile at source revision"
+[ -n "$makefile_blob" ] ||
+    fail "tracked Makefile identity is empty"
+
 git_status=$(git status --porcelain --untracked-files=all) ||
     fail "could not inspect Git working-tree state"
 
@@ -173,6 +180,8 @@ mkdir "$out_dir" ||
     echo "working_tree_dirty=$dirty"
     echo "measurement_method=C99_clock_process_cpu_time"
     echo "benchmark_contract=rune.r7.memory-wall-observation.v1"
+    echo "makefile_path=$repo_root/Makefile"
+    echo "makefile_blob=$makefile_blob"
     echo "repeats=$repeats"
     echo "cc_requested=$cc_name"
     echo "cc_resolved=$cc_path"
@@ -200,7 +209,9 @@ mkdir "$out_dir" ||
 } > "$out_dir/compiler.txt"
 
 {
-    printf "MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' make clean build/rune_r7_study CC="
+    printf "MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' make -f "
+    shell_quote "$repo_root/Makefile"
+    printf " clean build/rune_r7_study CC="
     shell_quote "$cc_path"
     printf " AR="
     shell_quote "$ar_path"
@@ -216,7 +227,7 @@ mkdir "$out_dir" ||
 } > "$out_dir/command.txt"
 
 MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
-make clean build/rune_r7_study \
+make -f "$repo_root/Makefile" clean build/rune_r7_study \
     CC="$cc_path" \
     AR="$ar_path" \
     CPPFLAGS="$cppflags" \

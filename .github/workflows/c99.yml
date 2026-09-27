@@ -43,6 +43,14 @@ jobs:
           fi
           test ! -e evidence/r7/ci-dirty-probe
           rm r7-untracked-evidence-probe
+          printf 'all:\n\t@false\n' > GNUmakefile
+          printf 'GNUmakefile\n' >> .git/info/exclude
+          if git status --porcelain --untracked-files=all | grep -q 'GNUmakefile'; then
+            echo "ignored GNUmakefile unexpectedly visible in normal status" >&2
+            exit 1
+          fi
+          grep -Fq 'make -f "$repo_root/Makefile" clean build/rune_r7_study' scripts/r7-run-local.sh
+          rm GNUmakefile
 
       - name: Reject truncated corpus output
         run: |

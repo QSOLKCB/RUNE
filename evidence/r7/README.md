@@ -41,8 +41,13 @@ commands are rejected. Missing compiler identity, a failed/empty `uname -a` plat
 missing memory profile causes the capture to fail. The getconf fallback requires both a nonzero numeric physical
 page count and page size.
 
-Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for the evidence build so a
-dry-run flag such as MAKEFLAGS=-n cannot certify a stale executable.
+Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
+the evidence build so a dry-run flag such as MAKEFLAGS=-n cannot certify a stale
+executable.
+
+The evidence build also uses the tracked repository Makefile explicitly via
+`make -f <repo>/Makefile` and records its Git blob identity. Ignored
+`GNUmakefile` or lowercase `makefile` files cannot replace the build recipe.
 
 Raw observations are execution evidence, not universal performance claims.
 Interpretation belongs in a separately reviewed evidence commit.

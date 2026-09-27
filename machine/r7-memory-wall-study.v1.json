@@ -223,7 +223,13 @@
     "platform_identity_required": true,
     "platform_identity_command": "uname -a",
     "platform_identity_capture_must_succeed": true,
-    "platform_identity_must_be_nonempty": true
+    "platform_identity_must_be_nonempty": true,
+    "makefile_path": "$repo_root/Makefile",
+    "makefile_must_be_tracked": true,
+    "makefile_blob_identity_recorded": true,
+    "makefile_selected_explicitly_with_make_f": true,
+    "implicit_GNUmakefile_or_lowercase_makefile_discovery_allowed": false,
+    "ignored_build_controlling_makefile_can_override_recipe": false
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,
