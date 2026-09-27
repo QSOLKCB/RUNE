@@ -51,6 +51,22 @@ jobs:
           fi
           grep -Fq 'make -f "$repo_root/Makefile" clean build/rune_r7_study' scripts/r7-run-local.sh
           rm GNUmakefile
+          git update-index --assume-unchanged study/r7_memory_wall.c
+          printf '\n/* hidden mutation probe */\n' >> study/r7_memory_wall.c
+          test -z "$(git status --porcelain --untracked-files=all)"
+          if scripts/r7-run-local.sh evidence/r7/ci-assume-unchanged-probe 2>/dev/null; then
+            echo "R7 evidence script accepted assume-unchanged hidden mutation" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-assume-unchanged-probe
+          git update-index --no-assume-unchanged study/r7_memory_wall.c
+          git checkout -- study/r7_memory_wall.c
+          CPATH=/tmp/r7-hostile-cpath C_INCLUDE_PATH=/tmp/r7-hostile-c-include \
+            CPLUS_INCLUDE_PATH=/tmp/r7-hostile-cplus \
+            COMPILER_PATH=/tmp/r7-hostile-compiler \
+            LIBRARY_PATH=/tmp/r7-hostile-library \
+            GCC_EXEC_PREFIX=/tmp/r7-hostile-gcc-prefix \
+            scripts/r7-run-local.sh --self-test-compiler-search-env
 
       - name: Reject truncated corpus output
         run: |

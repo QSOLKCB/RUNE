@@ -238,10 +238,14 @@ RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 ~~~
 
 The script creates an **immutable new destination** and refuses to overwrite an
-existing bundle. Before creating that destination it samples tracked, staged,
-and untracked Git state. **Any dirty worktree is rejected.** R7 local evidence
+existing bundle. Before creating that destination it rejects Git index flags
+that can hide tracked changes (`assume-unchanged` and `skip-worktree`), then
+samples tracked, staged, and untracked Git state. **Any dirty worktree is
+rejected.** R7 local evidence
 therefore binds directly to the recorded `source_revision`; a bundle may not
-claim a commit while actually building uncommitted source content.
+claim a commit while actually building uncommitted source content. Files marked
+`assume-unchanged` or `skip-worktree` are rejected because those index flags
+can suppress ordinary dirty-state reporting.
 
 Every bundle declares:
 
@@ -257,6 +261,10 @@ The script records:
   identity/version output;
 - both CPPFLAGS and CFLAGS, binding those exact values plus CC and AR into the
   build command;
+- explicit sanitation of ambient compiler search-path variables
+  (`CPATH`, `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`,
+  `OBJC_INCLUDE_PATH`, `COMPILER_PATH`, `LIBRARY_PATH`,
+  `GCC_EXEC_PREFIX`);
 - mandatory successful, nonempty `uname -a` platform identity;
 - visible processor count when available;
 - CPU model when available;
@@ -267,7 +275,11 @@ The script records:
 - SHA-256 integrity file.
 
 A compound CC such as `ccache gcc` is rejected for evidence capture; wrappers
-or flags must be represented explicitly rather than hidden inside CC. If the
+or flags must be represented explicitly rather than hidden inside CC. Ambient
+compiler/header search-path variables are unset before compiler identity and the
+evidence build; intentional include paths must be expressed in recorded
+`CPPFLAGS`. CI executes a hostile-environment self-test to verify the search
+variables are actually unset. If the
 compiler cannot be resolved/identified or memory context cannot be captured, the
 bundle fails closed.
 

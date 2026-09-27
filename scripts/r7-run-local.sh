@@ -73,6 +73,13 @@ makefile_blob=$(git rev-parse "$revision:Makefile") ||
 [ -n "$makefile_blob" ] ||
     fail "tracked Makefile identity is empty"
 
+index_hidden=$(git ls-files -v | awk '
+    /^[a-z]/ || /^S / { print; exit }
+') || fail "could not inspect Git index visibility flags"
+
+[ -z "$index_hidden" ] ||
+    fail "tracked files use assume-unchanged or skip-worktree flags; clear them before evidence capture"
+
 git_status=$(git status --porcelain --untracked-files=all) ||
     fail "could not inspect Git working-tree state"
 
@@ -80,6 +87,20 @@ git_status=$(git status --porcelain --untracked-files=all) ||
     fail "working tree is dirty; commit/stash tracked and untracked changes before evidence capture"
 
 dirty=false
+
+unset CPATH
+unset C_INCLUDE_PATH
+unset CPLUS_INCLUDE_PATH
+unset OBJC_INCLUDE_PATH
+unset COMPILER_PATH
+unset LIBRARY_PATH
+unset GCC_EXEC_PREFIX
+
+if [ "${1:-}" = "--self-test-compiler-search-env" ]; then
+    [ -z "${CPATH+x}${C_INCLUDE_PATH+x}${CPLUS_INCLUDE_PATH+x}${OBJC_INCLUDE_PATH+x}${COMPILER_PATH+x}${LIBRARY_PATH+x}${GCC_EXEC_PREFIX+x}" ] ||
+        fail "compiler search environment self-test failed"
+    exit 0
+fi
 
 cc_path=$(command -v "$cc_name") ||
     fail "compiler not found: $cc_name"
@@ -189,6 +210,7 @@ mkdir "$out_dir" ||
     echo "ar_resolved=$ar_path"
     echo "cppflags=$cppflags"
     echo "cflags=$cflags"
+    echo "compiler_search_environment=CPATH,C_INCLUDE_PATH,CPLUS_INCLUDE_PATH,OBJC_INCLUDE_PATH,COMPILER_PATH,LIBRARY_PATH,GCC_EXEC_PREFIX cleared"
     echo "make_control_environment=MAKEFLAGS,GNUMAKEFLAGS,MFLAGS,MAKEFILES,MAKEOVERRIDES cleared"
     echo "uname=$platform_identity"
     if command -v getconf >/dev/null 2>&1; then
@@ -209,6 +231,7 @@ mkdir "$out_dir" ||
 } > "$out_dir/compiler.txt"
 
 {
+    printf "unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH COMPILER_PATH LIBRARY_PATH GCC_EXEC_PREFIX\n"
     printf "MAKEFLAGS='' GNUMAKEFLAGS='' MFLAGS='' MAKEFILES='' MAKEOVERRIDES='' make -f "
     shell_quote "$repo_root/Makefile"
     printf " clean build/rune_r7_study CC="

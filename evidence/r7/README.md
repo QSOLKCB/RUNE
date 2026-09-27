@@ -35,9 +35,15 @@ A bundle contains:
 Evidence capture requires a clean Git working tree. Tracked, staged, or
 untracked changes cause a fail-closed exit before the bundle directory is
 created, so source_revision identifies the exact contents built.
+`assume-unchanged` and `skip-worktree` index flags are forbidden because
+they can hide tracked modifications from ordinary status checks.
 
 For evidence capture, CC and AR must each identify one executable; compound
-commands are rejected. Missing compiler identity, a failed/empty `uname -a` platform identity, or
+commands are rejected. Ambient compiler search variables (CPATH,
+C_INCLUDE_PATH, CPLUS_INCLUDE_PATH, OBJC_INCLUDE_PATH, COMPILER_PATH,
+LIBRARY_PATH, GCC_EXEC_PREFIX) are cleared; intentional include paths belong in
+the recorded CPPFLAGS. CI also runs the script's compiler-search-environment
+self-test with hostile search paths preloaded. Missing compiler identity, a failed/empty `uname -a` platform identity, or
 missing memory profile causes the capture to fail. The getconf fallback requires both a nonzero numeric physical
 page count and page size.
 

@@ -229,7 +229,23 @@
     "makefile_blob_identity_recorded": true,
     "makefile_selected_explicitly_with_make_f": true,
     "implicit_GNUmakefile_or_lowercase_makefile_discovery_allowed": false,
-    "ignored_build_controlling_makefile_can_override_recipe": false
+    "ignored_build_controlling_makefile_can_override_recipe": false,
+    "assume_unchanged_index_flags_allowed": false,
+    "skip_worktree_index_flags_allowed": false,
+    "index_visibility_flags_checked_before_capture": true,
+    "compiler_search_environment_sanitized": [
+      "CPATH",
+      "C_INCLUDE_PATH",
+      "CPLUS_INCLUDE_PATH",
+      "OBJC_INCLUDE_PATH",
+      "COMPILER_PATH",
+      "LIBRARY_PATH",
+      "GCC_EXEC_PREFIX"
+    ],
+    "ambient_compiler_search_paths_allowed": false,
+    "compiler_search_sanitation_recorded_in_environment": true,
+    "compiler_search_sanitation_recorded_in_command": true,
+    "compiler_search_sanitation_self_test": "scripts/r7-run-local.sh --self-test-compiler-search-env"
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,
