@@ -252,7 +252,8 @@ snapshot cleanup, and SHA-256 finalization have all succeeded. Destinations may 
 through, the repository `build/` tree, and parent-directory traversal is
 rejected. The script clears Git repository-routing overrides, resolves Git only from the
 fixed provenance path `/usr/bin:/bin:/usr/sbin:/sbin`, records that absolute
-Git executable and version, sets `GIT_NO_REPLACE_OBJECTS=1`, rejects active
+Git executable and version, and derives `repo_root` with the already-resolved
+fixed-provenance `dirname` rather than caller `PATH`, sets `GIT_NO_REPLACE_OBJECTS=1`, rejects active
 `refs/replace`, and anchors all provenance reads to `repo_root` with
 `git -C`. Evidence builds use that same fixed system tool path; the build-tool
 search path is not caller-overridable. Before creating the
@@ -295,8 +296,10 @@ The script records:
   trusted-prefix checks; arbitrary external compiler/archiver wrappers and
   `/usr/bin/../../...` traversal aliases are not accepted;
 - both CPPFLAGS and CFLAGS, recorded with `printf` so backslashes and other
-  shell-text content are preserved exactly, binding those values plus CC and AR
-  into the build command;
+  shell-text content are preserved exactly. Dollar signs are rejected: flags
+  must be literal build arguments and may not contain Make-variable references
+  such as `$(R7_HEADER)`, because Make would recursively expand them against
+  unrecorded environment state;
 - explicit sanitation of ambient compiler search/override variables
   (`CPATH`, `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`,
   `OBJC_INCLUDE_PATH`, `COMPILER_PATH`, `LIBRARY_PATH`,
@@ -409,12 +412,19 @@ Two named regression files now own the failure classes most likely to recur:
   fail-fast replay, hostile `TAR_OPTIONS`, destination-filesystem publication
   failure/cleanup, full concurrent captures with `build/` both present and
   absent, backslash-safe environment serialization, and Clang
-  `CCC_OVERRIDE_OPTIONS` injection during capture/replay.
+  `CCC_OVERRIDE_OPTIONS` injection during capture/replay, Make-variable
+  references hidden in CPPFLAGS/CFLAGS, hostile ambient `dirname` during
+  repository-root discovery, default-`cc` entrypoint handling, and publication
+  fixture cleanup.
 - `tests/test_r7_clock.c` — direct `r7_ticks_between()` boundary tests,
   including the signed extreme interval under UBSan.
 
 They run through `make r7-evidence-regression` and
-`make r7-clock-regression` on both GCC and Clang in CI. New defects in either
+`make r7-clock-regression` on both GCC and Clang in CI. The evidence
+regression target also accepts Make's ordinary default `CC=cc`, normalizing it
+to the fixed `/usr/bin/cc` entrypoint. Its exit/signal cleanup trap owns and
+removes the temporary `/dev/shm/r7-publish-regression-...` fixture even when
+the regression suite is interrupted. New defects in either
 source file should gain a deterministic reproducer in its corresponding
 regression file before the fix is considered complete.
 
