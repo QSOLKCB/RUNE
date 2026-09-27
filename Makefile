@@ -8,10 +8,11 @@ INCLUDES = -Iinclude
 
 BUILD_DIR = build
 LIB = $(BUILD_DIR)/librune.a
-OBJS = $(BUILD_DIR)/status.o $(BUILD_DIR)/region.o $(BUILD_DIR)/arena.o $(BUILD_DIR)/numeric.o
+OBJS = $(BUILD_DIR)/status.o $(BUILD_DIR)/region.o $(BUILD_DIR)/arena.o $(BUILD_DIR)/numeric.o $(BUILD_DIR)/ring.o
 TEST_REGION = $(BUILD_DIR)/test_region
 TEST_ARENA = $(BUILD_DIR)/test_arena
 TEST_NUMERIC = $(BUILD_DIR)/test_numeric
+TEST_RING = $(BUILD_DIR)/test_ring
 CORPUS = $(BUILD_DIR)/rune_corpus
 
 .PHONY: all test corpus-smoke clean
@@ -33,6 +34,9 @@ $(BUILD_DIR)/arena.o: src/arena.c include/rune/arena.h include/rune/region.h inc
 $(BUILD_DIR)/numeric.o: src/numeric.c include/rune/numeric.h include/rune/status.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) -c $< -o $@
 
+$(BUILD_DIR)/ring.o: src/ring.c include/rune/ring.h include/rune/region.h include/rune/status.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) -c $< -o $@
+
 $(LIB): $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 
@@ -44,6 +48,9 @@ $(TEST_ARENA): tests/test_arena.c $(LIB) include/rune/arena.h include/rune/regio
 
 $(TEST_NUMERIC): tests/test_numeric.c $(LIB) include/rune/numeric.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) tests/test_numeric.c $(LIB) -o $@
+
+$(TEST_RING): tests/test_ring.c $(LIB) include/rune/ring.h include/rune/region.h include/rune/status.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) tests/test_ring.c $(LIB) -o $@
 
 $(CORPUS): corpus/rune_corpus.c $(LIB) include/rune/arena.h include/rune/numeric.h include/rune/region.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) corpus/rune_corpus.c $(LIB) -o $@
@@ -65,10 +72,11 @@ corpus-smoke: $(CORPUS)
 		exit 1; \
 	fi
 
-test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC)
+test: $(TEST_REGION) $(TEST_ARENA) $(TEST_NUMERIC) $(TEST_RING)
 	./$(TEST_REGION)
 	./$(TEST_ARENA)
 	./$(TEST_NUMERIC)
+	./$(TEST_RING)
 
 clean:
 	rm -rf $(BUILD_DIR)

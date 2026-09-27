@@ -1,0 +1,95 @@
+{
+  "contract": "rune.r5-rings-streaming.v1",
+  "phase": "R5",
+  "reference_language": "ISO C99",
+  "runtime_performance_claims_allowed": false,
+  "role": "byte-oriented-fixed-capacity-fifo-runtime-primitive",
+  "storage": {
+    "ownership": "caller-owned",
+    "relationship": "borrowed-read-write-span",
+    "mandatory_heap": false,
+    "resized_by_ring": false,
+    "capacity_source": "storage.length",
+    "zero_capacity_allowed": true
+  },
+  "state": {
+    "fields": [
+      "read_cursor",
+      "write_cursor",
+      "size"
+    ],
+    "state_owns_storage": false,
+    "cursor_state_separate_from_storage_ownership": true,
+    "capacity_fixed_after_init": true,
+    "full_capacity_usable": true,
+    "reserved_slot": false,
+    "invariant": "write_cursor == (read_cursor + size) mod capacity"
+  },
+  "fifo": {
+    "byte_oriented": true,
+    "deterministic_order": true,
+    "empty": "size == 0",
+    "full": "size == capacity"
+  },
+  "views": {
+    "type": "rune_ring_views",
+    "max_spans": 2,
+    "first_precedes_second_logically": true,
+    "readable_access": "RUNE_ACCESS_READ",
+    "writable_access": "RUNE_ACCESS_WRITE",
+    "readable_total": "size",
+    "writable_total": "capacity-size",
+    "nonwrapped_second_span_length": 0,
+    "logically_expire_after_successful_nonzero_state_mutation": true
+  },
+  "commit": {
+    "produce": "rune_ring_produce",
+    "consume": "rune_ring_consume",
+    "produce_copies_data": false,
+    "consume_copies_data": false,
+    "zero_length_is_successful_noop": true,
+    "overproduce_status": "RUNE_ERR_CAPACITY",
+    "overconsume_status": "RUNE_ERR_OUT_OF_BOUNDS",
+    "failure_mutates_state": false
+  },
+  "threading": {
+    "baseline": "single-threaded",
+    "atomics_required": false,
+    "locks_required": false,
+    "concurrent_mutation_supported": false,
+    "multi_producer_multi_consumer_supported": false
+  },
+  "bounded_stream_proof": {
+    "test": "tests/test_ring.c",
+    "logical_stream_bytes": 1048699,
+    "resident_ring_bytes": 257,
+    "proportional_logical_stream_allocation": false,
+    "stream_consume_reduce_discard": true,
+    "exact_fifo_order_checked": true,
+    "exact_reduction_identity_checked": true
+  },
+  "public_files": [
+    "include/rune/ring.h",
+    "src/ring.c"
+  ],
+  "validation": {
+    "deterministic_tests": "tests/test_ring.c",
+    "build_command": "make test",
+    "compilers": [
+      "gcc",
+      "clang"
+    ],
+    "performance_benchmark": false
+  },
+  "excluded": [
+    "typed_queue_hierarchy",
+    "message_framing",
+    "blocking_wait",
+    "async_runtime",
+    "thread_safe_ring",
+    "lock_free_algorithm",
+    "scheduler",
+    "generic_stream_graph",
+    "performance_claim"
+  ]
+}

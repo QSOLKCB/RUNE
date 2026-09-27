@@ -98,7 +98,7 @@ Success criterion:
 
 ## R4 — RUNE-CORPUS-v1
 
-**Current phase.**
+**Complete — merged in PR #5.**
 
 Create a deterministic procedural local-memory corpus before adding advanced execution machinery.
 
@@ -131,6 +131,8 @@ Success criterion:
 > the project can observe representation, locality, materialisation, and recomputation crossovers without requiring a large external dataset or accelerator.
 
 ## R5 — Queues, rings and bounded streaming
+
+**Current phase.**
 
 Add dataflow primitives only after region/arena/numeric semantics and the first corpus exist.
 
