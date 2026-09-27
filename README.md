@@ -46,13 +46,13 @@ MORE COMPUTE != BETTER EXECUTION
 
 ## Status
 
-**R5 — Queues, rings and bounded streaming.**
+**R6 — Deterministic operation descriptors and receipts.**
 
-R0 through R4 are merged. RUNE now includes a byte-oriented fixed-capacity FIFO over caller-owned storage, with cursor state separated from ownership, explicit wrapped two-span read/write views, and exact produce/consume commits.
+R0 through R5 are merged. RUNE now has a small replayable operation vocabulary demonstrated by two existing byte operations: move and fill. Descriptors use fixed-width operation/version/region-slot semantics; replay binds those slots to caller-owned regions at execution time, and receipts record executed-versus-rejected evidence, status, compact byte accounting, scratch requirements, and output identity.
 
-R5 remains **single-threaded and correctness-only**. It adds no atomics, blocking semantics, scheduler, typed queue hierarchy, or runtime performance claim.
+R6 deliberately avoids a task graph, scheduler, hidden process state, pointer identity, timing fields, and runtime performance claims.
 
-See [R5-RINGS-STREAMING.md](R5-RINGS-STREAMING.md) and [ROADMAP.md](ROADMAP.md).
+See [R6-OPERATIONS-RECEIPTS.md](R6-OPERATIONS-RECEIPTS.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Build and test
 
@@ -71,7 +71,7 @@ The tests exercise deterministic correctness only. They are not performance benc
 Project: RUNE
 Name: Runtime for Unified Numeric Execution
 Reference language: ISO C99
-Current phase: R5 — Queues, rings and bounded streaming
+Current phase: R6 — Deterministic operation descriptors and receipts
 Architecture: CPU-only
 Numeric boundary: integer-only
 Memory model: explicit and bounded
@@ -280,6 +280,7 @@ Human-facing files:
 - [R3-INTEGER-NUMERIC.md](R3-INTEGER-NUMERIC.md)
 - [R4-CORPUS-v1.md](R4-CORPUS-v1.md)
 - [R5-RINGS-STREAMING.md](R5-RINGS-STREAMING.md)
+- [R6-OPERATIONS-RECEIPTS.md](R6-OPERATIONS-RECEIPTS.md)
 
 Machine-facing files:
 
@@ -292,6 +293,7 @@ Machine-facing files:
 - [machine/r3-integer-numeric.v1.json](machine/r3-integer-numeric.v1.json)
 - [machine/r4-corpus-v1.json](machine/r4-corpus-v1.json)
 - [machine/r5-rings-streaming.v1.json](machine/r5-rings-streaming.v1.json)
+- [machine/r6-operation-receipts.v1.json](machine/r6-operation-receipts.v1.json)
 
 A contradiction between the two surfaces is a defect. Automated agents must fail closed rather than invent a reconciliation.
 

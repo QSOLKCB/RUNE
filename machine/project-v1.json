@@ -3,8 +3,8 @@
   "project": "RUNE",
   "expanded_name": "Runtime for Unified Numeric Execution",
   "phase": {
-    "id": "R5",
-    "name": "Queues, rings and bounded streaming",
+    "id": "R6",
+    "name": "Deterministic operation descriptors and receipts",
     "runtime_implementation_allowed": true,
     "runtime_performance_claims_allowed": false,
     "performance_measurement_planning_allowed": true,
@@ -36,7 +36,8 @@
       "R2-ARENA-SCRATCH.md",
       "R3-INTEGER-NUMERIC.md",
       "R4-CORPUS-v1.md",
-      "R5-RINGS-STREAMING.md"
+      "R5-RINGS-STREAMING.md",
+      "R6-OPERATIONS-RECEIPTS.md"
     ],
     "machine_readable": [
       "machine/project-v1.json",
@@ -46,7 +47,8 @@
       "machine/r2-arena-scratch.v1.json",
       "machine/r3-integer-numeric.v1.json",
       "machine/r4-corpus-v1.json",
-      "machine/r5-rings-streaming.v1.json"
+      "machine/r5-rings-streaming.v1.json",
+      "machine/r6-operation-receipts.v1.json"
     ],
     "agent_entrypoint": "AGENTS.md",
     "contradiction_policy": "fail-closed-and-report",
@@ -203,7 +205,7 @@
       ]
     },
     "runtime_performance_claim_policy": {
-      "current_phase": "R5",
+      "current_phase": "R6",
       "runtime_performance_claims_allowed": false,
       "fully_documented_benchmark_receipt_does_not_override_phase_prohibition": true,
       "first_permitted_phase_requires_future_versioned_authority": true
@@ -216,7 +218,8 @@
     "r2_arena_scratch": "machine/r2-arena-scratch.v1.json",
     "r3_integer_numeric": "machine/r3-integer-numeric.v1.json",
     "r4_corpus_v1": "machine/r4-corpus-v1.json",
-    "r5_rings_streaming": "machine/r5-rings-streaming.v1.json"
+    "r5_rings_streaming": "machine/r5-rings-streaming.v1.json",
+    "r6_operation_receipts": "machine/r6-operation-receipts.v1.json"
   },
   "corpus_policy": {
     "contract": "rune.corpus.receipt.v1",
@@ -236,5 +239,14 @@
     "atomics_required": false,
     "blocking_semantics": false,
     "logical_stream_may_exceed_resident_capacity": true
+  },
+  "operation_policy": {
+    "current_semantic_version": 1,
+    "descriptor_identity_uses_native_pointer": false,
+    "region_binding_is_execution_context_not_descriptor_identity": true,
+    "status_and_execution_class_recorded_in_receipt": true,
+    "timing_in_receipt": false,
+    "general_task_graph": false,
+    "scheduler": false
   }
 }

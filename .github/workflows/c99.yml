@@ -24,8 +24,8 @@ jobs:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Build and run R1-R5 tests and frozen R4 smoke corpus
-        run: make clean test corpus-smoke CC="${{ matrix.cc }}"
+      - name: Build and run R1-R6 tests, R6 proof, and frozen R4 corpus
+        run: make clean test r6-proof corpus-smoke CC="${{ matrix.cc }}"
 
       - name: Reject truncated corpus output
         run: |

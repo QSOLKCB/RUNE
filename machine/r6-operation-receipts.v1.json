@@ -1,0 +1,233 @@
+{
+  "contract": "rune.r6-operation-receipts.v1",
+  "phase": "R6",
+  "reference_language": "ISO C99",
+  "runtime_performance_claims_allowed": false,
+  "role": "minimal-replayable-operation-description-not-task-graph",
+  "descriptor": {
+    "semantic_version": 1,
+    "fields": [
+      "operation_id:uint32",
+      "semantic_version:uint32",
+      "input.region_slot:uint32",
+      "input.offset:uint64",
+      "input.length:uint64",
+      "output.region_slot:uint32",
+      "output.offset:uint64",
+      "output.length:uint64",
+      "parameter_u64:uint64",
+      "scratch_required:uint64"
+    ],
+    "native_pointer_in_identity": false,
+    "raw_struct_bytes_are_identity": false,
+    "field_hash_byte_order": "least-significant-byte-first",
+    "hash": "FNV-1a-64",
+    "region_none": {
+      "region_slot": "UINT32_MAX",
+      "offset": 0,
+      "length": 0
+    }
+  },
+  "bindings": {
+    "slot_width": "uint32",
+    "maps_slots_to": "caller-owned-rune_region",
+    "native_bindings_are_descriptor_identity": false,
+    "bindings_are_execution_context": true
+  },
+  "operations": {
+    "bytes_move": {
+      "operation_id": 1,
+      "semantic_version": 1,
+      "input": "required-readable-span-ref",
+      "output": "required-writable-span-ref",
+      "equal_lengths_required": true,
+      "parameter_u64": 0,
+      "scratch_required": 0,
+      "semantics": "R1-overlap-safe-move",
+      "bytes_read": "input.length",
+      "bytes_written": "output.length"
+    },
+    "bytes_fill": {
+      "operation_id": 2,
+      "semantic_version": 1,
+      "input": "canonical-NONE",
+      "output": "required-writable-span-ref",
+      "parameter_u64": "fill-byte-0..255",
+      "scratch_required": 0,
+      "semantics": "R1-fill",
+      "bytes_read": 0,
+      "bytes_written": "output.length"
+    }
+  },
+  "unsupported": {
+    "unknown_operation_status": "RUNE_ERR_UNSUPPORTED_OPERATION",
+    "unsupported_semantic_version_status": "RUNE_ERR_UNSUPPORTED_OPERATION"
+  },
+  "receipt": {
+    "fields": [
+      "operation_id:uint32",
+      "semantic_version:uint32",
+      "status:uint32",
+      "execution_class:uint32",
+      "descriptor_identity:uint64",
+      "result_identity:uint64",
+      "bytes_read:uint64",
+      "bytes_written:uint64",
+      "scratch_required:uint64",
+      "scratch_used:uint64"
+    ],
+    "execution_classes": {
+      "rejected": 0,
+      "executed": 1
+    },
+    "rejected_result_identity": 0,
+    "rejected_bytes_read": 0,
+    "rejected_bytes_written": 0,
+    "rejected_scratch_used": 0,
+    "successful_result_identity": "FNV-1a-64-of-exact-output-span-bytes",
+    "timing_fields": false,
+    "native_address_fields": false
+  },
+  "replay_vectors": [
+    {
+      "vector_id": 1,
+      "name": "move-four-bytes",
+      "operation_id": 1,
+      "semantic_version": 1,
+      "input": {
+        "region_slot": 0,
+        "offset": 1,
+        "length": 4
+      },
+      "output": {
+        "region_slot": 1,
+        "offset": 2,
+        "length": 4
+      },
+      "parameter_u64": 0,
+      "scratch_required": 0,
+      "initial_regions_hex": [
+        "0001020304050607",
+        "1011121314151617"
+      ],
+      "expected_regions_hex": [
+        "0001020304050607",
+        "1011010203041617"
+      ],
+      "expected_status": 0,
+      "expected_execution_class": 1,
+      "expected_descriptor_identity_u64_decimal": "16324389352355133681",
+      "expected_result_identity_u64_decimal": "9228107187407362555",
+      "expected_bytes_read": 4,
+      "expected_bytes_written": 4
+    },
+    {
+      "vector_id": 2,
+      "name": "fill-three-bytes",
+      "operation_id": 2,
+      "semantic_version": 1,
+      "input": "NONE",
+      "output": {
+        "region_slot": 0,
+        "offset": 2,
+        "length": 3
+      },
+      "parameter_u64": 90,
+      "scratch_required": 0,
+      "initial_regions_hex": [
+        "0001020304050607"
+      ],
+      "expected_regions_hex": [
+        "00015a5a5a050607"
+      ],
+      "expected_status": 0,
+      "expected_execution_class": 1,
+      "expected_descriptor_identity_u64_decimal": "8963280653204300439",
+      "expected_result_identity_u64_decimal": "10571198817530485323",
+      "expected_bytes_read": 0,
+      "expected_bytes_written": 3
+    },
+    {
+      "vector_id": 3,
+      "name": "reject-out-of-bounds-fill",
+      "operation_id": 2,
+      "semantic_version": 1,
+      "input": "NONE",
+      "output": {
+        "region_slot": 0,
+        "offset": 3,
+        "length": 2
+      },
+      "parameter_u64": 255,
+      "scratch_required": 0,
+      "initial_regions_hex": [
+        "aabbccdd"
+      ],
+      "expected_regions_hex": [
+        "aabbccdd"
+      ],
+      "expected_status": 4,
+      "expected_execution_class": 0,
+      "expected_descriptor_identity_u64_decimal": "8165298778968118994",
+      "expected_result_identity_u64_decimal": "0",
+      "expected_bytes_read": 0,
+      "expected_bytes_written": 0
+    }
+  ],
+  "proof_receipt": {
+    "path": "proof/r6-proof-receipts.v1.tsv",
+    "encoding": "ASCII",
+    "delimiter_byte": "0x09",
+    "line_terminator_byte": "0x0A",
+    "columns": [
+      "vector_id",
+      "operation_id",
+      "semantic_version",
+      "status",
+      "execution_class",
+      "descriptor_identity",
+      "result_identity",
+      "bytes_read",
+      "bytes_written",
+      "scratch_required",
+      "scratch_used"
+    ],
+    "timing_included": false
+  },
+  "existing_local_evidence": {
+    "path": "rune_run.md",
+    "evidence_phase": "merged-R5",
+    "default_cc_tests_observed_passing": true,
+    "clang_local_execution_observed": false,
+    "clang_unavailable_in_logged_environment": true,
+    "is_R6_execution_evidence": false
+  },
+  "public_files": [
+    "include/rune/operation.h",
+    "src/operation.c"
+  ],
+  "validation": {
+    "deterministic_tests": "tests/test_operation.c",
+    "proof_source": "proof/r6_proof.c",
+    "proof_command": "make r6-proof",
+    "proof_fixture": "proof/r6-proof-receipts.v1.tsv",
+    "compilers": [
+      "gcc",
+      "clang"
+    ],
+    "performance_benchmark": false
+  },
+  "excluded": [
+    "task_graph",
+    "dependency_graph",
+    "scheduler",
+    "worker_pool",
+    "async_execution",
+    "dynamic_operation_registration",
+    "plugin_operations",
+    "pointer_identity",
+    "raw_struct_serialization",
+    "performance_timing",
+    "performance_claim"
+  ]
+}
