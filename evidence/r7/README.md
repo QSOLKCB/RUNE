@@ -31,7 +31,8 @@ A bundle contains:
 - `command.txt` — exact replayable build/run commands using POSIX shell-safe
   quoting, including multiword values and embedded apostrophes;
 - `observations.tsv` — raw numeric R7 observations;
-- `SHA256SUMS` — integrity hashes for the bundle.
+- `SHA256SUMS` — integrity hashes produced by a trusted-path SHA-256 utility
+  whose absolute path/identity are recorded in the bundle.
 
 Evidence capture requires a clean Git working tree. Tracked, staged, or
 untracked changes cause a fail-closed exit before the bundle directory is
@@ -57,8 +58,10 @@ the recorded CPPFLAGS. Dynamic-loader injection/search variables
 `LIBPATH`, and `SHLIB_PATH`) are cleared before toolchain identity and study
 execution. CI exercises hostile compiler-search, Git-routing, ignored-header,
 and loader-injection cases. Missing compiler identity, a failed/empty `uname -a` platform identity, or
-missing memory profile causes the capture to fail. The getconf fallback requires both a nonzero numeric physical
-page count and page size.
+missing memory profile causes the capture to fail. The required `uname`
+platform probe is resolved from the fixed provenance path rather than ambient
+`PATH`. The getconf fallback requires both a nonzero numeric physical page
+count and page size.
 
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
 the evidence build. Ambient `PATH` is replaced by a recorded sanitized build
