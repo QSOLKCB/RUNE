@@ -109,13 +109,15 @@ chmod_path=$(resolve_provenance_tool chmod) ||
     fail "chmod not found in fixed provenance path"
 provenance_rm_path=$(resolve_provenance_tool rm) ||
     fail "rm not found in fixed provenance path"
+mv_path=$(resolve_provenance_tool mv) ||
+    fail "mv not found in fixed provenance path"
 date_path=$(resolve_provenance_tool date) ||
     fail "date not found in fixed provenance path"
 dirname_path=$(resolve_provenance_tool dirname) ||
     fail "dirname not found in fixed provenance path"
 basename_path=$(resolve_provenance_tool basename) ||
     fail "basename not found in fixed provenance path"
-for provenance_tool_path in "$sed_path" "$awk_path" "$bundle_mkdir_path" "$tar_path" "$chmod_path" "$provenance_rm_path" "$date_path" "$dirname_path" "$basename_path"; do
+for provenance_tool_path in "$sed_path" "$awk_path" "$bundle_mkdir_path" "$tar_path" "$chmod_path" "$provenance_rm_path" "$mv_path" "$date_path" "$dirname_path" "$basename_path"; do
     case "$provenance_tool_path" in
         /*) ;;
         *) fail "provenance tool path is not absolute: $provenance_tool_path" ;;
@@ -565,12 +567,28 @@ if [ -z "$cpu_model" ] && [ -n "$sysctl_path" ]; then
     done
 fi
 
-source_snapshot_rel="build/r7-source-$stamp-$$"
+source_snapshot_rel="build/r7-source-$stamp-$"
 source_snapshot="$repo_root/$source_snapshot_rel"
-build_dir_rel="build/r7-evidence-$stamp-$$"
+build_dir_rel="build/r7-evidence-$stamp-$"
 build_dir="$source_snapshot/$build_dir_rel"
 study_target="$build_dir_rel/rune_r7_study"
 study_executable="$source_snapshot/$study_target"
+bundle_stage_rel="build/r7-bundle-stage-$stamp-$"
+bundle_stage="$repo_root/$bundle_stage_rel"
+bundle_published=false
+
+cleanup_capture_state()
+{
+    if [ -n "${source_snapshot:-}" ] && [ -e "$source_snapshot" ]; then
+        "$chmod_path" -R u+w "$source_snapshot" >/dev/null 2>&1 || :
+        "$provenance_rm_path" -rf "$source_snapshot" >/dev/null 2>&1 || :
+    fi
+    if [ -n "${bundle_stage:-}" ] && [ -e "$bundle_stage" ]; then
+        "$provenance_rm_path" -rf "$bundle_stage" >/dev/null 2>&1 || :
+    fi
+}
+
+trap cleanup_capture_state 0 1 2 3 15
 
 if [ "$fresh_build_self_test" = true ]; then
     materialize_source_snapshot
@@ -586,16 +604,18 @@ build_study
 validate_snapshot_identity
 validate_source_identity
 
-"$bundle_mkdir_path" "$out_dir" ||
-    fail "could not create immutable evidence destination: $out_dir"
+[ ! -e "$bundle_stage" ] && [ ! -L "$bundle_stage" ] ||
+    fail "bundle staging destination already exists: $bundle_stage"
+"$bundle_mkdir_path" "$bundle_stage" ||
+    fail "could not create bundle staging directory: $bundle_stage"
 
-set -- "$out_dir"/* "$out_dir"/.[!.]* "$out_dir"/..?*
+set -- "$bundle_stage"/* "$bundle_stage"/.[!.]* "$bundle_stage"/..?*
 for bundle_entry in "$@"; do
     [ -e "$bundle_entry" ] || [ -L "$bundle_entry" ] || continue
-    fail "new evidence destination is not empty: $out_dir"
+    fail "new bundle staging directory is not empty: $bundle_stage"
 done
 
-observations_path="$out_abs/observations.tsv"
+observations_path="$bundle_stage/observations.tsv"
 
 {
     echo "contract=rune.r7.environment.v1"
@@ -615,6 +635,9 @@ observations_path="$out_abs/observations.tsv"
     printf 'tar_resolved=%s\n' "$tar_path"
     printf 'chmod_resolved=%s\n' "$chmod_path"
     printf 'provenance_rm_resolved=%s\n' "$provenance_rm_path"
+    printf 'mv_resolved=%s\n' "$mv_path"
+    printf 'bundle_stage=%s\n' "$bundle_stage"
+    printf '%s\n' "bundle_publish_mode=atomic_rename_after_success"
     printf 'date_resolved=%s\n' "$date_path"
     printf 'dirname_resolved=%s\n' "$dirname_path"
     printf 'basename_resolved=%s\n' "$basename_path"
@@ -657,7 +680,7 @@ observations_path="$out_abs/observations.tsv"
         echo "cpu_model=$cpu_model"
     fi
     printf '%s\n' "$memory_profile"
-} > "$out_dir/environment.txt"
+} > "$bundle_stage/environment.txt"
 
 {
     printf 'git_path=%s\n' "$git_path"
@@ -668,6 +691,7 @@ observations_path="$out_abs/observations.tsv"
     printf 'tar_path=%s\n' "$tar_path"
     printf 'chmod_path=%s\n' "$chmod_path"
     printf 'provenance_rm_path=%s\n' "$provenance_rm_path"
+    printf 'mv_path=%s\n' "$mv_path"
     printf 'date_path=%s\n' "$date_path"
     printf 'dirname_path=%s\n' "$dirname_path"
     printf 'basename_path=%s\n' "$basename_path"
@@ -680,7 +704,7 @@ observations_path="$out_abs/observations.tsv"
     printf '%s\n' "$archiver_version"
     echo "build_driver_path=$make_path"
     printf '%s\n' "$make_version"
-} > "$out_dir/compiler.txt"
+} > "$bundle_stage/compiler.txt"
 
 {
     printf "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE\n"
@@ -747,7 +771,7 @@ observations_path="$out_abs/observations.tsv"
     printf " --profile local --repeats "
     shell_quote "$repeats"
     printf " > "
-    shell_quote "$observations_path"
+    shell_quote "$out_abs/observations.tsv"
     printf '\n'
     shell_quote "$chmod_path"
     printf " -R u+w "
@@ -757,7 +781,7 @@ observations_path="$out_abs/observations.tsv"
     printf " -rf "
     shell_quote "$source_snapshot"
     printf '\n'
-} > "$out_dir/command.txt"
+} > "$bundle_stage/command.txt"
 
 "$study_executable" --profile local --repeats "$repeats" \
     > "$observations_path"
@@ -769,7 +793,7 @@ cleanup_snapshot
 case "$hash_mode" in
     sha256sum)
         (
-            cd "$out_dir"
+            cd "$bundle_stage"
             "$hash_path" \
                 environment.txt \
                 compiler.txt \
@@ -780,7 +804,7 @@ case "$hash_mode" in
         ;;
     shasum)
         (
-            cd "$out_dir"
+            cd "$bundle_stage"
             "$hash_path" -a 256 \
                 environment.txt \
                 compiler.txt \
@@ -793,5 +817,16 @@ case "$hash_mode" in
         fail "unsupported SHA-256 utility mode: $hash_mode"
         ;;
 esac
+
+validate_source_identity
+
+if [ -e "$out_dir" ] || [ -L "$out_dir" ]; then
+    fail "evidence destination appeared during capture; refusing publish: $out_dir"
+fi
+
+"$mv_path" "$bundle_stage" "$out_dir" ||
+    fail "could not publish completed evidence bundle: $out_dir"
+bundle_published=true
+trap - 0 1 2 3 15
 
 echo "R7 evidence bundle: $out_dir"
