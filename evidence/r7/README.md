@@ -16,7 +16,10 @@ RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 ~~~
 
 The destination must not already exist; evidence bundles are immutable capture
-records and are never overwritten. Destinations that resolve inside or
+records and are never overwritten. Capture output is first staged under the
+ignored repository `build/` tree. The requested destination is published only
+after successful measurement, final provenance validation, snapshot cleanup,
+and SHA-256 generation. Destinations that resolve inside or
 lexically route through the repository `build/` tree are rejected, and
 parent-directory traversal is not accepted. `RUNE_R7_REPEATS` must be an
 integer from 1 through 100 and is rejected before destination creation. The
@@ -38,8 +41,10 @@ A bundle contains:
   whose absolute path/identity are recorded in the bundle.
 
 Evidence capture requires a clean Git working tree. Tracked, staged, or
-untracked changes cause a fail-closed exit before the bundle directory is
-created, so source_revision identifies the exact contents built.
+untracked changes cause a fail-closed exit before publication, so
+`source_revision` identifies the exact contents built. The requested
+`evidence/r7/...` path is absent during the final cleanliness checks and is
+therefore not mistaken for a source mutation.
 `assume-unchanged` and `skip-worktree` index flags are forbidden because
 they can hide tracked modifications from ordinary status checks. Git routing
 overrides are cleared and all provenance reads are rooted at the repository.
@@ -94,6 +99,10 @@ the absolute redirection to `observations.tsv`. Shell quoting is serialized
 with a fixed-provenance `sed`, so paths containing apostrophes remain valid.
 `command.txt` is replayable from outside the repository while recreating the
 captured output artifact.
+
+If measurement or finalization fails, an exit trap removes the staged bundle
+and temporary source snapshot; no partial requested destination is retained.
+This keeps the destination reusable after failures such as memory exhaustion.
 
 Raw observations are execution evidence, not universal performance claims.
 Interpretation belongs in a separately reviewed evidence commit.
