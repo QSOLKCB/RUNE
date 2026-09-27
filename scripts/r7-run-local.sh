@@ -10,7 +10,7 @@ fail()
 shell_quote()
 {
     printf "'"
-    printf '%s' "$1" | sed "s/'/'\\\\''/g"
+    printf '%s' "$1" | "$sed_path" "s/'/'\\\\''/g"
     printf "'"
 }
 
@@ -96,6 +96,24 @@ git_version=$("$git_path" --version 2>&1) ||
     fail "Git provenance identity command failed: $git_path --version"
 [ -n "$git_version" ] ||
     fail "Git provenance identity output is empty"
+
+sed_path=$(resolve_provenance_tool sed) ||
+    fail "sed not found in fixed provenance path"
+awk_path=$(resolve_provenance_tool awk) ||
+    fail "awk not found in fixed provenance path"
+bundle_mkdir_path=$(resolve_provenance_tool mkdir) ||
+    fail "mkdir not found in fixed provenance path"
+for provenance_tool_path in "$sed_path" "$awk_path" "$bundle_mkdir_path"; do
+    case "$provenance_tool_path" in
+        /*) ;;
+        *) fail "provenance tool path is not absolute: $provenance_tool_path" ;;
+    esac
+    [ -x "$provenance_tool_path" ] ||
+        fail "provenance tool path is not executable: $provenance_tool_path"
+done
+
+getconf_path=$(resolve_provenance_tool getconf 2>/dev/null || :)
+sysctl_path=$(resolve_provenance_tool sysctl 2>/dev/null || :)
 
 uname_path=$(resolve_provenance_tool uname) ||
     fail "uname not found in fixed provenance path"
@@ -191,6 +209,21 @@ fi
 cppflags=${CPPFLAGS:-}
 cflags=${CFLAGS:-}
 repeats=${RUNE_R7_REPEATS:-5}
+case "$repeats" in
+    ''|*[!0-9]*)
+        fail "RUNE_R7_REPEATS must be an integer from 1 through 100"
+        ;;
+esac
+normalized_repeats=$repeats
+while [ "${normalized_repeats#0}" != "$normalized_repeats" ]; do
+    normalized_repeats=${normalized_repeats#0}
+done
+[ -n "$normalized_repeats" ] ||
+    fail "RUNE_R7_REPEATS must be an integer from 1 through 100"
+case "$normalized_repeats" in
+    [1-9]|[1-9][0-9]|100) ;;
+    *) fail "RUNE_R7_REPEATS must be an integer from 1 through 100" ;;
+esac
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 out_dir=${1:-"evidence/r7/local-$stamp"}
 out_parent=$(dirname -- "$out_dir")
@@ -264,7 +297,7 @@ makefile_blob=$("$git_path" -C "$repo_root" rev-parse "$revision:Makefile") ||
 [ -n "$makefile_blob" ] ||
     fail "tracked Makefile identity is empty"
 
-index_hidden=$("$git_path" -C "$repo_root" ls-files -v | awk '
+index_hidden=$("$git_path" -C "$repo_root" ls-files -v | "$awk_path" '
     /^[a-z]/ || /^S / { print; exit }
 ') || fail "could not inspect Git index visibility flags"
 
@@ -289,20 +322,29 @@ tracked_inputs=$("$git_path" -C "$repo_root" ls-files -- Makefile src include st
 [ -n "$tracked_inputs" ] ||
     fail "tracked compiler-input set is empty"
 
-while IFS= read -r tracked_path; do
-    [ -n "$tracked_path" ] || continue
-    [ -f "$repo_root/$tracked_path" ] ||
-        fail "tracked compiler input is missing from worktree: $tracked_path"
-    worktree_blob=$("$git_path" -C "$repo_root" hash-object --no-filters -- "$tracked_path") ||
-        fail "could not hash raw worktree bytes: $tracked_path"
-    revision_blob=$("$git_path" -C "$repo_root" rev-parse "$revision:$tracked_path") ||
-        fail "could not resolve revision blob: $tracked_path"
-    [ "$worktree_blob" = "$revision_blob" ] ||
-        fail "raw worktree bytes differ from source revision: $tracked_path"
-done <<R7_TRACKED_INPUTS
+validate_source_identity()
+{
+    current_status=$("$git_path" -C "$repo_root" status --porcelain --untracked-files=all) ||
+        fail "could not re-inspect Git working-tree state"
+    [ -z "$current_status" ] ||
+        fail "working tree changed during evidence capture"
+
+    while IFS= read -r tracked_path; do
+        [ -n "$tracked_path" ] || continue
+        [ -f "$repo_root/$tracked_path" ] ||
+            fail "tracked compiler input is missing from worktree: $tracked_path"
+        worktree_blob=$("$git_path" -C "$repo_root" hash-object --no-filters -- "$tracked_path") ||
+            fail "could not hash raw worktree bytes: $tracked_path"
+        revision_blob=$("$git_path" -C "$repo_root" rev-parse "$revision:$tracked_path") ||
+            fail "could not resolve revision blob: $tracked_path"
+        [ "$worktree_blob" = "$revision_blob" ] ||
+            fail "raw worktree bytes differ from source revision: $tracked_path"
+    done <<R7_TRACKED_INPUTS
 $tracked_inputs
 R7_TRACKED_INPUTS
+}
 
+validate_source_identity
 dirty=false
 
 cc_path=$(command -v "$cc_name") ||
@@ -379,16 +421,16 @@ cleanup_build()
 
 memory_profile=
 if [ -r /proc/meminfo ]; then
-    mem_total_kib=$(awk '/^MemTotal:/ { print $2; exit }' /proc/meminfo)
+    mem_total_kib=$("$awk_path" '/^MemTotal:/ { print $2; exit }' /proc/meminfo)
     case "$mem_total_kib" in
         ''|*[!0-9]*) ;;
         *) memory_profile="mem_total_kib=$mem_total_kib" ;;
     esac
 fi
 
-if [ -z "$memory_profile" ] && command -v sysctl >/dev/null 2>&1; then
+if [ -z "$memory_profile" ] && [ -n "$sysctl_path" ]; then
     for key in hw.memsize hw.physmem64 hw.physmem; do
-        value=$(sysctl -n "$key" 2>/dev/null || :)
+        value=$("$sysctl_path" -n "$key" 2>/dev/null || :)
         case "$value" in
             ''|*[!0-9]*) ;;
             *)
@@ -399,9 +441,9 @@ if [ -z "$memory_profile" ] && command -v sysctl >/dev/null 2>&1; then
     done
 fi
 
-if [ -z "$memory_profile" ] && command -v getconf >/dev/null 2>&1; then
-    phys_pages=$(getconf _PHYS_PAGES 2>/dev/null || :)
-    page_size=$(getconf PAGE_SIZE 2>/dev/null || :)
+if [ -z "$memory_profile" ] && [ -n "$getconf_path" ]; then
+    phys_pages=$("$getconf_path" _PHYS_PAGES 2>/dev/null || :)
+    page_size=$("$getconf_path" PAGE_SIZE 2>/dev/null || :)
 
     case "$phys_pages" in
         ''|*[!0-9]*|0) phys_pages= ;;
@@ -426,14 +468,14 @@ platform_identity=$("$uname_path" -a 2>&1) ||
 
 cpu_model=
 if [ -r /proc/cpuinfo ]; then
-    cpu_model=$(awk -F ': ' '
+    cpu_model=$("$awk_path" -F ': ' '
         /^model name[[:space:]]*:/ { print $2; exit }
         /^Hardware[[:space:]]*:/ { print $2; exit }
     ' /proc/cpuinfo)
 fi
-if [ -z "$cpu_model" ] && command -v sysctl >/dev/null 2>&1; then
+if [ -z "$cpu_model" ] && [ -n "$sysctl_path" ]; then
     for key in machdep.cpu.brand_string hw.model; do
-        value=$(sysctl -n "$key" 2>/dev/null || :)
+        value=$("$sysctl_path" -n "$key" 2>/dev/null || :)
         if [ -n "$value" ]; then
             cpu_model=$value
             break
@@ -457,8 +499,14 @@ if [ "$fresh_build_self_test" = true ]; then
     exit 0
 fi
 
-mkdir "$out_dir" ||
+"$bundle_mkdir_path" "$out_dir" ||
     fail "could not create immutable evidence destination: $out_dir"
+
+set -- "$out_dir"/* "$out_dir"/.[!.]* "$out_dir"/..?*
+for bundle_entry in "$@"; do
+    [ -e "$bundle_entry" ] || [ -L "$bundle_entry" ] || continue
+    fail "new evidence destination is not empty: $out_dir"
+done
 
 observations_path="$out_abs/observations.tsv"
 
@@ -474,6 +522,9 @@ observations_path="$out_abs/observations.tsv"
     printf 'repeats=%s\n' "$repeats"
     printf 'git_provenance_path=%s\n' "$provenance_path"
     printf 'git_resolved=%s\n' "$git_path"
+    printf 'sed_resolved=%s\n' "$sed_path"
+    printf 'awk_resolved=%s\n' "$awk_path"
+    printf 'bundle_mkdir_resolved=%s\n' "$bundle_mkdir_path"
     printf 'uname_resolved=%s\n' "$uname_path"
     printf 'sha256_mode=%s\n' "$hash_mode"
     printf 'sha256_resolved=%s\n' "$hash_path"
@@ -499,9 +550,11 @@ observations_path="$out_abs/observations.tsv"
     echo "ignored_compiler_inputs=forbidden under src,include,study"
     echo "make_control_environment=MAKEFLAGS,GNUMAKEFLAGS,MFLAGS,MAKEFILES,MAKEOVERRIDES cleared"
     echo "uname=$platform_identity"
-    if command -v getconf >/dev/null 2>&1; then
-        echo "processors_online=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo unknown)"
-        echo "long_bit=$(getconf LONG_BIT 2>/dev/null || echo unknown)"
+    if [ -n "$getconf_path" ]; then
+        processors_online=$("$getconf_path" _NPROCESSORS_ONLN 2>/dev/null || printf '%s' unknown)
+        long_bit=$("$getconf_path" LONG_BIT 2>/dev/null || printf '%s' unknown)
+        printf 'processors_online=%s\n' "$processors_online"
+        printf 'long_bit=%s\n' "$long_bit"
     fi
     if [ -n "$cpu_model" ]; then
         echo "cpu_model=$cpu_model"
@@ -512,6 +565,9 @@ observations_path="$out_abs/observations.tsv"
 {
     printf 'git_path=%s\n' "$git_path"
     printf '%s\n' "$git_version"
+    printf 'sed_path=%s\n' "$sed_path"
+    printf 'awk_path=%s\n' "$awk_path"
+    printf 'bundle_mkdir_path=%s\n' "$bundle_mkdir_path"
     printf 'uname_path=%s\n' "$uname_path"
     printf 'sha256_path=%s\n' "$hash_path"
     printf '%s\n' "$hash_version"
@@ -557,10 +613,12 @@ observations_path="$out_abs/observations.tsv"
 } > "$out_dir/command.txt"
 
 build_study
+validate_source_identity
 
 "$study_executable" --profile local --repeats "$repeats" \
     > "$observations_path"
 
+validate_source_identity
 cleanup_build
 
 case "$hash_mode" in
