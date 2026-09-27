@@ -289,9 +289,11 @@ materializes **Makefile, src/, include/, and study/** directly from
 unexpected files and symlinks are rejected before the known source bytes are
 checked against the recorded revision and made read-only before Make runs. Make executes inside that snapshot, so the mutable checkout is not a
 compiler input. Worktree and snapshot identity are checked again after the build
-and after measurement. The publish destination is not created during the build or measurement. An
-EXIT/signal cleanup trap removes the source snapshot and staged bundle on
-failure, including measurement failures such as resource exhaustion. **Any dirty or divergent checkout/snapshot is rejected.** R7 local
+and after measurement. The publish destination is not created during the build or measurement. The
+study runs as a tracked child process; HUP, INT, QUIT, and TERM received by the
+wrapper are forwarded to the active study, then normal EXIT cleanup removes the
+source snapshot and staged bundle promptly. This also covers measurement
+failures such as resource exhaustion. **Any dirty or divergent checkout/snapshot is rejected.** R7 local
 evidence
 therefore binds directly to the recorded `source_revision`; a bundle may not
 claim a commit while actually building uncommitted source content. Files marked
@@ -322,9 +324,11 @@ The script records:
   syntax are rejected before Make runs. This includes dollar signs, backticks,
   command separators, redirections, shell comments, tilde expansion,
   pathname-globbing metacharacters, `@` compiler response-file syntax,
-  Clang `--config...` configuration-file/search-directory controls, and GCC
-  `-specs`/`--specs` external specs-file controls. Flags must therefore be
-  literal,
+  Clang `--config...` configuration-file/search-directory controls, GCC
+  `-specs`/`--specs` external specs-file controls, and GCC `-B` compiler
+  subprogram search overrides. Sensitive compiler controls are tokenized using
+  POSIX shell whitespace, so tab-separated forms cannot bypass the checks.
+  Flags must therefore be literal,
   replayable compiler arguments rather than expressions whose effective argv
   depends on unrecorded shell or filesystem state;
 - explicit sanitation of ambient compiler search/override variables

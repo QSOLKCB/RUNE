@@ -278,16 +278,26 @@ validate_literal_build_flags()
             fail "$flag_name must not contain newline or carriage-return shell control characters"
             ;;
     esac
-    case "$flag_value" in
-        *'--config'*)
-            fail "$flag_name must not contain Clang configuration-file controls; external compiler config files are not bound evidence inputs"
-            ;;
-    esac
-    case "$flag_value" in
-        *'-specs='*|*'--specs='*|*'-specs '*|*'--specs '*)
-            fail "$flag_name must not contain GCC specs-file controls; external compiler specs files are not bound evidence inputs"
-            ;;
-    esac
+    old_ifs=$IFS
+    IFS=' 	
+'
+    for flag_token in $flag_value; do
+        case "$flag_token" in
+            --config|--config=*|--config-system-dir|--config-system-dir=*|--config-user-dir|--config-user-dir=*)
+                IFS=$old_ifs
+                fail "$flag_name must not contain Clang configuration-file controls; external compiler config files are not bound evidence inputs"
+                ;;
+            -specs|--specs|-specs=*|--specs=*)
+                IFS=$old_ifs
+                fail "$flag_name must not contain GCC specs-file controls; external compiler specs files are not bound evidence inputs"
+                ;;
+            -B*)
+                IFS=$old_ifs
+                fail "$flag_name must not contain GCC -B compiler subprogram search overrides; external compiler executables are not bound evidence inputs"
+                ;;
+        esac
+    done
+    IFS=$old_ifs
 }
 
 validate_literal_build_flags CPPFLAGS "$cppflags"
@@ -698,6 +708,8 @@ case "$publish_lock_id" in
 esac
 publish_lock="$out_parent_abs/.r7-publish-lock-$publish_lock_id"
 publish_lock_held=false
+active_study_pid=
+termination_status=
 cleanup_capture_state()
 {
     if [ -n "${source_snapshot:-}" ] && [ -e "$source_snapshot" ]; then
@@ -716,7 +728,21 @@ cleanup_capture_state()
     fi
 }
 
-trap cleanup_capture_state 0 1 2 3 15
+forward_termination_signal()
+{
+    forwarded_signal=$1
+    termination_status=$2
+
+    if [ -n "${active_study_pid:-}" ]; then
+        kill "-$forwarded_signal" "$active_study_pid" >/dev/null 2>&1 || :
+    fi
+}
+
+trap cleanup_capture_state 0
+trap 'forward_termination_signal HUP 129' 1
+trap 'forward_termination_signal INT 130' 2
+trap 'forward_termination_signal QUIT 131' 3
+trap 'forward_termination_signal TERM 143' 15
 
 if [ "$fresh_build_self_test" = true ]; then
     materialize_source_snapshot
@@ -921,7 +947,24 @@ observations_path="$bundle_stage/observations.tsv"
 } > "$bundle_stage/command.txt"
 
 "$study_executable" --profile local --repeats "$repeats" \
-    > "$observations_path"
+    > "$observations_path" &
+active_study_pid=$!
+
+if wait "$active_study_pid"; then
+    study_status=0
+else
+    study_status=$?
+fi
+
+if [ -n "$termination_status" ]; then
+    wait "$active_study_pid" >/dev/null 2>&1 || :
+    active_study_pid=
+    exit "$termination_status"
+fi
+
+active_study_pid=
+[ "$study_status" -eq 0 ] ||
+    fail "R7 study execution failed with status $study_status"
 
 validate_snapshot_identity
 validate_source_identity

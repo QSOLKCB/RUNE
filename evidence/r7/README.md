@@ -93,12 +93,17 @@ utilities are resolved there. CPPFLAGS/CFLAGS metadata is emitted with
 capture rejects Make-variable references, shell-evaluated substitution,
 control, redirection, comment, tilde and pathname-globbing metacharacters,
 `@` compiler response-file syntax, Clang `--config...` configuration
-file/search-directory controls, and GCC `-specs`/`--specs` external
-specs-file controls. The recorded flag text therefore cannot turn into
+file/search-directory controls, GCC `-specs`/`--specs` external specs-file
+controls, and GCC `-B` compiler subprogram search overrides. Sensitive
+compiler controls are tokenized over POSIX shell whitespace, including tabs.
+The recorded flag text therefore cannot turn into
 unrecorded commands, response/config/specs-file contents, or filesystem-dependent
 argv during recipe/compiler evaluation. Each
 capture uses one UTC-timestamp-plus-PID identity for its source snapshot,
-`BUILD_DIR`, repository bundle stage, and sibling publish stage. The shared
+`BUILD_DIR`, repository bundle stage, and sibling publish stage. During the
+measurement, HUP/INT/QUIT/TERM are forwarded to the tracked study child before
+the EXIT trap removes staged capture state, so cancelling the wrapper does not
+leave the expensive study running in the background. The shared
 repository `build/` parent is created idempotently, so concurrent captures are
 isolated whether the parent already exists or is created by racing captures.
 The build never relies on `make clean`, so a fake ambient `rm` cannot

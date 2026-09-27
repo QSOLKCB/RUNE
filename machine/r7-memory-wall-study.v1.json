@@ -419,7 +419,13 @@
     "CPPFLAGS_and_CFLAGS_clang_config_search_directory_controls_allowed": false,
     "CPPFLAGS_and_CFLAGS_clang_config_controls_rejected_before_make": true,
     "CPPFLAGS_and_CFLAGS_gcc_specs_file_controls_allowed": false,
-    "CPPFLAGS_and_CFLAGS_gcc_specs_controls_rejected_before_make": true
+    "CPPFLAGS_and_CFLAGS_gcc_specs_controls_rejected_before_make": true,
+    "sensitive_compiler_flag_tokenization": "POSIX shell whitespace",
+    "GCC_specs_split_control_tabs_allowed": false,
+    "GCC_B_subprogram_search_overrides_allowed": false,
+    "GCC_B_controls_rejected_before_make": true,
+    "termination_signals_forwarded_to_active_study": true,
+    "termination_signal_exit_status_preserved_as_128_plus_signal": true
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,
@@ -465,7 +471,10 @@
       "compiler response-file expansion in CFLAGS/CPPFLAGS",
       "Clang --config external configuration file in CFLAGS/CPPFLAGS",
       "Clang --config-system-dir/--config-user-dir configuration search controls",
-      "GCC -specs/--specs external specs-file expansion in CFLAGS/CPPFLAGS"
+      "GCC -specs/--specs external specs-file expansion in CFLAGS/CPPFLAGS",
+      "tab-separated GCC -specs external specs-file expansion",
+      "GCC -B compiler subprogram search override",
+      "SIGTERM forwarding to active R7 study with prompt staging cleanup"
     ],
     "clock_regressions_run_under_UBSan": true,
     "floating_clock_t_regression_source": "tests/test_r7_clock_float.c",

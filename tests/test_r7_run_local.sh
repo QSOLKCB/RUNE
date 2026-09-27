@@ -41,6 +41,8 @@ cleanup()
     rm -f "/tmp/r7-response-header-$test_id.h" "/tmp/r7-response-flags-$test_id.rsp"
     rm -f "/tmp/r7-clang-config-header-$test_id.h" "/tmp/r7-clang-config-$test_id.cfg"
     rm -f "/tmp/r7-gcc-spec-header-$test_id.h" "/tmp/r7-gcc-spec-$test_id.specs"
+    rm -rf "/tmp/r7-bprefix-$test_id"
+    rm -f "/tmp/r7-b-header-$test_id.h" "/tmp/r7-signal-$test_id.log"
     rm -f "/tmp/r7-concurrent-a-$test_id.log" "/tmp/r7-concurrent-b-$test_id.log"
     rm -f "/tmp/r7-compete-a-$test_id.log" "/tmp/r7-compete-b-$test_id.log"
     rm -rf "$repo_root"/build/r7-source-* "$repo_root"/build/r7-evidence-* "$repo_root"/build/r7-bundle-stage-*
@@ -180,6 +182,32 @@ expect_capture_failure gcc-long-specs-equals-cppflags \
 expect_capture_failure gcc-specs-split-cflags \
     env "CFLAGS=-specs $gcc_spec" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
     scripts/r7-run-local.sh
+tab_specs_flags=$(printf '%s\t%s' -specs "$gcc_spec")
+expect_capture_failure gcc-specs-tab-cflags \
+    env "CFLAGS=$tab_specs_flags" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+
+# GCC -B must not replace trusted compiler subprograms with unbound executables.
+b_prefix="/tmp/r7-bprefix-$test_id"
+b_header="/tmp/r7-b-header-$test_id.h"
+mkdir -p "$b_prefix"
+cat > "$b_header" <<'EOF'
+#include <time.h>
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 434343
+EOF
+cat > "$b_prefix/cc1" <<EOF
+#!/bin/sh
+real_cc1=$("$system_cc" -print-prog-name=cc1)
+exec "$real_cc1" -include "$b_header" "$@"
+EOF
+chmod +x "$b_prefix/cc1"
+expect_capture_failure gcc-b-split-cflags \
+    env "CFLAGS=-B $b_prefix/" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+expect_capture_failure gcc-b-attached-cppflags \
+    env "CPPFLAGS=-B$b_prefix/" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
 
 rm -f "$backtick_header" "$backtick_hook" "$backtick_ran" "$separator_hook" "$separator_ran"
 rm -f "$response_header" "$response_flags" "$clang_config_header" "$clang_config"
@@ -214,6 +242,68 @@ EOF
         fi
         ;;
 esac
+
+# SIGTERM to the wrapper must promptly terminate the active study and clean staging.
+signal_dest="$tmp_root/signal-forward"
+signal_log="/tmp/r7-signal-$test_id.log"
+RUNE_R7_REPEATS=100 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh "$signal_dest" >"$signal_log" 2>&1 &
+signal_wrapper_pid=$!
+signal_stage=
+signal_study_pid=
+signal_probe=0
+while [ "$signal_probe" -lt 30 ]; do
+    signal_stage=$(/usr/bin/find build -maxdepth 1 -type d -name 'r7-bundle-stage-*' -print -quit)
+    if [ -n "$signal_stage" ] && [ -e "$signal_stage/observations.tsv" ]; then
+        signal_study_pid=$(
+            /usr/bin/ps -eo pid=,ppid=,comm= |
+                /usr/bin/awk -v parent="$signal_wrapper_pid"                     '$2 == parent && $3 ~ /rune_r7_study/ { print $1; exit }'
+        )
+        [ -n "$signal_study_pid" ] && break
+    fi
+    if ! kill -0 "$signal_wrapper_pid" 2>/dev/null; then
+        cat "$signal_log" >&2
+        fail "signal-forward capture exited before the active study was observed"
+    fi
+    sleep 1
+    signal_probe=$((signal_probe + 1))
+done
+[ -n "$signal_study_pid" ] || {
+    cat "$signal_log" >&2
+    kill -TERM "$signal_wrapper_pid" >/dev/null 2>&1 || :
+    fail "could not observe active R7 study for signal-forward regression"
+}
+
+kill -TERM "$signal_wrapper_pid"
+signal_probe=0
+while kill -0 "$signal_wrapper_pid" 2>/dev/null && [ "$signal_probe" -lt 10 ]; do
+    sleep 1
+    signal_probe=$((signal_probe + 1))
+done
+if kill -0 "$signal_wrapper_pid" 2>/dev/null; then
+    kill -KILL "$signal_wrapper_pid" >/dev/null 2>&1 || :
+    kill -KILL "$signal_study_pid" >/dev/null 2>&1 || :
+    fail "SIGTERM was not forwarded promptly to the active R7 study"
+fi
+if wait "$signal_wrapper_pid"; then
+    fail "signal-forward capture unexpectedly exited successfully"
+else
+    signal_status=$?
+fi
+[ "$signal_status" -eq 143 ] ||
+    fail "signal-forward capture exited with status $signal_status instead of 143"
+signal_probe=0
+while kill -0 "$signal_study_pid" 2>/dev/null && [ "$signal_probe" -lt 5 ]; do
+    sleep 1
+    signal_probe=$((signal_probe + 1))
+done
+if kill -0 "$signal_study_pid" 2>/dev/null; then
+    kill -KILL "$signal_study_pid" >/dev/null 2>&1 || :
+    fail "R7 study child remained alive after wrapper SIGTERM"
+fi
+[ ! -e "$signal_dest" ] || fail "terminated capture published a destination"
+[ -z "$signal_stage" ] || [ ! -e "$signal_stage" ] ||
+    fail "terminated capture left its bundle staging directory"
 
 run_concurrent_pair()
 {
