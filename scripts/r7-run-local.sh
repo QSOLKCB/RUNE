@@ -137,7 +137,7 @@ cflags=${CFLAGS:-}
 repeats=${RUNE_R7_REPEATS:-5}
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 out_dir=${1:-"evidence/r7/local-$stamp"}
-out_parent=$(dirname "$out_dir")
+out_parent=$(dirname -- "$out_dir")
 
 case "$cc_name" in
     *[[:space:]]*)
