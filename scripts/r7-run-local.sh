@@ -128,6 +128,10 @@ fi
 cc_name=${CC:-cc}
 ar_name=${AR:-ar}
 make_name=${MAKE:-make}
+fresh_build_self_test=false
+if [ "${1:-}" = "--self-test-fresh-build" ]; then
+    fresh_build_self_test=true
+fi
 cppflags=${CPPFLAGS:-}
 cflags=${CFLAGS:-}
 repeats=${RUNE_R7_REPEATS:-5}
@@ -298,6 +302,25 @@ case "$mkdir_path:$rm_path" in
     *) fail "build utility paths must be absolute" ;;
 esac
 
+build_study()
+{
+    PATH="$build_path" MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
+    "$make_path" -C "$repo_root" -f Makefile "$study_executable" \
+        BUILD_DIR="$build_dir" \
+        CC="$cc_path" \
+        AR="$ar_path" \
+        CPPFLAGS="$cppflags" \
+        CFLAGS="$cflags"
+}
+
+cleanup_build()
+{
+    "$rm_path" -rf "$build_dir" ||
+        fail "could not remove fresh evidence build directory: $build_dir"
+    [ ! -e "$build_dir" ] && [ ! -L "$build_dir" ] ||
+        fail "fresh evidence build directory remains after cleanup: $build_dir"
+}
+
 memory_profile=
 if [ -r /proc/meminfo ]; then
     mem_total_kib=$(awk '/^MemTotal:/ { print $2; exit }' /proc/meminfo)
@@ -367,6 +390,13 @@ study_executable="$build_dir/rune_r7_study"
 
 if [ -e "$build_dir" ] || [ -L "$build_dir" ]; then
     fail "fresh evidence build directory already exists: $build_dir"
+fi
+
+if [ "$fresh_build_self_test" = true ]; then
+    build_study
+    "$study_executable" --bytes 32768 --repeats 1 >/dev/null
+    cleanup_build
+    exit 0
 fi
 
 mkdir "$out_dir" ||
@@ -452,21 +482,12 @@ mkdir "$out_dir" ||
     printf '\n'
 } > "$out_dir/command.txt"
 
-PATH="$build_path" MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
-"$make_path" -C "$repo_root" -f Makefile "$study_executable" \
-    BUILD_DIR="$build_dir" \
-    CC="$cc_path" \
-    AR="$ar_path" \
-    CPPFLAGS="$cppflags" \
-    CFLAGS="$cflags"
+build_study
 
 "$study_executable" --profile local --repeats "$repeats" \
     > "$out_dir/observations.tsv"
 
-"$rm_path" -rf "$build_dir" ||
-    fail "could not remove fresh evidence build directory: $build_dir"
-[ ! -e "$build_dir" ] && [ ! -L "$build_dir" ] ||
-    fail "fresh evidence build directory remains after cleanup: $build_dir"
+cleanup_build
 
 if command -v sha256sum >/dev/null 2>&1; then
     (
