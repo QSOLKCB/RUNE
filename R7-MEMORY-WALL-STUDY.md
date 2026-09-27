@@ -141,7 +141,11 @@ variant_id is the tile size in elements:
 32 64 128 256 512 1024 2048 4096
 ~~~
 
-Every executed tile size must produce one exact result identity.
+All eight declared tile sizes execute for every valid R7 working-set size,
+including the 4 KiB profile. A tile may therefore be larger than the logical
+input: it still allocates the full selected tile extent but processes only the
+available logical items. Every tile size must produce the same exact result
+identity.
 
 Each microtile variant allocates **only its selected tile extent** after the
 total timer begins and releases it before teardown ends. The allocation is part
@@ -284,14 +288,16 @@ The script records:
 - explicit sanitation of dynamic-loader injection/search variables including
   `LD_PRELOAD`, `LD_LIBRARY_PATH`, `LD_AUDIT`, the relevant
   `DYLD_*` variables, `LIBPATH`, and `SHLIB_PATH`;
-- mandatory successful, nonempty `uname -a` platform identity;
+- mandatory successful, nonempty `uname -a` platform identity resolved from
+  the fixed provenance path and recorded by absolute executable path;
 - visible processor count when available;
 - CPU model when available;
 - a **required memory profile**, using /proc/meminfo, sysctl, or getconf;
 - timer method;
 - exact commands;
 - raw observations;
-- SHA-256 integrity file.
+- SHA-256 integrity file produced by a SHA-256 utility resolved from the fixed
+  provenance path, with the utility path/identity recorded before finalization.
 
 A compound CC such as `ccache gcc` is rejected for evidence capture; wrappers
 or flags must be represented explicitly rather than hidden inside CC. Ambient
@@ -368,13 +374,15 @@ evidence.
 make r7-study-smoke
 ~~~
 
-CI uses one 32 KiB repeat to check:
+CI uses one 32 KiB repeat and an explicit 4 KiB regression run to check:
 
 - strict C99 compilation;
 - all pairwise result identities;
 - all eight tile identities;
 - numeric TSV schema;
-- expected observation count.
+- expected observation count;
+- all eight microtile IDs (32 through 4096) execute at the 4 KiB profile,
+  yielding 20 rows rather than silently omitting the larger tiles.
 
 The timing values from this CI job are discarded as performance evidence.
 
