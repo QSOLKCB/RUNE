@@ -175,6 +175,44 @@ jobs:
             GCC_EXEC_PREFIX=/tmp/r7-hostile-gcc-prefix \
             scripts/r7-run-local.sh --self-test-compiler-search-env
 
+          quoted_wrapper_bundle="/tmp/r7-quoted-wrapper-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$quoted_wrapper_bundle"
+          if CFLAGS="'-wrapper' /tmp/r7-qwrap" RUNE_R7_REPEATS=1 \
+              CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh "$quoted_wrapper_bundle" 2>/dev/null; then
+            echo "R7 evidence script accepted shell-quoted GCC wrapper control" >&2
+            exit 1
+          fi
+          test ! -e "$quoted_wrapper_bundle"
+          if CFLAGS='\-wrapper /tmp/r7-qwrap' RUNE_R7_REPEATS=1 \
+              CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh "$quoted_wrapper_bundle" 2>/dev/null; then
+            echo "R7 evidence script accepted shell-escaped GCC wrapper control" >&2
+            exit 1
+          fi
+          test ! -e "$quoted_wrapper_bundle"
+
+          fsmonitor_hook="/tmp/r7-fsmonitor-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          fsmonitor_marker="/tmp/r7-fsmonitor-marker-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          fsmonitor_bundle="/tmp/r7-fsmonitor-bundle-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -f "$fsmonitor_hook" "$fsmonitor_marker"
+          rm -rf "$fsmonitor_bundle"
+          cat > "$fsmonitor_hook" <<EOF
+          #!/bin/sh
+          printf 'executed\n' >> "$fsmonitor_marker"
+          exit 0
+          EOF
+          chmod +x "$fsmonitor_hook"
+          git config core.fsmonitor "$fsmonitor_hook"
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0="$fsmonitor_hook" \
+            RUNE_R7_REPEATS=1 CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$fsmonitor_bundle"
+          git config --unset-all core.fsmonitor
+          test ! -e "$fsmonitor_marker"
+          test -s "$fsmonitor_bundle/observations.tsv"
+          rm -rf "$fsmonitor_bundle"
+          rm -f "$fsmonitor_hook" "$fsmonitor_marker"
+
           fakebin=$(mktemp -d)
           cat > "$fakebin/rm" <<'EOF'
           #!/bin/sh
@@ -341,6 +379,9 @@ jobs:
           grep -Fxq 'cppflags=-DUNUSED=a\c' "$replay_bundle/environment.txt"
           grep -Fxq 'cflags=-O2' "$replay_bundle/environment.txt"
           grep -Fq 'replay_observations_tmp=' "$replay_bundle/command.txt"
+          grep -Fq 'replay_source_snapshot=' "$replay_bundle/command.txt"
+          grep -Fq 'replay_build_dir_rel=' "$replay_bundle/command.txt"
+          grep -Fq 'replay_study_executable="$replay_source_snapshot/$replay_study_target"' "$replay_bundle/command.txt"
           grep -Fq ' > "$replay_observations_tmp"' "$replay_bundle/command.txt"
           grep -Fq "\"\$replay_observations_tmp\" '$replay_bundle/observations.tsv'" "$replay_bundle/command.txt"
           mv "$replay_bundle/observations.tsv" "$replay_bundle/observations.original.tsv"
@@ -354,7 +395,28 @@ jobs:
             echo "R7 replay leaked observation rows to stdout instead of observations.tsv" >&2
             exit 1
           fi
-          rm -rf "$replay_bundle" "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt"
+
+          rm -f "$replay_bundle/observations.tsv"
+          (
+            cd /tmp
+            sh "$replay_bundle/command.txt" > "/tmp/r7-replay-concurrent-a-${{ matrix.cc }}.txt"
+          ) &
+          replay_a=$!
+          (
+            cd /tmp
+            sh "$replay_bundle/command.txt" > "/tmp/r7-replay-concurrent-b-${{ matrix.cc }}.txt"
+          ) &
+          replay_b=$!
+          wait "$replay_a"
+          wait "$replay_b"
+          test -s "$replay_bundle/observations.tsv"
+          awk -F '\t' 'NF != 17 { exit 1 } END { if (NR == 0) exit 1 }' "$replay_bundle/observations.tsv"
+          test -z "$(find "$GITHUB_WORKSPACE/build" -maxdepth 1 -type d -name 'r7-replay-source-*' -print -quit)"
+
+          rm -rf "$replay_bundle" \
+            "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt" \
+            "/tmp/r7-replay-concurrent-a-${{ matrix.cc }}.txt" \
+            "/tmp/r7-replay-concurrent-b-${{ matrix.cc }}.txt"
           rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
 
           lowmem_bundle="/tmp/r7-lowmem-${{ matrix.cc }}-$GITHUB_RUN_ID"
