@@ -268,8 +268,8 @@ validate_literal_build_flags()
     flag_value=$2
 
     case "$flag_value" in
-        *'$'*|*'`'*|*';'*|*'&'*|*'|'*|*'<'*|*'>'*|*'#'*|*'~'*|*'*'*|*'?'*|*'['*|*']'*)
-            fail "$flag_name must not contain shell substitution, control, redirection, comment, tilde, or glob metacharacters; use literal replayable compiler arguments"
+        *'$'*|*'`'*|*';'*|*'&'*|*'|'*|*'<'*|*'>'*|*'#'*|*'~'*|*'*'*|*'?'*|*'['*|*']'*|*'@'*)
+            fail "$flag_name must not contain shell substitution, control, redirection, comment, tilde, glob, or compiler response-file metacharacters; use literal replayable compiler arguments"
             ;;
     esac
     case "$flag_value" in

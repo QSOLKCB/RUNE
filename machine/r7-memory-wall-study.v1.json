@@ -411,7 +411,10 @@
     "CPPFLAGS_and_CFLAGS_shell_substitution_allowed": false,
     "CPPFLAGS_and_CFLAGS_shell_control_or_redirection_allowed": false,
     "CPPFLAGS_and_CFLAGS_shell_comment_tilde_or_glob_expansion_allowed": false,
-    "CPPFLAGS_and_CFLAGS_shell_metacharacters_rejected_before_make": true
+    "CPPFLAGS_and_CFLAGS_shell_metacharacters_rejected_before_make": true,
+    "CPPFLAGS_and_CFLAGS_compiler_response_files_allowed": false,
+    "CPPFLAGS_and_CFLAGS_at_sign_allowed": false,
+    "CPPFLAGS_and_CFLAGS_response_file_rejected_before_make": true
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,
@@ -453,7 +456,8 @@
       "competing captures targeting the same absent destination",
       "backtick command substitution in CFLAGS",
       "shell command separator injection in CFLAGS",
-      "pathname glob expansion in CPPFLAGS"
+      "pathname glob expansion in CPPFLAGS",
+      "compiler response-file expansion in CFLAGS/CPPFLAGS"
     ],
     "clock_regressions_run_under_UBSan": true,
     "floating_clock_t_regression_source": "tests/test_r7_clock_float.c",

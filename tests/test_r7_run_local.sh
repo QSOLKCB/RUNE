@@ -38,6 +38,7 @@ cleanup()
     rm -f "/tmp/r7-ccc-header-$test_id.h"
     rm -f "/tmp/r7-backtick-header-$test_id.h" "/tmp/r7-backtick-hook-$test_id" "/tmp/r7-backtick-ran-$test_id"
     rm -f "/tmp/r7-separator-hook-$test_id" "/tmp/r7-separator-ran-$test_id"
+    rm -f "/tmp/r7-response-header-$test_id.h" "/tmp/r7-response-flags-$test_id.rsp"
     rm -f "/tmp/r7-concurrent-a-$test_id.log" "/tmp/r7-concurrent-b-$test_id.log"
     rm -f "/tmp/r7-compete-a-$test_id.log" "/tmp/r7-compete-b-$test_id.log"
     rm -rf "$repo_root"/build/r7-source-* "$repo_root"/build/r7-evidence-* "$repo_root"/build/r7-bundle-stage-*
@@ -118,7 +119,24 @@ expect_capture_failure shell-glob-cppflags \
     env 'CPPFLAGS=-I/tmp/r7-*' RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
     scripts/r7-run-local.sh
 
+# Compiler response files must not hide effective build arguments.
+response_header="/tmp/r7-response-header-$test_id.h"
+response_flags="/tmp/r7-response-flags-$test_id.rsp"
+cat > "$response_header" <<'EOF'
+#include <time.h>
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 424242
+EOF
+printf '%s\n' "-include $response_header" > "$response_flags"
+expect_capture_failure compiler-response-cflags \
+    env "CFLAGS=@$response_flags" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+expect_capture_failure compiler-response-cppflags \
+    env "CPPFLAGS=@$response_flags" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+
 rm -f "$backtick_header" "$backtick_hook" "$backtick_ran" "$separator_hook" "$separator_ran"
+rm -f "$response_header" "$response_flags"
 
 # Environment serialization must preserve backslashes and field boundaries.
 scripts/r7-run-local.sh --self-test-environment-serialization

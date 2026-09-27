@@ -320,8 +320,9 @@ The script records:
   and literal flag text are preserved exactly. Evidence flags are deliberately
   conservative: Make-variable syntax and shell-evaluated substitution/control
   syntax are rejected before Make runs. This includes dollar signs, backticks,
-  command separators, redirections, shell comments, tilde expansion, and
-  pathname-globbing metacharacters. Flags must therefore be literal,
+  command separators, redirections, shell comments, tilde expansion,
+  pathname-globbing metacharacters, and `@` compiler response-file syntax.
+  Flags must therefore be literal,
   replayable compiler arguments rather than expressions whose effective argv
   depends on unrecorded shell or filesystem state;
 - explicit sanitation of ambient compiler search/override variables
