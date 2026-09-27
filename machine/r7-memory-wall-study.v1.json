@@ -95,7 +95,9 @@
       "tile_storage_allocation": "selected-tile-only",
       "tile_allocation_included_in_setup_ticks": true,
       "tile_release_included_in_teardown_ticks": true,
-      "resident_and_peak_bytes_equal_selected_tile_extent": true
+      "resident_and_peak_bytes_equal_selected_tile_extent": true,
+      "all_declared_tile_sizes_execute_for_every_valid_working_set": true,
+      "tile_larger_than_logical_input_allocates_selected_extent_and_processes_available_items": true
     },
     "5": {
       "name": "retain-vs-regenerate",
@@ -173,6 +175,10 @@
     ],
     "dirty_state_recorded": true,
     "integrity": "SHA-256",
+    "integrity_utility_resolved_from_fixed_provenance_PATH": true,
+    "integrity_utility_path_recorded": true,
+    "integrity_utility_identity_recorded": true,
+    "ambient_PATH_may_control_integrity_utility": false,
     "evidence_class": "raw-local-execution-observation",
     "evidence_class_required": true,
     "destination_must_not_preexist": true,
@@ -246,6 +252,9 @@
     "source_revision_must_identify_exact_built_contents": true,
     "platform_identity_required": true,
     "platform_identity_command": "uname -a",
+    "platform_identity_executable_resolved_from_fixed_provenance_PATH": true,
+    "platform_identity_executable_path_recorded": true,
+    "ambient_PATH_may_control_platform_identity": false,
     "platform_identity_capture_must_succeed": true,
     "platform_identity_must_be_nonempty": true,
     "makefile_path": "$repo_root/Makefile",
@@ -341,7 +350,8 @@
       "gcc",
       "clang"
     ],
-    "CI_validates_harness_not_performance": true
+    "CI_validates_harness_not_performance": true,
+    "CI_validates_4096_byte_profile_has_20_rows_and_all_eight_microtiles": true
   },
   "measurement_integrity": {
     "volatile_accesses_are_study_mechanics": true,
