@@ -385,7 +385,7 @@ if [ -z "$cpu_model" ] && command -v sysctl >/dev/null 2>&1; then
     done
 fi
 
-build_dir_rel="build/r7-evidence-$stamp-$"
+build_dir_rel="build/r7-evidence-$stamp-$$"
 build_dir="$repo_root/$build_dir_rel"
 study_target="$build_dir_rel/rune_r7_study"
 study_executable="$repo_root/$study_target"
