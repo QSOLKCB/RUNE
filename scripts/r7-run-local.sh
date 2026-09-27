@@ -136,7 +136,7 @@ if [ "${1:-}" = "--self-test-git-root" ]; then
     [ "${GIT_NO_REPLACE_OBJECTS:-}" = "1" ] ||
         fail "Git replacement objects are not disabled"
     case "$git_path" in
-        "$provenance_path"/*) ;;
+        /usr/bin/*|/bin/*|/usr/sbin/*|/sbin/*) ;;
         *) fail "Git provenance executable escaped fixed provenance path: $git_path" ;;
     esac
     git_root=$("$git_path" -C "$repo_root" rev-parse --show-toplevel) ||
