@@ -36,14 +36,21 @@ Evidence capture requires a clean Git working tree. Tracked, staged, or
 untracked changes cause a fail-closed exit before the bundle directory is
 created, so source_revision identifies the exact contents built.
 `assume-unchanged` and `skip-worktree` index flags are forbidden because
-they can hide tracked modifications from ordinary status checks.
+they can hide tracked modifications from ordinary status checks. Git routing
+overrides are cleared and all provenance reads are rooted at the repository.
+Ignored untracked files under `src/`, `include/`, or `study/` are also
+forbidden because they can satisfy compiler includes without appearing in
+ordinary status output.
 
 For evidence capture, CC and AR must each identify one executable; compound
 commands are rejected. Ambient compiler search variables (CPATH,
 C_INCLUDE_PATH, CPLUS_INCLUDE_PATH, OBJC_INCLUDE_PATH, COMPILER_PATH,
 LIBRARY_PATH, GCC_EXEC_PREFIX) are cleared; intentional include paths belong in
-the recorded CPPFLAGS. CI also runs the script's compiler-search-environment
-self-test with hostile search paths preloaded. Missing compiler identity, a failed/empty `uname -a` platform identity, or
+the recorded CPPFLAGS. Dynamic-loader injection/search variables
+(`LD_PRELOAD`, loader library paths/auditing, relevant `DYLD_*` variables,
+`LIBPATH`, and `SHLIB_PATH`) are cleared before toolchain identity and study
+execution. CI exercises hostile compiler-search, Git-routing, ignored-header,
+and loader-injection cases. Missing compiler identity, a failed/empty `uname -a` platform identity, or
 missing memory profile causes the capture to fail. The getconf fallback requires both a nonzero numeric physical
 page count and page size.
 
@@ -52,8 +59,10 @@ the evidence build so a dry-run flag such as MAKEFLAGS=-n cannot certify a stale
 executable.
 
 The evidence build also uses the tracked repository Makefile explicitly via
-`make -f <repo>/Makefile` and records its Git blob identity. Ignored
+`make -C <repo> -f Makefile` and records its Git blob identity. Ignored
 `GNUmakefile` or lowercase `makefile` files cannot replace the build recipe.
+The recorded run command uses an absolute study executable path, making
+`command.txt` replayable from outside the repository.
 
 Raw observations are execution evidence, not universal performance claims.
 Interpretation belongs in a separately reviewed evidence commit.
