@@ -262,5 +262,30 @@
     "github_CI_smoke_is_performance_evidence": false,
     "timing_alone_can_support_cache_NUMA_bandwidth_cause": false,
     "negative_results_must_be_retained": true
+  },
+  "phase_transition": {
+    "from": "R6",
+    "to": "R7",
+    "status": "proposed-by-this-pull-request",
+    "review_mode": "evaluate-proposed-authority-migration",
+    "base_branch_authority_until_merge": "R6",
+    "head_authority_if_transition_accepted": "R7",
+    "superseded_phase_fields": [
+      "phase.id",
+      "phase.name",
+      "phase.runtime_implementation_allowed",
+      "evidence.runtime_performance_claim_policy.current_phase"
+    ],
+    "preserved_frozen_contracts": [
+      "R1 region core",
+      "R2 arena and scratch lifetime",
+      "R3 integer numeric core",
+      "R4 corpus v1",
+      "R5 rings and streaming",
+      "R6 operation descriptors and receipts"
+    ],
+    "frozen_runtime_semantics_preserved": true,
+    "runtime_abi_change": false,
+    "runtime_core_implementation_authorized_in_R7": false
   }
 }

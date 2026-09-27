@@ -7,6 +7,10 @@ LICENSE=MPL-2.0
 CURRENT_PHASE=R7
 RUNTIME_IMPLEMENTATION_ALLOWED=false
 RUNTIME_PERFORMANCE_CLAIMS_ALLOWED=false
+AUTHORITY_TRANSITION=R6_TO_R7
+TRANSITION_REVIEW_MODE=EVALUATE_PROPOSED_AUTHORITY_MIGRATION
+BASE_PHASE_UNTIL_MERGE=R6
+FROZEN_R1_THROUGH_R6_SEMANTICS_PRESERVED=true
 
 READ_ORDER:
 1=machine/project-v1.json
@@ -50,6 +54,9 @@ ON_HUMAN_MACHINE_CONTRADICTION=STOP_AND_REPORT
 DO_NOT_INVENT_RECONCILIATION=true
 
 CORE_RULES:
+- PR_review_of_R6_to_R7_must_evaluate_the_proposed_authority_transition_not_enforce_base_R6_phase_fields_against_the_R7_head
+- R6_to_R7_transition_supersedes_current_phase_and_phase_specific_runtime_implementation_permission_only
+- frozen_R1_through_R6_runtime_semantics_receipts_and_proofs_are_preserved
 - preserve_all_invariants
 - runtime_core_changes_forbidden_in_R7_study_phase
 - cpu_only

@@ -4,6 +4,27 @@ R7 is the first RUNE phase that records timing observations.
 
 It does **not** turn a timing number into a universal performance claim.
 
+## R6 → R7 authority migration
+
+This change intentionally advances the project authority from **R6** to **R7**.
+The R6 values on the base branch are therefore the pre-migration authority being
+reviewed, not constraints that the proposed R7 head must continue to report.
+
+For review of this transition:
+
+- evaluate whether the proposed R6 → R7 authority migration is valid;
+- after accepting the transition, interpret the PR head under
+  `CURRENT_PHASE=R7` and `RUNTIME_IMPLEMENTATION_ALLOWED=false`;
+- preserve all frozen R1–R6 runtime semantics and receipts unless this document
+  explicitly says otherwise;
+- do not treat the phase change as permission for runtime-core implementation;
+- until this PR merges, the target branch remains R6 authority.
+
+R6's implemented runtime primitives, operation descriptors, receipts, and proof
+artifacts remain preserved. R7 supersedes only the **current-phase authority and
+phase-specific implementation permission**: it adds study/evidence tooling and
+makes no runtime ABI or frozen semantic change.
+
 The study uses the frozen R4 questions to ask when representation, locality,
 resident state, materialization, and recomputation change observed execution
 cost on one declared environment.
