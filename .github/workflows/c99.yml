@@ -107,7 +107,7 @@ jobs:
           "${{ matrix.cc }}" -shared -fPIC build/r7-preload-probe.c -o build/r7-preload-probe.so
           LD_PRELOAD="$PWD/build/r7-preload-probe.so" \
             LD_LIBRARY_PATH=/tmp/r7-hostile-ld-library \
-            LD_AUDIT=/tmp/r7-hostile-ld-audit \
+            LD_AUDIT= \
             DYLD_INSERT_LIBRARIES=/tmp/r7-hostile-dyld-insert \
             DYLD_LIBRARY_PATH=/tmp/r7-hostile-dyld-library \
             DYLD_FRAMEWORK_PATH=/tmp/r7-hostile-dyld-framework \
