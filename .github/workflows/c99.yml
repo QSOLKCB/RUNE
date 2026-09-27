@@ -340,7 +340,9 @@ jobs:
             scripts/r7-run-local.sh "$replay_bundle"
           grep -Fxq 'cppflags=-DUNUSED=a\c' "$replay_bundle/environment.txt"
           grep -Fxq 'cflags=-O2' "$replay_bundle/environment.txt"
-          grep -Fq " > '$replay_bundle/observations.tsv'" "$replay_bundle/command.txt"
+          grep -Fq 'replay_observations_tmp=' "$replay_bundle/command.txt"
+          grep -Fq ' > "$replay_observations_tmp"' "$replay_bundle/command.txt"
+          grep -Fq "\"\$replay_observations_tmp\" '$replay_bundle/observations.tsv'" "$replay_bundle/command.txt"
           mv "$replay_bundle/observations.tsv" "$replay_bundle/observations.original.tsv"
           (
             cd /tmp
