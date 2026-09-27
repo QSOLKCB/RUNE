@@ -50,6 +50,8 @@ they can hide tracked modifications from ordinary status checks. Git routing
 overrides are cleared and all provenance reads are rooted at the repository.
 Git itself is resolved from a fixed provenance path
 (`/usr/bin:/bin:/usr/sbin:/sbin`) and its absolute path/version are recorded;
+repository-root discovery uses the fixed-provenance `dirname` rather than
+ambient `PATH`;
 the evidence build path is fixed and cannot substitute the Git/toolchain
 executables. Git replacement objects are disabled, active replacement refs are
 rejected, and tracked Makefile/source/include/study files are raw-hashed with
@@ -86,8 +88,10 @@ physical page count and page size.
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
 the evidence build. Ambient `PATH` is replaced by the fixed recorded
 `/usr/bin:/bin:/usr/sbin:/sbin` path; Make, compiler, archiver and build
-utilities are resolved there. CPPFLAGS/CFLAGS metadata is emitted with `printf`, preserving
-backslashes exactly. Each
+utilities are resolved there. CPPFLAGS/CFLAGS metadata is emitted with
+`printf`, preserving backslashes exactly; dollar signs are rejected so Make
+cannot recursively expand hidden `$(NAME)` references against unrecorded
+environment variables. Each
 capture uses one UTC-timestamp-plus-PID identity for its source snapshot,
 `BUILD_DIR`, repository bundle stage, and sibling publish stage. The shared
 repository `build/` parent is created idempotently, so concurrent captures are
@@ -126,4 +130,7 @@ CI includes dedicated deterministic regression gates in addition to the smoke
 study: `tests/test_r7_run_local.sh` via `make r7-evidence-regression`, and
 `tests/test_r7_clock.c` via `make r7-clock-regression` under UBSan. These
 tests are the home for future reproductions affecting the evidence wrapper or
-clock arithmetic. CI timing values remain non-performance evidence.
+clock arithmetic. The evidence regression entrypoint works with plain
+`make r7-evidence-regression` and Make's default `CC=cc`; its cleanup trap
+also removes the shared-memory ENOSPC fixture on normal exit, failure, or
+signal. CI timing values remain non-performance evidence.
