@@ -305,8 +305,8 @@ esac
 build_study()
 {
     PATH="$build_path" MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
-    "$make_path" -C "$repo_root" -f Makefile "$study_executable" \
-        BUILD_DIR="$build_dir" \
+    "$make_path" -C "$repo_root" -f Makefile "$study_target" \
+        BUILD_DIR="$build_dir_rel" \
         CC="$cc_path" \
         AR="$ar_path" \
         CPPFLAGS="$cppflags" \
@@ -385,8 +385,10 @@ if [ -z "$cpu_model" ] && command -v sysctl >/dev/null 2>&1; then
     done
 fi
 
-build_dir="$repo_root/build/r7-evidence-$stamp-$"
-study_executable="$build_dir/rune_r7_study"
+build_dir_rel="build/r7-evidence-$stamp-$"
+build_dir="$repo_root/$build_dir_rel"
+study_target="$build_dir_rel/rune_r7_study"
+study_executable="$repo_root/$study_target"
 
 if [ -e "$build_dir" ] || [ -L "$build_dir" ]; then
     fail "fresh evidence build directory already exists: $build_dir"
@@ -421,7 +423,9 @@ mkdir "$out_dir" ||
     echo "build_path=$build_path"
     echo "mkdir_resolved=$mkdir_path"
     echo "rm_resolved=$rm_path"
+    echo "fresh_build_dir_relative=$build_dir_rel"
     echo "fresh_build_dir=$build_dir"
+    echo "fresh_study_target=$study_target"
     echo "cppflags=$cppflags"
     echo "cflags=$cflags"
     echo "git_routing_environment=GIT_DIR,GIT_WORK_TREE,GIT_INDEX_FILE,GIT_OBJECT_DIRECTORY,GIT_ALTERNATE_OBJECT_DIRECTORIES,GIT_COMMON_DIR,GIT_NAMESPACE cleared"
@@ -463,9 +467,9 @@ mkdir "$out_dir" ||
     printf " -C "
     shell_quote "$repo_root"
     printf " -f Makefile "
-    shell_quote "$study_executable"
+    shell_quote "$study_target"
     printf " BUILD_DIR="
-    shell_quote "$build_dir"
+    shell_quote "$build_dir_rel"
     printf " CC="
     shell_quote "$cc_path"
     printf " AR="
