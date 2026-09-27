@@ -36,6 +36,17 @@ jobs:
             echo "R7 evidence script accepted build/ destination" >&2
             exit 1
           fi
+
+          symlink_target=$(mktemp -d)
+          ln -s "$symlink_target" build/r7-out-link
+          if scripts/r7-run-local.sh build/r7-out-link/run 2>/dev/null; then
+            echo "R7 evidence script accepted symlink-routed build/ destination" >&2
+            exit 1
+          fi
+          test ! -e "$symlink_target/run"
+          rm build/r7-out-link
+          rm -rf "$symlink_target"
+
           touch r7-untracked-evidence-probe
           if scripts/r7-run-local.sh evidence/r7/ci-dirty-probe 2>/dev/null; then
             echo "R7 evidence script accepted dirty worktree" >&2
@@ -75,6 +86,17 @@ jobs:
             scripts/r7-run-local.sh --self-test-git-root
           rm -rf "$foreign_repo"
 
+          replacement_commit=$(printf 'R7 replacement probe\n' | \
+            git -c user.name=RUNE -c user.email=rune@example.invalid \
+              commit-tree "$(git rev-parse 'HEAD^{tree}')")
+          git replace HEAD "$replacement_commit"
+          if scripts/r7-run-local.sh evidence/r7/ci-replace-probe 2>/dev/null; then
+            echo "R7 evidence script accepted active Git replacement ref" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-replace-probe
+          git replace -d HEAD
+
           cat > build/r7-preload-probe.c <<'EOF'
           #include <time.h>
           clock_t clock(void)
@@ -103,6 +125,23 @@ jobs:
           test ! -e evidence/r7/ci-assume-unchanged-probe
           git update-index --no-assume-unchanged study/r7_memory_wall.c
           git checkout -- study/r7_memory_wall.c
+
+          printf 'study/r7_memory_wall.c filter=r7-clean-probe\n' >> .git/info/attributes
+          git config filter.r7-clean-probe.clean "sed '/R7_CLEAN_FILTER_PROBE/d'"
+          git config filter.r7-clean-probe.smudge cat
+          printf '\n/* R7_CLEAN_FILTER_PROBE */\n' >> study/r7_memory_wall.c
+          git add study/r7_memory_wall.c
+          test -z "$(git status --porcelain --untracked-files=all)"
+          if scripts/r7-run-local.sh evidence/r7/ci-clean-filter-probe 2>/dev/null; then
+            echo "R7 evidence script accepted clean-filter-hidden source mutation" >&2
+            exit 1
+          fi
+          test ! -e evidence/r7/ci-clean-filter-probe
+          git reset --hard HEAD
+          git config --unset-all filter.r7-clean-probe.clean
+          git config --unset-all filter.r7-clean-probe.smudge
+          sed -i '/r7-clean-probe/d' .git/info/attributes
+
           CPATH=/tmp/r7-hostile-cpath C_INCLUDE_PATH=/tmp/r7-hostile-c-include \
             CPLUS_INCLUDE_PATH=/tmp/r7-hostile-cplus \
             COMPILER_PATH=/tmp/r7-hostile-compiler \
@@ -110,8 +149,28 @@ jobs:
             GCC_EXEC_PREFIX=/tmp/r7-hostile-gcc-prefix \
             scripts/r7-run-local.sh --self-test-compiler-search-env
 
-          grep -Fq 'make -C "$repo_root" -f Makefile clean build/rune_r7_study' scripts/r7-run-local.sh
-          grep -Fq 'shell_quote "$repo_root/build/rune_r7_study"' scripts/r7-run-local.sh
+          fakebin=$(mktemp -d)
+          cat > "$fakebin/rm" <<'EOF'
+          #!/bin/sh
+          exit 0
+          EOF
+          chmod +x "$fakebin/rm"
+          PATH="$fakebin:$PATH" scripts/r7-run-local.sh --self-test-build-tools > build/r7-build-tools.txt
+          if grep -Fq "$fakebin/rm" build/r7-build-tools.txt; then
+            echo "R7 evidence script selected ambient fake rm" >&2
+            exit 1
+          fi
+          PATH="$fakebin:$PATH" CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh --self-test-fresh-build
+          rm -rf "$fakebin"
+          rm build/r7-build-tools.txt
+
+          grep -Fq 'BUILD_DIR="$build_dir"' scripts/r7-run-local.sh
+          if grep -Fq ' clean build/rune_r7_study' scripts/r7-run-local.sh; then
+            echo "R7 evidence script still depends on clean removing stale study output" >&2
+            exit 1
+          fi
+
           (
             cd /tmp
             MAKEFLAGS= GNUMAKEFLAGS= MFLAGS= MAKEFILES= MAKEOVERRIDES= \
