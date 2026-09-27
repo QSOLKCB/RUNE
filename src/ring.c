@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MPL-2.0 */
 #include "rune/ring.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 static rune_status rune_ring_advance(
