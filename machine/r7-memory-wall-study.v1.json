@@ -186,5 +186,11 @@
       "clang"
     ],
     "CI_validates_harness_not_performance": true
+  },
+  "measurement_integrity": {
+    "volatile_accesses_are_study_mechanics": true,
+    "purpose": "prevent-optimizer-from-collapsing-declared-materialization-tile-retain-recompute-variants",
+    "volatile_semantics_are_part_of_R7_harness_not_runtime_API": true,
+    "clock_wrap_is_rejected_before_tick_subtraction": true
   }
 }

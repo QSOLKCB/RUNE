@@ -204,6 +204,12 @@ The default local evidence run uses five repeats.
 The harness normalizes small cases toward roughly 64 MiB of logical work per
 sample so very small working sets are not represented by a single tiny loop.
 
+Selected study storage is accessed through C99 `volatile` views where needed to
+prevent an optimizing compiler from legally collapsing one declared benchmark
+variant into another (for example, eliminating the materialized temporary or
+the microtile). These volatile accesses are **study mechanics**, not RUNE
+runtime semantics or an optimization recommendation.
+
 ## Local evidence bundle
 
 Run:

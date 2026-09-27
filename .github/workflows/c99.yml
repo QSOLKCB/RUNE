@@ -27,6 +27,9 @@ jobs:
       - name: Build R1-R7 checks, R6 proof, frozen R4 corpus, and R7 smoke
         run: make clean test r6-proof corpus-smoke r7-study-smoke CC="${{ matrix.cc }}"
 
+      - name: Validate R7 local evidence script
+        run: sh -n scripts/r7-run-local.sh
+
       - name: Reject truncated corpus output
         run: |
           if ./build/rune_corpus --profile smoke > /dev/full 2>/dev/null; then

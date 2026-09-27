@@ -155,10 +155,11 @@ static int r7_ticks_between(
         return 0;
     }
 
-    delta = end - start;
-    if (delta < (clock_t)0) {
+    if (end < start) {
         return 0;
     }
+
+    delta = end - start;
 
     converted = (uint64_t)delta;
     if ((clock_t)converted != delta) {
@@ -353,6 +354,9 @@ static int r7_measure_locality(
 
     result = 0u;
     if (variant == R7_VARIANT_A) {
+        volatile const uint32_t *read_values;
+
+        read_values = values;
         for (round = 0u; round < rounds; ++round) {
             for (i = 0u; i < count; ++i) {
                 result += (uint64_t)read_values[(size_t)i];
@@ -413,7 +417,7 @@ static int r7_measure_materialization(
     uint64_t i;
     uint64_t result;
     uint32_t *values;
-    uint32_t *temporary;
+    volatile uint32_t *temporary;
     clock_t total_start;
     clock_t setup_end;
     clock_t execute_end;
@@ -443,7 +447,7 @@ static int r7_measure_materialization(
     }
 
     if (variant == R7_VARIANT_A) {
-        temporary = (uint32_t *)r7_malloc(working_set_bytes);
+        temporary = (volatile uint32_t *)r7_malloc(working_set_bytes);
         if (temporary == NULL) {
             free(values);
             return 0;
@@ -461,17 +465,20 @@ static int r7_measure_materialization(
         for (round = 0u; round < rounds; ++round) {
             for (i = 0u; i < count; ++i) {
                 temporary[(size_t)i] =
-                    r7_transform32(values[(size_t)i]);
+                    r7_transform32(read_values[(size_t)i]);
             }
             for (i = 0u; i < count; ++i) {
                 result += (uint64_t)temporary[(size_t)i];
             }
         }
     } else {
+        volatile const uint32_t *read_values;
+
+        read_values = values;
         for (round = 0u; round < rounds; ++round) {
             for (i = 0u; i < count; ++i) {
                 result += (uint64_t)r7_transform32(
-                    values[(size_t)i]
+                    read_values[(size_t)i]
                 );
             }
         }
@@ -709,7 +716,7 @@ static int r7_measure_microtile(
     r7_observation *observation
 )
 {
-    uint32_t tile[4096];
+    volatile uint32_t tile[4096];
     uint64_t count;
     uint64_t rounds;
     uint64_t round;
@@ -812,6 +819,7 @@ static int r7_measure_retain_regenerate(
     uint64_t i;
     uint64_t result;
     uint32_t *values;
+    volatile uint64_t regenerate_seed;
     clock_t total_start;
     clock_t setup_end;
     clock_t execute_end;
@@ -821,6 +829,7 @@ static int r7_measure_retain_regenerate(
     rounds = r7_rounds_for_bytes(working_set_bytes);
     passes = rounds * UINT64_C(4);
     values = NULL;
+    regenerate_seed = R7_SEED;
 
     r7_observation_begin(
         observation,
@@ -861,7 +870,7 @@ static int r7_measure_retain_regenerate(
     } else {
         for (pass = 0u; pass < passes; ++pass) {
             for (i = 0u; i < count; ++i) {
-                result += (uint64_t)r7_value32(R7_SEED, i);
+                result += (uint64_t)r7_value32(regenerate_seed, i);
             }
         }
     }
@@ -915,6 +924,7 @@ static int r7_measure_lookup_recompute(
     uint64_t index;
     uint64_t result;
     uint32_t *table;
+    volatile uint64_t recompute_seed;
     clock_t total_start;
     clock_t setup_end;
     clock_t execute_end;
@@ -923,6 +933,7 @@ static int r7_measure_lookup_recompute(
     count = working_set_bytes / (uint64_t)sizeof(uint32_t);
     rounds = r7_rounds_for_bytes(working_set_bytes);
     table = NULL;
+    recompute_seed = R7_SEED;
 
     r7_observation_begin(
         observation,
@@ -967,7 +978,7 @@ static int r7_measure_lookup_recompute(
         for (round = 0u; round < rounds; ++round) {
             for (i = 0u; i < count; ++i) {
                 index = i & (R7_LOOKUP_ENTRIES - UINT64_C(1));
-                result += (uint64_t)r7_value32(R7_SEED, index);
+                result += (uint64_t)r7_value32(recompute_seed, index);
             }
         }
     }
