@@ -47,7 +47,7 @@ sanitize_capture_environment()
 
 sanitize_capture_environment
 
-build_path=${RUNE_R7_BUILD_PATH:-/usr/bin:/bin}
+build_path=${RUNE_R7_BUILD_PATH:-/usr/bin:/bin:/usr/sbin:/sbin}
 
 validate_build_path()
 {
