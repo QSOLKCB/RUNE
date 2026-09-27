@@ -32,8 +32,10 @@ cleanup()
 {
     rm -rf "$tmp_root"
     rm -f /tmp/r7-reg-cc-$$ /tmp/r7-reg-ar-$$ /tmp/r7-reg-make-$$
-    rm -f /tmp/r7-tar-hook-$$ /tmp/r7-tar-hook-ran-$$
-    rm -rf "$repo_root"/build/r7-source-*         "$repo_root"/build/r7-evidence-*         "$repo_root"/build/r7-bundle-stage-*
+    rm -f /tmp/r7-tar-hook-$ /tmp/r7-tar-hook-ran-$
+    rm -f /tmp/r7-ccc-header-$.h
+    rm -f /tmp/r7-concurrent-a-$.log /tmp/r7-concurrent-b-$.log
+    rm -rf "$repo_root"/build/r7-source-* "$repo_root"/build/r7-evidence-* "$repo_root"/build/r7-bundle-stage-*
 }
 trap cleanup 0 1 2 3 15
 
@@ -48,6 +50,84 @@ expect_capture_failure()
     fi
     [ ! -e "$dest" ] || fail "$label left a requested destination"
 }
+
+# Environment serialization must preserve backslashes and field boundaries.
+scripts/r7-run-local.sh --self-test-environment-serialization
+
+# Clang ambient option overrides must be cleared by capture and replay.
+CCC_OVERRIDE_OPTIONS='#+-include +/tmp/should-not-exist.h' \
+    scripts/r7-run-local.sh --self-test-compiler-search-env
+
+case "$system_cc" in
+    *clang)
+        cat > /tmp/r7-ccc-header-$.h <<'EOF'
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 424242
+EOF
+        ccc_bundle="$tmp_root/ccc-override"
+        CCC_OVERRIDE_OPTIONS="#+-include +/tmp/r7-ccc-header-$.h" \
+            RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+            scripts/r7-run-local.sh "$ccc_bundle" >/dev/null
+        if /usr/bin/awk -F '\t' '$16 == 424242 { bad=1 } END { exit bad ? 0 : 1 }' "$ccc_bundle/observations.tsv"; then
+            fail "CCC_OVERRIDE_OPTIONS changed captured clock scale"
+        fi
+        /usr/bin/grep -Fq 'CCC_OVERRIDE_OPTIONS' "$ccc_bundle/command.txt" ||
+            fail "replay does not explicitly clear CCC_OVERRIDE_OPTIONS"
+        CCC_OVERRIDE_OPTIONS="#+-include +/tmp/r7-ccc-header-$.h" \
+            /bin/sh "$ccc_bundle/command.txt" >/dev/null
+        if /usr/bin/awk -F '\t' '$16 == 424242 { bad=1 } END { exit bad ? 0 : 1 }' "$ccc_bundle/observations.tsv"; then
+            fail "CCC_OVERRIDE_OPTIONS changed replayed clock scale"
+        fi
+        ;;
+esac
+
+run_concurrent_pair()
+{
+    label=$1
+    dest_a="$tmp_root/$label-a"
+    dest_b="$tmp_root/$label-b"
+    rm -rf "$dest_a" "$dest_b"
+
+    RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+        scripts/r7-run-local.sh "$dest_a" > /tmp/r7-concurrent-a-$.log 2>&1 &
+    pid_a=$!
+    RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+        scripts/r7-run-local.sh "$dest_b" > /tmp/r7-concurrent-b-$.log 2>&1 &
+    pid_b=$!
+
+    if wait "$pid_a"; then status_a=0; else status_a=$?; fi
+    if wait "$pid_b"; then status_b=0; else status_b=$?; fi
+
+    [ "$status_a" -eq 0 ] || {
+        cat /tmp/r7-concurrent-a-$.log >&2
+        fail "$label capture A failed with status $status_a"
+    }
+    [ "$status_b" -eq 0 ] || {
+        cat /tmp/r7-concurrent-b-$.log >&2
+        fail "$label capture B failed with status $status_b"
+    }
+
+    for concurrent_bundle in "$dest_a" "$dest_b"; do
+        [ -s "$concurrent_bundle/observations.tsv" ] ||
+            fail "$label did not publish observations"
+        (
+            cd "$concurrent_bundle"
+            /usr/bin/sha256sum -c SHA256SUMS >/dev/null
+        )
+    done
+
+    if /usr/bin/find build -maxdepth 1 -type d \( -name 'r7-source-*' -o -name 'r7-bundle-stage-*' \) -print -quit | /usr/bin/grep -q .; then
+        fail "$label leaked shared capture state"
+    fi
+}
+
+# Concurrent captures must isolate all PID-qualified staging paths.
+mkdir -p build
+run_concurrent_pair concurrent-existing-build
+
+# Shared build-parent creation must be race-safe from a clean absent build/.
+rm -rf build
+run_concurrent_pair concurrent-missing-build
 
 # Canonical-path regression: lexical /usr/bin prefixes must not authorize /tmp.
 cat > /tmp/r7-reg-cc-$$ <<EOF
