@@ -240,9 +240,12 @@ RUNE_R7_REPEATS=5 CC=cc ./scripts/r7-run-local.sh evidence/r7/my-host
 The script creates an **immutable new destination** and refuses to overwrite an
 existing bundle. Destinations may not resolve inside, or lexically route
 through, the repository `build/` tree, and parent-directory traversal is
-rejected. The script clears Git repository-routing overrides, sets
-`GIT_NO_REPLACE_OBJECTS=1`, rejects active `refs/replace`, and anchors all
-provenance reads to `repo_root` with `git -C`. Before creating the
+rejected. The script clears Git repository-routing overrides, resolves Git only from the
+fixed provenance path `/usr/bin:/bin:/usr/sbin:/sbin`, records that absolute
+Git executable and version, sets `GIT_NO_REPLACE_OBJECTS=1`, rejects active
+`refs/replace`, and anchors all provenance reads to `repo_root` with
+`git -C`. The overridable `RUNE_R7_BUILD_PATH` is used only for build
+utilities and cannot replace the Git executable used for provenance. Before creating the
 destination it rejects Git index flags that can hide tracked changes
 (`assume-unchanged` and `skip-worktree`), rejects ignored untracked files
 under the compiler-input trees `src/`, `include/`, and `study/`, and
@@ -271,8 +274,9 @@ The script records:
   ignored untracked files under `src/`, `include/`, and `study/`;
 - resolved single-executable compiler, archiver, and build-driver paths with
   successful identity/version output;
-- both CPPFLAGS and CFLAGS, binding those exact values plus CC and AR into the
-  build command;
+- both CPPFLAGS and CFLAGS, recorded with `printf` so backslashes and other
+  shell-text content are preserved exactly, binding those values plus CC and AR
+  into the build command;
 - explicit sanitation of ambient compiler search-path variables
   (`CPATH`, `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`,
   `OBJC_INCLUDE_PATH`, `COMPILER_PATH`, `LIBRARY_PATH`,
@@ -334,9 +338,11 @@ working directory.
 The script verifies that `Makefile` is tracked and records the Git blob ID of
 `source_revision:Makefile`. Ignored or globally excluded `GNUmakefile` or
 lowercase `makefile` files therefore cannot override the evidence build.
-`command.txt` records that explicit working directory and uses an absolute
-path for the study executable, so replay does not depend on the caller's current
-directory. CI runs the quote serializer's built-in self-test and executes the
+`command.txt` records that explicit working directory, uses an absolute path
+for the study executable, and records the exact absolute
+`> .../observations.tsv` redirection used by capture. Replaying the file from
+another working directory therefore recreates the observation artifact rather
+than sending numeric rows to the caller's stdout. CI runs the quote serializer's built-in self-test and executes the
 pinned build/run form from outside the repository. CI also reproduces
 symlink-routed output paths, active Git replacement refs, clean-filter-hidden
 raw source edits, and a hostile ambient `PATH` containing a fake `rm`; the
