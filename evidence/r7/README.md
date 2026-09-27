@@ -53,17 +53,21 @@ Git itself is resolved from a fixed provenance path
 the evidence build path is fixed and cannot substitute the Git/toolchain
 executables. Git replacement objects are disabled, active replacement refs are
 rejected, and tracked Makefile/source/include/study files are raw-hashed with
-filters disabled and must match their blobs at `source_revision`. The actual
-evidence build does not compile those worktree files: it extracts
+filters disabled and must match their blobs at `source_revision`. The actual evidence build does not compile those worktree files: it extracts
 `Makefile`, `src/`, `include/`, and `study/` from
-`git archive source_revision` into a per-capture snapshot, verifies the
-snapshot bytes, and marks the source inputs read-only before compiling. Ignored untracked files under
+`git archive source_revision` into a per-capture snapshot. `TAR_OPTIONS` is
+cleared before extraction and replay, unexpected snapshot files/symlinks are
+rejected, then the expected snapshot bytes are verified and made read-only
+before compiling. Ignored untracked files under
 `src/`, `include/`, or `study/` are also forbidden because they can
 satisfy compiler includes without appearing in ordinary status output.
 
 For evidence capture, CC and AR must each identify one executable available
-from the fixed provenance path; arbitrary external compiler/archiver wrappers
-and compound commands are rejected. Ambient compiler search variables (CPATH,
+from the fixed provenance path. Their paths (and Make's path) are physically
+canonicalized at the parent-directory level before trusted-prefix checks, so
+lexical aliases such as `/usr/bin/../../tmp/wrapper` are rejected while normal
+system symlinks remain usable. Arbitrary external compiler/archiver wrappers and
+compound commands are rejected. Ambient compiler search variables (CPATH,
 C_INCLUDE_PATH, CPLUS_INCLUDE_PATH, OBJC_INCLUDE_PATH, COMPILER_PATH,
 LIBRARY_PATH, GCC_EXEC_PREFIX) are cleared; intentional include paths belong in
 the recorded CPPFLAGS. Dynamic-loader injection/search variables
@@ -94,19 +98,27 @@ containing spaces remain parseable; the executable used by the shell remains
 absolute. The bundle records the build-driver identity and Makefile Git blob
 identity. Ignored
 `GNUmakefile` or lowercase `makefile` files cannot replace the build recipe.
-The recorded run command uses an absolute study executable path and includes
-the absolute redirection to `observations.tsv`. Shell quoting is serialized
+The recorded run command begins with `set -eu`, uses an absolute study
+executable path, and includes the absolute redirection to `observations.tsv`.
+A replay therefore stops on its first failed setup/build/study command instead
+of allowing cleanup to mask the failure. Shell quoting is serialized
 with a fixed-provenance `sed`, so paths containing apostrophes remain valid.
 `command.txt` is replayable from outside the repository while recreating the
 captured output artifact.
 
 If measurement or finalization fails, an exit trap removes the staged bundle
 and temporary source snapshot; no partial requested destination is retained.
+Publication first copies the complete bundle to a hidden sibling directory on
+the destination filesystem, verifies its SHA-256 manifest there, and only then
+renames it into the immutable final path. Cross-filesystem ENOSPC therefore
+cannot leave a partial requested destination.
 This keeps the destination reusable after failures such as memory exhaustion.
 
 Raw observations are execution evidence, not universal performance claims.
 Interpretation belongs in a separately reviewed evidence commit.
 
-GitHub-hosted CI runs only `r7-study-smoke` to prove the harness builds,
-executes, preserves comparison result identity, and emits the expected schema.
-CI timing values are not R7 performance evidence.
+CI includes dedicated deterministic regression gates in addition to the smoke
+study: `tests/test_r7_run_local.sh` via `make r7-evidence-regression`, and
+`tests/test_r7_clock.c` via `make r7-clock-regression` under UBSan. These
+tests are the home for future reproductions affecting the evidence wrapper or
+clock arithmetic. CI timing values remain non-performance evidence.
