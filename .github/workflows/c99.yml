@@ -370,7 +370,7 @@ jobs:
             scripts/r7-run-local.sh "$default_bundle"
           test -s "$default_bundle/observations.tsv"
           test -s "$default_bundle/SHA256SUMS"
-          grep -Fxq 'bundle_publish_mode=atomic_rename_after_success' "$default_bundle/environment.txt"
+          grep -Fxq 'bundle_publish_mode=publish_after_success_via_trusted_mv' "$default_bundle/environment.txt"
           (
             cd "$default_bundle"
             /usr/bin/sha256sum -c SHA256SUMS
