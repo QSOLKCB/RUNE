@@ -417,7 +417,9 @@
     "CPPFLAGS_and_CFLAGS_response_file_rejected_before_make": true,
     "CPPFLAGS_and_CFLAGS_clang_config_file_controls_allowed": false,
     "CPPFLAGS_and_CFLAGS_clang_config_search_directory_controls_allowed": false,
-    "CPPFLAGS_and_CFLAGS_clang_config_controls_rejected_before_make": true
+    "CPPFLAGS_and_CFLAGS_clang_config_controls_rejected_before_make": true,
+    "CPPFLAGS_and_CFLAGS_gcc_specs_file_controls_allowed": false,
+    "CPPFLAGS_and_CFLAGS_gcc_specs_controls_rejected_before_make": true
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,
@@ -462,7 +464,8 @@
       "pathname glob expansion in CPPFLAGS",
       "compiler response-file expansion in CFLAGS/CPPFLAGS",
       "Clang --config external configuration file in CFLAGS/CPPFLAGS",
-      "Clang --config-system-dir/--config-user-dir configuration search controls"
+      "Clang --config-system-dir/--config-user-dir configuration search controls",
+      "GCC -specs/--specs external specs-file expansion in CFLAGS/CPPFLAGS"
     ],
     "clock_regressions_run_under_UBSan": true,
     "floating_clock_t_regression_source": "tests/test_r7_clock_float.c",

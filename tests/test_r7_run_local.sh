@@ -40,6 +40,7 @@ cleanup()
     rm -f "/tmp/r7-separator-hook-$test_id" "/tmp/r7-separator-ran-$test_id"
     rm -f "/tmp/r7-response-header-$test_id.h" "/tmp/r7-response-flags-$test_id.rsp"
     rm -f "/tmp/r7-clang-config-header-$test_id.h" "/tmp/r7-clang-config-$test_id.cfg"
+    rm -f "/tmp/r7-gcc-spec-header-$test_id.h" "/tmp/r7-gcc-spec-$test_id.specs"
     rm -f "/tmp/r7-concurrent-a-$test_id.log" "/tmp/r7-concurrent-b-$test_id.log"
     rm -f "/tmp/r7-compete-a-$test_id.log" "/tmp/r7-compete-b-$test_id.log"
     rm -rf "$repo_root"/build/r7-source-* "$repo_root"/build/r7-evidence-* "$repo_root"/build/r7-bundle-stage-*
@@ -158,8 +159,31 @@ expect_capture_failure clang-config-user-dir \
     env 'CFLAGS=--config-user-dir=/tmp' RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
     scripts/r7-run-local.sh
 
+# GCC specs files must not hide effective compiler arguments.
+gcc_spec_header="/tmp/r7-gcc-spec-header-$test_id.h"
+gcc_spec="/tmp/r7-gcc-spec-$test_id.specs"
+cat > "$gcc_spec_header" <<'EOF'
+#include <time.h>
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 424242
+EOF
+cat > "$gcc_spec" <<EOF
+*cpp:
+-include $gcc_spec_header
+EOF
+expect_capture_failure gcc-specs-equals-cflags \
+    env "CFLAGS=-specs=$gcc_spec" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+expect_capture_failure gcc-long-specs-equals-cppflags \
+    env "CPPFLAGS=--specs=$gcc_spec" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+expect_capture_failure gcc-specs-split-cflags \
+    env "CFLAGS=-specs $gcc_spec" RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+    scripts/r7-run-local.sh
+
 rm -f "$backtick_header" "$backtick_hook" "$backtick_ran" "$separator_hook" "$separator_ran"
 rm -f "$response_header" "$response_flags" "$clang_config_header" "$clang_config"
+rm -f "$gcc_spec_header" "$gcc_spec"
 
 # Environment serialization must preserve backslashes and field boundaries.
 scripts/r7-run-local.sh --self-test-environment-serialization

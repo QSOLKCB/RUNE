@@ -283,6 +283,11 @@ validate_literal_build_flags()
             fail "$flag_name must not contain Clang configuration-file controls; external compiler config files are not bound evidence inputs"
             ;;
     esac
+    case "$flag_value" in
+        *'-specs='*|*'--specs='*|*'-specs '*|*'--specs '*)
+            fail "$flag_name must not contain GCC specs-file controls; external compiler specs files are not bound evidence inputs"
+            ;;
+    esac
 }
 
 validate_literal_build_flags CPPFLAGS "$cppflags"
