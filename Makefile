@@ -17,6 +17,7 @@ TEST_OPERATION = $(BUILD_DIR)/test_operation
 R6_PROOF = $(BUILD_DIR)/rune_r6_proof
 R7_STUDY = $(BUILD_DIR)/rune_r7_study
 R7_CLOCK_REGRESSION = $(BUILD_DIR)/test_r7_clock
+R7_FLOAT_CLOCK_REGRESSION = $(BUILD_DIR)/test_r7_clock_float
 CORPUS = $(BUILD_DIR)/rune_corpus
 
 .PHONY: all test r6-proof r7-study-smoke r7-study r7-clock-regression r7-evidence-regression corpus-smoke clean
@@ -83,8 +84,12 @@ r7-study: $(R7_STUDY)
 $(R7_CLOCK_REGRESSION): tests/test_r7_clock.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) -fsanitize=undefined -fno-sanitize-recover=undefined tests/test_r7_clock.c $(LIB) -o $@
 
-r7-clock-regression: $(R7_CLOCK_REGRESSION)
+$(R7_FLOAT_CLOCK_REGRESSION): tests/test_r7_clock_float.c tests/r7_float_clock/time.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) -Itests/r7_float_clock $(INCLUDES) -fsanitize=undefined,float-cast-overflow -fno-sanitize-recover=undefined,float-cast-overflow tests/test_r7_clock_float.c $(LIB) -o $@
+
+r7-clock-regression: $(R7_CLOCK_REGRESSION) $(R7_FLOAT_CLOCK_REGRESSION)
 	./$(R7_CLOCK_REGRESSION)
+	./$(R7_FLOAT_CLOCK_REGRESSION)
 
 r7-evidence-regression:
 	@r7_cc='$(CC)'; \

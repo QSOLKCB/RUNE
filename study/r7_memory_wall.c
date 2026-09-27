@@ -154,6 +154,16 @@ static int r7_ticks_between(
         return 0;
     }
 
+    /*
+     * C99 permits clock_t to be an arithmetic type. R7 requires integral
+     * tick values: converting an out-of-range floating clock_t to intmax_t
+     * or uintmax_t is undefined, so reject floating representations before
+     * any integer conversion or delta arithmetic.
+     */
+    if ((clock_t)0.5 != (clock_t)0) {
+        return 0;
+    }
+
     if (end < start) {
         return 0;
     }

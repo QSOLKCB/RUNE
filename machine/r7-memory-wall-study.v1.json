@@ -14,7 +14,9 @@
     "unit": "clock ticks",
     "scale_field": "clock_ticks_per_second",
     "wall_clock_claim": false,
-    "unavailable_is_explicit_failure": true
+    "unavailable_is_explicit_failure": true,
+    "integral_clock_t_required": true,
+    "floating_clock_t_rejected_before_integer_conversion": true
   },
   "lifecycle": {
     "fields": [
@@ -403,7 +405,9 @@
     "replay_observations_redirection_is_recorded": true,
     "replay_observations_path_is_absolute": true,
     "replay_recreates_observations_file": true,
-    "replay_command_is_working_directory_independent": true
+    "replay_command_is_working_directory_independent": true,
+    "final_publish_uses_destination_specific_atomic_mkdir_lock": true,
+    "competing_same_destination_captures_must_not_nest_publish_stages": true
   },
   "interpretation": {
     "github_hosted_CI_timing_is_performance_evidence": false,
@@ -441,9 +445,12 @@
       "Make-variable expansion in CPPFLAGS/CFLAGS",
       "ambient dirname repository-root redirection",
       "default cc regression entrypoint",
-      "shared-memory publication fixture cleanup"
+      "shared-memory publication fixture cleanup",
+      "competing captures targeting the same absent destination"
     ],
-    "clock_regressions_run_under_UBSan": true
+    "clock_regressions_run_under_UBSan": true,
+    "floating_clock_t_regression_source": "tests/test_r7_clock_float.c",
+    "floating_clock_t_regression_uses_float_cast_overflow_sanitizer": true
   },
   "measurement_integrity": {
     "volatile_accesses_are_study_mechanics": true,
@@ -451,6 +458,7 @@
     "volatile_semantics_are_part_of_R7_harness_not_runtime_API": true,
     "clock_wrap_is_rejected_before_tick_subtraction": true,
     "clock_delta_representability_checked_before_subtraction": true,
-    "signed_clock_extreme_delta_UBSan_regression": true
+    "signed_clock_extreme_delta_UBSan_regression": true,
+    "floating_clock_t_rejected_before_integer_conversion": true
   }
 }

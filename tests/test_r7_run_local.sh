@@ -37,6 +37,7 @@ cleanup()
     rm -f "/tmp/r7-tar-hook-$test_id" "/tmp/r7-tar-hook-ran-$test_id"
     rm -f "/tmp/r7-ccc-header-$test_id.h"
     rm -f "/tmp/r7-concurrent-a-$test_id.log" "/tmp/r7-concurrent-b-$test_id.log"
+    rm -f "/tmp/r7-compete-a-$test_id.log" "/tmp/r7-compete-b-$test_id.log"
     rm -rf "$repo_root"/build/r7-source-* "$repo_root"/build/r7-evidence-* "$repo_root"/build/r7-bundle-stage-*
 }
 trap cleanup 0 1 2 3 15
@@ -148,6 +149,46 @@ run_concurrent_pair()
     fi
 }
 
+run_competing_destination_pair()
+{
+    label=$1
+    dest="$tmp_root/$label"
+    rm -rf "$dest"
+
+    RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+        scripts/r7-run-local.sh "$dest" > /tmp/r7-compete-a-$test_id.log 2>&1 &
+    pid_a=$!
+    RUNE_R7_REPEATS=1 CC="$system_cc" AR="$system_ar" \
+        scripts/r7-run-local.sh "$dest" > /tmp/r7-compete-b-$test_id.log 2>&1 &
+    pid_b=$!
+
+    if wait "$pid_a"; then status_a=0; else status_a=$?; fi
+    if wait "$pid_b"; then status_b=0; else status_b=$?; fi
+
+    success_count=0
+    if [ "$status_a" -eq 0 ]; then success_count=$((success_count + 1)); fi
+    if [ "$status_b" -eq 0 ]; then success_count=$((success_count + 1)); fi
+    if [ "$success_count" -ne 1 ]; then
+        cat /tmp/r7-compete-a-$test_id.log >&2
+        cat /tmp/r7-compete-b-$test_id.log >&2
+        fail "$label expected exactly one successful publisher; got statuses $status_a and $status_b"
+    fi
+
+    [ -s "$dest/observations.tsv" ] ||
+        fail "$label did not publish observations"
+    (
+        cd "$dest"
+        /usr/bin/sha256sum -c SHA256SUMS >/dev/null
+    )
+
+    if /usr/bin/find "$dest" -maxdepth 1 -type d -name '.r7-publish-*' -print -quit | /usr/bin/grep -q .; then
+        fail "$label nested a competing publish stage inside the immutable bundle"
+    fi
+    if /usr/bin/find "$tmp_root" -maxdepth 1 -type d -name '.r7-publish-lock-*' -print -quit | /usr/bin/grep -q .; then
+        fail "$label leaked a destination publication lock"
+    fi
+}
+
 # Concurrent captures must isolate all PID-qualified staging paths.
 mkdir -p build
 run_concurrent_pair concurrent-existing-build
@@ -155,6 +196,9 @@ run_concurrent_pair concurrent-existing-build
 # Shared build-parent creation must be race-safe from a clean absent build/.
 rm -rf build
 run_concurrent_pair concurrent-missing-build
+
+# Competing captures for one absent destination must serialize final publication.
+run_competing_destination_pair concurrent-same-destination
 
 # Canonical-path regression: lexical /usr/bin prefixes must not authorize /tmp.
 cat > /tmp/r7-reg-cc-$test_id <<EOF

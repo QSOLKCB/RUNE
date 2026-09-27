@@ -656,6 +656,24 @@ study_executable="$source_snapshot/$study_target"
 bundle_stage_rel="build/r7-bundle-stage-$capture_id"
 bundle_stage="$repo_root/$bundle_stage_rel"
 publish_stage="$out_parent_abs/.r7-publish-$capture_id"
+case "$hash_mode" in
+    sha256sum)
+        publish_lock_id=$(printf '%s' "$out_abs" | "$hash_path" | "$awk_path" '{ print $1 }')
+        ;;
+    shasum)
+        publish_lock_id=$(printf '%s' "$out_abs" | "$hash_path" -a 256 | "$awk_path" '{ print $1 }')
+        ;;
+    *)
+        fail "unsupported SHA-256 utility mode for publication lock: $hash_mode"
+        ;;
+esac
+case "$publish_lock_id" in
+    ''|*[!0-9A-Fa-f]*)
+        fail "could not derive destination-specific publication lock identity"
+        ;;
+esac
+publish_lock="$out_parent_abs/.r7-publish-lock-$publish_lock_id"
+publish_lock_held=false
 cleanup_capture_state()
 {
     if [ -n "${source_snapshot:-}" ] && [ -e "$source_snapshot" ]; then
@@ -667,6 +685,10 @@ cleanup_capture_state()
     fi
     if [ -n "${publish_stage:-}" ] && [ -e "$publish_stage" ]; then
         "$provenance_rm_path" -rf "$publish_stage" >/dev/null 2>&1 || :
+    fi
+    if [ "${publish_lock_held:-false}" = true ] &&
+       [ -n "${publish_lock:-}" ] && [ -d "$publish_lock" ]; then
+        "$provenance_rm_path" -rf "$publish_lock" >/dev/null 2>&1 || :
     fi
 }
 
@@ -722,7 +744,8 @@ observations_path="$bundle_stage/observations.tsv"
     printf 'find_resolved=%s\n' "$find_path"
     printf 'readlink_resolved=%s\n' "$readlink_path"
     printf 'bundle_stage=%s\n' "$bundle_stage"
-    printf '%s\n' "bundle_publish_mode=publish_after_success_via_trusted_mv"
+    printf '%s\n' "bundle_publish_mode=publish_after_success_via_destination_lock_and_trusted_mv"
+    printf '%s\n' "publish_lock_strategy=destination_specific_atomic_mkdir"
     printf 'date_resolved=%s\n' "$date_path"
     printf 'dirname_resolved=%s\n' "$dirname_path"
     printf 'basename_resolved=%s\n' "$basename_path"
@@ -910,6 +933,10 @@ esac
 
 validate_source_identity
 
+"$bundle_mkdir_path" "$publish_lock" ||
+    fail "could not acquire destination publication lock; another capture may be publishing: $out_dir"
+publish_lock_held=true
+
 if [ -e "$out_dir" ] || [ -L "$out_dir" ]; then
     fail "evidence destination appeared during capture; refusing publish: $out_dir"
 fi
@@ -945,6 +972,9 @@ fi
 
 "$mv_path" "$publish_stage" "$out_abs" ||
     fail "could not rename completed sibling staging bundle into place"
+"$provenance_rm_path" -rf "$publish_lock" ||
+    fail "published bundle but could not release destination publication lock"
+publish_lock_held=false
 trap - 0 1 2 3 15
 
 echo "R7 evidence bundle: $out_dir"
