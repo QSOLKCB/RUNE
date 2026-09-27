@@ -190,7 +190,11 @@
     "publish_requires_successful_measurement": true,
     "publish_requires_final_source_revalidation": true,
     "publish_requires_SHA256SUMS": true,
-    "publish_uses_trusted_mv": true,
+    "publish_copies_to_sibling_stage_on_destination_filesystem": true,
+    "publish_sibling_stage_SHA256_verified_before_final_rename": true,
+    "publish_final_rename_is_same_parent_filesystem": true,
+    "failed_publish_must_leave_requested_destination_absent": true,
+    "publish_copy_tool_resolved_from_fixed_provenance_PATH": true,
     "default_in_repo_evidence_destination_supported": true,
     "repeats_validated_before_destination_creation": true,
     "bundle_directory_created_with_fixed_provenance_mkdir": true,
@@ -204,6 +208,7 @@
     "compiler_command_must_be_single_executable": true,
     "compiler_path_resolution_required": true,
     "compiler_resolved_from_fixed_provenance_PATH": true,
+    "compiler_path_canonicalized_before_trusted_prefix_check": true,
     "external_compiler_wrappers_allowed": false,
     "compiler_version_capture_required": true,
     "compiler_identity_failure_is_capture_failure": true,
@@ -232,6 +237,7 @@
     "archiver_command_must_be_single_executable": true,
     "archiver_path_resolution_required": true,
     "archiver_resolved_from_fixed_provenance_PATH": true,
+    "archiver_path_canonicalized_before_trusted_prefix_check": true,
     "external_archiver_wrappers_allowed": false,
     "archiver_version_capture_required": true,
     "archiver_identity_failure_is_capture_failure": true,
@@ -245,6 +251,7 @@
       "build_driver"
     ],
     "build_driver_path_resolution_required": true,
+    "build_driver_path_canonicalized_before_trusted_prefix_check": true,
     "build_driver_identity_capture_required": true,
     "build_driver_identity_failure_is_capture_failure": true,
     "ambient_PATH_inherited_by_evidence_build": false,
@@ -274,6 +281,9 @@
       "study"
     ],
     "source_snapshot_bytes_verified_against_revision": true,
+    "TAR_OPTIONS_cleared_before_snapshot_extraction": true,
+    "snapshot_unexpected_entries_allowed": false,
+    "snapshot_symlinks_allowed": false,
     "source_snapshot_inputs_read_only_before_build": true,
     "source_snapshot_materialization_tools_resolved_from_fixed_provenance_PATH": [
       "git",
@@ -372,6 +382,8 @@
     "dynamic_loader_sanitation_recorded_in_environment": true,
     "dynamic_loader_sanitation_recorded_in_command": true,
     "dynamic_loader_sanitation_self_test": "scripts/r7-run-local.sh --self-test-dynamic-loader-env",
+    "replay_fail_fast_set_eu": true,
+    "replay_unsets_TAR_OPTIONS": true,
     "replay_recreates_source_snapshot_from_recorded_revision": true,
     "replay_build_uses_make_C_source_snapshot": true,
     "replay_build_makefile_argument": "Makefile",
@@ -398,12 +410,25 @@
       "clang"
     ],
     "CI_validates_harness_not_performance": true,
-    "CI_validates_4096_byte_profile_has_20_rows_and_all_eight_microtiles": true
+    "CI_validates_4096_byte_profile_has_20_rows_and_all_eight_microtiles": true,
+    "evidence_regression_script": "tests/test_r7_run_local.sh",
+    "evidence_regression_command": "make r7-evidence-regression",
+    "clock_regression_source": "tests/test_r7_clock.c",
+    "clock_regression_command": "make r7-clock-regression",
+    "evidence_regressions_cover": [
+      "canonical tool path traversal for CC/AR/Make",
+      "fail-fast command.txt replay",
+      "TAR_OPTIONS injection",
+      "destination-filesystem ENOSPC publication cleanup"
+    ],
+    "clock_regressions_run_under_UBSan": true
   },
   "measurement_integrity": {
     "volatile_accesses_are_study_mechanics": true,
     "purpose": "prevent-optimizer-from-collapsing-declared-materialization-tile-retain-recompute-variants",
     "volatile_semantics_are_part_of_R7_harness_not_runtime_API": true,
-    "clock_wrap_is_rejected_before_tick_subtraction": true
+    "clock_wrap_is_rejected_before_tick_subtraction": true,
+    "clock_delta_representability_checked_before_subtraction": true,
+    "signed_clock_extreme_delta_UBSan_regression": true
   }
 }
