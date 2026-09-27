@@ -87,7 +87,9 @@ r7-clock-regression: $(R7_CLOCK_REGRESSION)
 	./$(R7_CLOCK_REGRESSION)
 
 r7-evidence-regression:
-	CC="$(CC)" AR="$(AR)" sh tests/test_r7_run_local.sh
+	@r7_cc='$(CC)'; \
+	if [ "$r7_cc" = cc ]; then r7_cc=/usr/bin/cc; fi; \
+	CC="$r7_cc" AR="$(AR)" sh tests/test_r7_run_local.sh
 
 $(CORPUS): corpus/rune_corpus.c $(LIB) include/rune/arena.h include/rune/numeric.h include/rune/region.h include/rune/status.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(STRICT_CFLAGS) $(INCLUDES) corpus/rune_corpus.c $(LIB) -o $@
