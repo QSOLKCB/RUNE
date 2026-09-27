@@ -155,15 +155,17 @@ jobs:
           exit 0
           EOF
           chmod +x "$fakebin/rm"
-          PATH="$fakebin:$PATH" scripts/r7-run-local.sh --self-test-build-tools > build/r7-build-tools.txt
-          if grep -Fq "$fakebin/rm" build/r7-build-tools.txt; then
+          PATH="$fakebin:$PATH" scripts/r7-run-local.sh --self-test-build-tools > /tmp/r7-build-tools.txt
+          if grep -Fq "$fakebin/rm" /tmp/r7-build-tools.txt; then
             echo "R7 evidence script selected ambient fake rm" >&2
             exit 1
           fi
+          git reset --hard HEAD
+          git clean -fdx
           PATH="$fakebin:$PATH" CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
             scripts/r7-run-local.sh --self-test-fresh-build
           rm -rf "$fakebin"
-          rm build/r7-build-tools.txt
+          rm /tmp/r7-build-tools.txt
 
           grep -Fq 'BUILD_DIR="$build_dir"' scripts/r7-run-local.sh
           if grep -Fq ' clean build/rune_r7_study' scripts/r7-run-local.sh; then
