@@ -736,9 +736,6 @@ static int r7_measure_microtile(
     }
 
     count = working_set_bytes / (uint64_t)sizeof(uint32_t);
-    if (tile_size > count) {
-        return 0;
-    }
     rounds = r7_rounds_for_bytes(working_set_bytes);
     tile_bytes = tile_size * (uint64_t)sizeof(uint32_t);
 
@@ -1335,13 +1332,6 @@ static int r7_measure_size(
     reference = 0u;
     have_reference = 0;
     for (i = 0u; i < sizeof(tiles) / sizeof(tiles[0]); ++i) {
-        uint64_t count;
-
-        count = working_set_bytes / (uint64_t)sizeof(uint32_t);
-        if (tiles[i] > count) {
-            continue;
-        }
-
         if (!r7_measure_microtile(
                 tiles[i],
                 working_set_bytes,
