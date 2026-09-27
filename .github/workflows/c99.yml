@@ -194,7 +194,7 @@ jobs:
           fresh_b=$!
           wait "$fresh_a"
           wait "$fresh_b"
-          test -z "$(find build -maxdepth 1 -type d \( -name 'r7-evidence-*' -o -name 'r7-source-*' \) -print -quit)"
+          test -z "$(find build -maxdepth 1 -type d \( -name 'r7-evidence-*' -o -name 'r7-source-*' -o -name 'r7-bundle-stage-*' \) -print -quit)"
 
           rm -rf "$fakebin"
           rm /tmp/r7-build-tools.txt /tmp/r7-fresh-a.log /tmp/r7-fresh-b.log
@@ -349,6 +349,35 @@ jobs:
           fi
           rm -rf "$replay_bundle" "/tmp/r7-replay-stdout-${{ matrix.cc }}.txt"
           rm -rf "$GITHUB_WORKSPACE"/build/r7-evidence-*
+
+          lowmem_bundle="/tmp/r7-lowmem-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$lowmem_bundle"
+          if (
+            ulimit -v 120000
+            RUNE_R7_REPEATS=1 CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+              scripts/r7-run-local.sh "$lowmem_bundle" >/tmp/r7-lowmem-${{ matrix.cc }}.log 2>&1
+          ); then
+            echo "R7 low-memory capture unexpectedly succeeded" >&2
+            exit 1
+          fi
+          test ! -e "$lowmem_bundle"
+          test -z "$(find build -maxdepth 1 -type d \( -name 'r7-source-*' -o -name 'r7-bundle-stage-*' \) -print -quit)"
+          rm -f /tmp/r7-lowmem-${{ matrix.cc }}.log
+
+          default_bundle="evidence/r7/ci-default-${{ matrix.cc }}-$GITHUB_RUN_ID"
+          rm -rf "$default_bundle"
+          RUNE_R7_REPEATS=1 CC="/usr/bin/${{ matrix.cc }}" AR=/usr/bin/ar \
+            scripts/r7-run-local.sh "$default_bundle"
+          test -s "$default_bundle/observations.tsv"
+          test -s "$default_bundle/SHA256SUMS"
+          grep -Fxq 'bundle_publish_mode=atomic_rename_after_success' "$default_bundle/environment.txt"
+          (
+            cd "$default_bundle"
+            /usr/bin/sha256sum -c SHA256SUMS
+          )
+          test -z "$(find build -maxdepth 1 -type d \( -name 'r7-source-*' -o -name 'r7-bundle-stage-*' \) -print -quit)"
+          rm -rf "$default_bundle"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
           grep -Fq '"$make_path" -C "$source_snapshot" -f Makefile "$study_target"' scripts/r7-run-local.sh
           grep -Fq 'BUILD_DIR="$build_dir_rel"' scripts/r7-run-local.sh
