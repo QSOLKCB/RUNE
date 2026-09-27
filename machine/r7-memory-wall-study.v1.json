@@ -181,6 +181,8 @@
     "dirty_state_sampled_before_bundle_creation": true,
     "CPPFLAGS_recorded_and_bound": true,
     "CFLAGS_recorded_and_bound": true,
+    "CPPFLAGS_and_CFLAGS_recording_uses_printf_not_echo": true,
+    "CPPFLAGS_and_CFLAGS_backslashes_preserved_exactly": true,
     "compiler_command_must_be_single_executable": true,
     "compiler_path_resolution_required": true,
     "compiler_version_capture_required": true,
@@ -265,6 +267,10 @@
       "GIT_NAMESPACE"
     ],
     "git_provenance_commands_anchored_with_git_C_repo_root": true,
+    "git_provenance_PATH_fixed": "/usr/bin:/bin:/usr/sbin:/sbin",
+    "git_executable_resolved_from_fixed_provenance_PATH": true,
+    "git_executable_identity_recorded": true,
+    "RUNE_R7_BUILD_PATH_may_control_git_provenance": false,
     "git_routing_sanitation_self_test": "scripts/r7-run-local.sh --self-test-git-root",
     "git_no_replace_objects_required": true,
     "git_replacement_refs_allowed": false,
@@ -314,6 +320,9 @@
     "replay_build_uses_make_C_repo_root": true,
     "replay_build_makefile_argument": "Makefile",
     "replay_study_executable_path_is_absolute": true,
+    "replay_observations_redirection_is_recorded": true,
+    "replay_observations_path_is_absolute": true,
+    "replay_recreates_observations_file": true,
     "replay_command_is_working_directory_independent": true
   },
   "interpretation": {
