@@ -45,17 +45,20 @@ they can hide tracked modifications from ordinary status checks. Git routing
 overrides are cleared and all provenance reads are rooted at the repository.
 Git itself is resolved from a fixed provenance path
 (`/usr/bin:/bin:/usr/sbin:/sbin`) and its absolute path/version are recorded;
-the overridable build path cannot substitute the Git executable. Git
-replacement objects are disabled, active replacement refs are rejected, and
-tracked Makefile/source/include/study files are raw-hashed with filters disabled
-and must match their blobs at `source_revision`. That identity is checked
-before the build, immediately after the build, and again after measurement; the
-bundle directory is not created until the post-build check succeeds. Ignored untracked files under
+the evidence build path is fixed and cannot substitute the Git/toolchain
+executables. Git replacement objects are disabled, active replacement refs are
+rejected, and tracked Makefile/source/include/study files are raw-hashed with
+filters disabled and must match their blobs at `source_revision`. The actual
+evidence build does not compile those worktree files: it extracts
+`Makefile`, `src/`, `include/`, and `study/` from
+`git archive source_revision` into a per-capture snapshot, verifies the
+snapshot bytes, and marks the source inputs read-only before compiling. Ignored untracked files under
 `src/`, `include/`, or `study/` are also forbidden because they can
 satisfy compiler includes without appearing in ordinary status output.
 
-For evidence capture, CC and AR must each identify one executable; compound
-commands are rejected. Ambient compiler search variables (CPATH,
+For evidence capture, CC and AR must each identify one executable available
+from the fixed provenance path; arbitrary external compiler/archiver wrappers
+and compound commands are rejected. Ambient compiler search variables (CPATH,
 C_INCLUDE_PATH, CPLUS_INCLUDE_PATH, OBJC_INCLUDE_PATH, COMPILER_PATH,
 LIBRARY_PATH, GCC_EXEC_PREFIX) are cleared; intentional include paths belong in
 the recorded CPPFLAGS. Dynamic-loader injection/search variables
@@ -69,17 +72,18 @@ than ambient `PATH`. The getconf fallback requires both a nonzero numeric
 physical page count and page size.
 
 Inherited MAKEFLAGS/GNUMAKEFLAGS/MFLAGS/MAKEFILES/MAKEOVERRIDES are cleared for
-the evidence build. Ambient `PATH` is replaced by a recorded sanitized build
-path (default `/usr/bin:/bin:/usr/sbin:/sbin`), from which make/mkdir/rm are
-resolved. CPPFLAGS/CFLAGS metadata is emitted with `printf`, preserving
+the evidence build. Ambient `PATH` is replaced by the fixed recorded
+`/usr/bin:/bin:/usr/sbin:/sbin` path; Make, compiler, archiver and build
+utilities are resolved there. CPPFLAGS/CFLAGS metadata is emitted with `printf`, preserving
 backslashes exactly. Each
 capture builds into a fresh unique `BUILD_DIR` keyed by UTC timestamp plus
 the shell PID and never relies on `make clean`, so concurrent captures do not
 share objects/executables and a fake ambient `rm` cannot preserve and certify
 a stale study executable.
 
-The evidence build also uses the tracked repository Makefile explicitly via
-the resolved absolute make path with `-C <repo> -f Makefile`. The Make target
+The evidence build uses the Makefile extracted from the recorded Git revision
+and invokes the resolved absolute Make path with
+`-C <source-snapshot> -f Makefile`. The Make target
 and `BUILD_DIR` passed into Make are repository-relative so repository paths
 containing spaces remain parseable; the executable used by the shell remains
 absolute. The bundle records the build-driver identity and Makefile Git blob
