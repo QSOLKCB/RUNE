@@ -417,7 +417,9 @@ static int r7_measure_materialization(
     uint64_t i;
     uint64_t result;
     uint32_t *values;
-    volatile uint32_t *temporary;
+    uint32_t *temporary;
+    volatile const uint32_t *read_values;
+    volatile uint32_t *temporary_view;
     clock_t total_start;
     clock_t setup_end;
     clock_t execute_end;
@@ -440,6 +442,7 @@ static int r7_measure_materialization(
 
     values = (uint32_t *)r7_malloc(working_set_bytes);
     temporary = NULL;
+    temporary_view = NULL;
     if (values == NULL ||
         !r7_fill_values(values, count, R7_SEED)) {
         free(values);
@@ -447,7 +450,7 @@ static int r7_measure_materialization(
     }
 
     if (variant == R7_VARIANT_A) {
-        temporary = (volatile uint32_t *)r7_malloc(working_set_bytes);
+        temporary = (uint32_t *)r7_malloc(working_set_bytes);
         if (temporary == NULL) {
             free(values);
             return 0;
@@ -460,21 +463,20 @@ static int r7_measure_materialization(
         return 0;
     }
 
+    read_values = values;
+    temporary_view = temporary;
     result = 0u;
     if (variant == R7_VARIANT_A) {
         for (round = 0u; round < rounds; ++round) {
             for (i = 0u; i < count; ++i) {
-                temporary[(size_t)i] =
+                temporary_view[(size_t)i] =
                     r7_transform32(read_values[(size_t)i]);
             }
             for (i = 0u; i < count; ++i) {
-                result += (uint64_t)temporary[(size_t)i];
+                result += (uint64_t)temporary_view[(size_t)i];
             }
         }
     } else {
-        volatile const uint32_t *read_values;
-
-        read_values = values;
         for (round = 0u; round < rounds; ++round) {
             for (i = 0u; i < count; ++i) {
                 result += (uint64_t)r7_transform32(
