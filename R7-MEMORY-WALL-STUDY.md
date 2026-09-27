@@ -297,15 +297,17 @@ The script records:
 - both CPPFLAGS and CFLAGS, recorded with `printf` so backslashes and other
   shell-text content are preserved exactly, binding those values plus CC and AR
   into the build command;
-- explicit sanitation of ambient compiler search-path variables
+- explicit sanitation of ambient compiler search/override variables
   (`CPATH`, `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`,
   `OBJC_INCLUDE_PATH`, `COMPILER_PATH`, `LIBRARY_PATH`,
-  `GCC_EXEC_PREFIX`);
+  `GCC_EXEC_PREFIX`, and Clang's `CCC_OVERRIDE_OPTIONS`);
 - explicit sanitation of dynamic-loader injection/search variables including
   `LD_PRELOAD`, `LD_LIBRARY_PATH`, `LD_AUDIT`, the relevant
   `DYLD_*` variables, `LIBPATH`, and `SHLIB_PATH`;
 - mandatory successful, nonempty `uname -a` platform identity resolved from
-  the fixed provenance path and recorded by absolute executable path;
+  the fixed provenance path and recorded by absolute executable path; platform
+  identity and CPU-model values are serialized with `printf`, not `echo`, so
+  backslash escapes such as `\c` cannot corrupt adjacent metadata fields;
 - visible processor count when available;
 - CPU model when available;
 - a **required memory profile**, with Linux parsing performed by `awk`
@@ -343,9 +345,13 @@ including ENOSPC, is cleaned without reserving the immutable final path. This pe
 default `evidence/r7/local-...` destination without the capture treating its
 own output as an untracked source mutation.
 
-The evidence build does **not** depend on `make clean`. Each capture receives
-a unique source-snapshot directory and a fresh `BUILD_DIR`, both identified by
-UTC timestamp plus shell PID, so concurrent captures remain isolated. Source
+The evidence build does **not** depend on `make clean`. A single
+`capture_id = UTC timestamp + shell PID` names the source snapshot, fresh
+`BUILD_DIR`, repository bundle stage, and destination sibling publish stage,
+so concurrent captures cannot remove or overwrite one another's state. Shared
+creation of the repository `build/` parent uses idempotent `mkdir -p` plus a
+post-creation type/symlink check, allowing two captures to start concurrently
+even when `build/` does not yet exist. Source
 material is extracted from the recorded Git tree, verified, and made read-only.
 The build clears inherited `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`,
 `MAKEFILES`, and `MAKEOVERRIDES`, uses the fixed
@@ -400,8 +406,10 @@ evidence.
 Two named regression files now own the failure classes most likely to recur:
 
 - `tests/test_r7_run_local.sh` — canonical-path traversal for CC/AR/Make,
-  fail-fast replay, hostile `TAR_OPTIONS`, and destination-filesystem
-  publication failure/cleanup.
+  fail-fast replay, hostile `TAR_OPTIONS`, destination-filesystem publication
+  failure/cleanup, full concurrent captures with `build/` both present and
+  absent, backslash-safe environment serialization, and Clang
+  `CCC_OVERRIDE_OPTIONS` injection during capture/replay.
 - `tests/test_r7_clock.c` — direct `r7_ticks_between()` boundary tests,
   including the signed extreme interval under UBSan.
 
