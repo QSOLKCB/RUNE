@@ -196,10 +196,11 @@ cat > "$b_header" <<'EOF'
 #undef CLOCKS_PER_SEC
 #define CLOCKS_PER_SEC 434343
 EOF
+real_cc1_path=$("$system_cc" -print-prog-name=cc1)
+[ -n "$real_cc1_path" ] || fail "could not resolve compiler cc1 for -B regression"
 cat > "$b_prefix/cc1" <<EOF
 #!/bin/sh
-real_cc1=$("$system_cc" -print-prog-name=cc1)
-exec "$real_cc1" -include "$b_header" "$@"
+exec "$real_cc1_path" -include "$b_header" "\$@"
 EOF
 chmod +x "$b_prefix/cc1"
 expect_capture_failure gcc-b-split-cflags \
